@@ -1,0 +1,367 @@
+import 'package:flutter/material.dart';
+
+// ---------------------------
+// Home Screen
+// ---------------------------
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  // List to store tasks
+  List<Map<String, dynamic>> tasks = [];
+
+  // Controller to get input text
+  final TextEditingController taskController = TextEditingController();
+
+  // Calculates how much of today's tasks are completed
+  double getProgress() {
+  // If there are no tasks, progress is 0%
+  if (tasks.isEmpty) return 0;
+
+  // Count how many tasks are marked as completed
+  int completed = tasks.where((task) => task['completed'] == true).length;
+
+  // Return progress as a value between 0.0 and 1.0
+  return completed / tasks.length;
+}
+// Smoothly transitions color based on progress
+Color getProgressColor(double progress) {
+  if (progress <= 0.5) {
+    // From red → orange
+    return Color.lerp(Colors.redAccent, Colors.orangeAccent, progress * 2)!;
+  } else {
+    // From orange → green
+    return Color.lerp(
+      Colors.orangeAccent,
+      Colors.greenAccent,
+      (progress - 0.5) * 2,
+    )!;
+  }
+}
+
+String getMotivationMessage(double progress) {
+  if (tasks.isEmpty) {
+    return "Add your first task to start your day.";
+  }
+
+  if (progress == 0) {
+    return "Let’s get started 💪";
+  }
+
+  if (progress < 0.5) {
+    return "Good start — keep going!";
+  }
+
+  if (progress < 1) {
+    return "You’re on a roll 🔥";
+  }
+
+  return "Tasks complete for the day! 🎉";
+}
+
+  @override
+  void dispose() {
+    taskController.dispose();
+    super.dispose();
+  }
+
+  void showAddTaskPopup() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: Colors.black,
+          title: const Text(
+            'Add Task',
+            style: TextStyle(color: Colors.white),
+          ),
+          content: TextField(
+            controller: taskController,
+            style: const TextStyle(color: Colors.white),
+            decoration: const InputDecoration(
+              labelText: 'Task name',
+              labelStyle: TextStyle(color: Colors.white),
+              enabledBorder: OutlineInputBorder(
+                borderSide: BorderSide(color: Colors.white),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderSide: BorderSide(color: Colors.white),
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                taskController.clear();
+              },
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final newTask = taskController.text.trim();
+
+                if (newTask.isNotEmpty) {
+                  setState(() {
+                    tasks.add({
+                      'title': newTask,
+                      'completed': false,
+                    }); // SAVE TASK
+                  });
+                }
+
+                Navigator.pop(context);
+                taskController.clear();
+              },
+              child: const Text('Add'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final double progress = getProgress();
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        title: const Text('Traqon'),
+        backgroundColor: Colors.black,
+        foregroundColor: Colors.white,
+        automaticallyImplyLeading: false,
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Welcome to Traqon!',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 30,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Track. Focus. Achieve.',
+              style: TextStyle(
+                color: Colors.white70,
+                fontSize: 16,
+              ),
+            ),
+            const SizedBox(height: 32),
+
+            // Progress Section
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white10,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Today’s Progress',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  // BIG custom progress bar
+                  Container(
+                    height: 30, // 👈 adjust this (20–30 looks great)
+                    decoration: BoxDecoration(
+                      color: Colors.white12,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: FractionallySizedBox(
+                      alignment: Alignment.centerLeft,
+                      widthFactor: progress, // fills based on progress
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: getProgressColor(progress),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  Text(
+                    '${(progress * 100).toInt()}% complete',
+                    style: const TextStyle(color: Colors.white70),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 8),
+
+            Center(
+              child: Text(
+                getMotivationMessage(progress),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white10,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: Colors.white12),
+              ),
+              child: const Row(
+                children: [
+                  Text(
+                    '🔥',
+                    style: TextStyle(fontSize: 28),
+                  ),
+                  SizedBox(width: 12),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '3 Day Streak',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        'Keep showing up daily.',
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 24),
+
+            const Text(
+              "Today's Tasks",
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 22,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // TASK LIST
+            tasks.isEmpty
+                ? const Center(
+                    child: Text(
+                      'No tasks yet. Add your first task below.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white54,
+                        fontSize: 16,
+                        height: 1.4,
+                      ),
+                    ),
+                  )
+                : Expanded(
+                    child: ListView.builder(
+                      itemCount: tasks.length,
+                      itemBuilder: (context, index) {
+                        return Card(
+                          color: Colors.white10,
+                          child: ListTile(
+                            leading: Checkbox(
+                              value: tasks[index]['completed'],
+                              activeColor: Colors.white,
+                              checkColor: Colors.black,
+                              onChanged: (value) {
+                                setState(() {
+                                  tasks[index]['completed'] = value!;
+                                });
+                              },
+                            ),
+                            title: Text(
+                              tasks[index]['title'],
+                              style: TextStyle(
+                                color: Colors.white,
+                                decoration: tasks[index]['completed']
+                                    ? TextDecoration.lineThrough
+                                    : TextDecoration.none,
+                              ),
+                            ),
+                            trailing: IconButton(
+                              icon: const Icon(
+                                Icons.delete,
+                                color: Colors.redAccent,
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  tasks.removeAt(index);
+                                });
+                              },
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+
+            const SizedBox(height: 16),
+
+            // ADD TASK BUTTON
+            SizedBox(
+              width: double.infinity,
+              height: 55,
+              child: ElevatedButton.icon(
+                onPressed: showAddTaskPopup,
+                icon: const Icon(Icons.add),
+                label: const Text('Add Task'),
+              ),
+            ),
+            if (getProgress() == 1 && tasks.isNotEmpty)
+              const Padding(
+                padding: EdgeInsets.only(top: 16),
+                child: Center(
+                  child: Text(
+                    'Tasks complete for the day!',
+                    style: TextStyle(
+                      color: Colors.greenAccent,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
