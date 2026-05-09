@@ -3,9 +3,9 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:my_new_app/screens/main_navigation_screen.dart';
 
 import 'screens/Mfa_screen.dart';
-import 'screens/home_screen.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -18,16 +18,24 @@ Future<void> main() async {
   final bool hasSeenOnboarding =
       prefs.getBool('hasSeenOnboarding') ?? false;
 
+  final bool isLoggedIn = 
+       prefs.getBool('isLoggedIn') ?? false;
+
   runApp(
-    MyApp(hasSeenOnboarding: hasSeenOnboarding),
+    MyApp(
+      hasSeenOnboarding: hasSeenOnboarding,
+      isLoggedIn: isLoggedIn,
+    ),
   );
 }
 // Root widget of the app
 class MyApp extends StatelessWidget {
   final bool hasSeenOnboarding;
+  final bool isLoggedIn;
   const MyApp({
     super.key,
     required this.hasSeenOnboarding,
+    required this.isLoggedIn,
   });
 
   @override
@@ -65,8 +73,10 @@ class MyApp extends StatelessWidget {
         ),
       ),
 
-      home: hasSeenOnboarding
-          ? const HomeScreen()
+      home: isLoggedIn
+          ? const MainNavigationScreen()
+          : hasSeenOnboarding
+          ? const AuthChoiceScreen()
           : const WelcomeScreen(),
     );
   }

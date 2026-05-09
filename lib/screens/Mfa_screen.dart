@@ -2,9 +2,9 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
-//import 'package:my_new_app/screens/main_navigation_screen.dart';
 
-import 'tutorial_screen.dart';
+import 'main_navigation_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 
 // ---------------------------
@@ -73,7 +73,7 @@ class _MfaScreenState extends State<MfaScreen> {
     });
   }
 
-  void verifyCode() {
+  Future<void> verifyCode() async {
     final enteredCode = codeController.text.trim();
 
     if (codeExpired) {
@@ -84,9 +84,11 @@ class _MfaScreenState extends State<MfaScreen> {
     }
 
     if (enteredCode == generatedCode) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('isLoggedIn', true);
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
-          builder: (context) => const TutorialScreen(),
+          builder: (context) => const MainNavigationScreen(),
         ),
       );
     } else {

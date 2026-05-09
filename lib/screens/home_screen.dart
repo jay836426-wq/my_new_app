@@ -19,51 +19,55 @@ class _HomeScreenState extends State<HomeScreen> {
   // Controller to get input text
   final TextEditingController taskController = TextEditingController();
 
+  // streak counter
+  int streakCounter = 0;
+
   // Calculates how much of today's tasks are completed
   double getProgress() {
-  // If there are no tasks, progress is 0%
-  if (tasks.isEmpty) return 0;
+    // If there are no tasks, progress is 0%
+    if (tasks.isEmpty) return 0;
 
-  // Count how many tasks are marked as completed
-  int completed = tasks.where((task) => task['completed'] == true).length;
+    // Count how many tasks are marked as completed
+    int completed = tasks.where((task) => task['completed'] == true).length;
 
-  // Return progress as a value between 0.0 and 1.0
-  return completed / tasks.length;
-}
-// Smoothly transitions color based on progress
-Color getProgressColor(double progress) {
-  if (progress <= 0.5) {
-    // From red → orange
-    return Color.lerp(Colors.redAccent, Colors.orangeAccent, progress * 2)!;
-  } else {
-    // From orange → green
-    return Color.lerp(
-      Colors.orangeAccent,
-      Colors.greenAccent,
-      (progress - 0.5) * 2,
-    )!;
-  }
-}
-
-String getMotivationMessage(double progress) {
-  if (tasks.isEmpty) {
-    return "Add your first task to start your day.";
+    // Return progress as a value between 0.0 and 1.0
+    return completed / tasks.length;
   }
 
-  if (progress == 0) {
-    return "Let’s get started 💪";
+  // Smoothly transitions color based on progress
+  Color getProgressColor(double progress) {
+    if (progress <= 0.5) {
+      // From red → orange
+      return Color.lerp(Colors.redAccent, Colors.orangeAccent, progress * 2)!;
+    } else {
+      // From orange → green
+      return Color.lerp(
+        Colors.orangeAccent,
+        Colors.greenAccent,
+        (progress - 0.5) * 2,
+      )!;
+    }
   }
 
-  if (progress < 0.5) {
-    return "Good start — keep going!";
-  }
+  String getMotivationMessage(double progress) {
+    if (tasks.isEmpty) {
+      return "Add your first task to start your day.";
+    }
 
-  if (progress < 1) {
-    return "You’re on a roll 🔥";
-  }
+    if (progress == 0) {
+      return "Let’s get started 💪";
+    }
 
-  return "Tasks complete for the day! 🎉";
-}
+    if (progress < 0.5) {
+      return "Good start — keep going!";
+    }
+
+    if (progress < 1) {
+      return "You’re on a roll 🔥";
+    }
+
+    return "Tasks complete for the day! 🎉";
+  }
 
   @override
   void dispose() {
@@ -105,19 +109,13 @@ String getMotivationMessage(double progress) {
     loadTasks();
   }
 
-
-
-
   void showAddTaskPopup() {
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
           backgroundColor: Colors.black,
-          title: const Text(
-            'Add Task',
-            style: TextStyle(color: Colors.white),
-          ),
+          title: const Text('Add Task', style: TextStyle(color: Colors.white)),
           content: TextField(
             controller: taskController,
             style: const TextStyle(color: Colors.white),
@@ -192,10 +190,7 @@ String getMotivationMessage(double progress) {
             const SizedBox(height: 8),
             const Text(
               'Track. Focus. Achieve.',
-              style: TextStyle(
-                color: Colors.white70,
-                fontSize: 16,
-              ),
+              style: TextStyle(color: Colors.white70, fontSize: 16),
             ),
             const SizedBox(height: 32),
 
@@ -264,46 +259,40 @@ String getMotivationMessage(double progress) {
             ),
 
             const SizedBox(height: 16),
-
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white10,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: Colors.white12),
-              ),
-              child: const Row(
-                children: [
-                  Text(
-                    '🔥',
-                    style: TextStyle(fontSize: 28),
-                  ),
-                  SizedBox(width: 12),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '3 Day Streak',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
+            if (streakCounter > 0)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white10,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: Colors.white12),
+                ),
+                child: Row(
+                  children: [
+                    Text('🔥', style: TextStyle(fontSize: 28)),
+                    SizedBox(width: 12),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '$streakCounter Day Streak',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
-                      ),
-                      SizedBox(height: 4),
-                      Text(
-                        'Keep showing up daily.',
-                        style: TextStyle(
-                          color: Colors.white70,
-                          fontSize: 14,
+                        SizedBox(height: 4),
+                        Text(
+                          'Keep showing up daily.',
+                          style: TextStyle(color: Colors.white70, fontSize: 14),
                         ),
-                      ),
-                    ],
-                  ),
-                ],
+                      ],
+                    ),
+                  ],
+                ),
               ),
-            ),
 
             const SizedBox(height: 24),
 
