@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 // ---------------------------
 // Home Screen
@@ -69,6 +71,43 @@ String getMotivationMessage(double progress) {
     super.dispose();
   }
 
+  // Saves the task list to local phone storage
+  Future<void> saveTasks() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    // Convert tasks list into a JSON string
+    final String encodedTasks = jsonEncode(tasks);
+
+    await prefs.setString('tasks', encodedTasks);
+  }
+
+  // Loads saved tasks from local phone storage
+  Future<void> loadTasks() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    final String? savedTasks = prefs.getString('tasks');
+
+    if (savedTasks != null) {
+      final List decodedTasks = jsonDecode(savedTasks);
+
+      setState(() {
+        tasks = decodedTasks.map((task) {
+          return Map<String, dynamic>.from(task);
+        }).toList();
+      });
+    }
+  }
+
+  // Runs when HomeScreen first opens
+  @override
+  void initState() {
+    super.initState();
+    loadTasks();
+  }
+
+
+
+
   void showAddTaskPopup() {
     showDialog(
       context: context,
@@ -112,6 +151,7 @@ String getMotivationMessage(double progress) {
                       'completed': false,
                     }); // SAVE TASK
                   });
+                  saveTasks();
                 }
 
                 Navigator.pop(context);
@@ -305,6 +345,8 @@ String getMotivationMessage(double progress) {
                                 setState(() {
                                   tasks[index]['completed'] = value!;
                                 });
+
+                                saveTasks();
                               },
                             ),
                             title: Text(
@@ -325,6 +367,7 @@ String getMotivationMessage(double progress) {
                                 setState(() {
                                   tasks.removeAt(index);
                                 });
+                                saveTasks();
                               },
                             ),
                           ),
