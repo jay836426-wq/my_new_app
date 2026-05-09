@@ -5,15 +5,30 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 
 import 'screens/Mfa_screen.dart';
+import 'screens/home_screen.dart';
+
+import 'package:shared_preferences/shared_preferences.dart';
 
 // Entry point of the app
-void main() {
-  runApp(const MyApp());
-}
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
 
+  final prefs = await SharedPreferences.getInstance();
+
+  final bool hasSeenOnboarding =
+      prefs.getBool('hasSeenOnboarding') ?? false;
+
+  runApp(
+    MyApp(hasSeenOnboarding: hasSeenOnboarding),
+  );
+}
 // Root widget of the app
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final bool hasSeenOnboarding;
+  const MyApp({
+    super.key,
+    required this.hasSeenOnboarding,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -50,7 +65,9 @@ class MyApp extends StatelessWidget {
         ),
       ),
 
-      home: const WelcomeScreen(),
+      home: hasSeenOnboarding
+          ? const HomeScreen()
+          : const WelcomeScreen(),
     );
   }
 }

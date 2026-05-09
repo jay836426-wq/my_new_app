@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import 'main_navigation_screen.dart';
 
+import  'package:shared_preferences/shared_preferences.dart';
+
 class TutorialScreen extends StatefulWidget {
   const TutorialScreen({super.key});
 
@@ -31,7 +33,9 @@ class _TutorialScreenState extends State<TutorialScreen> {
     },
   ];
 
-  void finishTutorial() {
+  Future<void> finishTutorial() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('hasSeenOnBoarding', true);
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
