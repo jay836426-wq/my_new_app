@@ -13,7 +13,8 @@ class CalendarScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
 
           children: [
-
+            
+            // Calendar header with month Navigation
             Padding(
               padding: const EdgeInsets.symmetric(
                 horizontal: 20,
@@ -61,6 +62,27 @@ class CalendarScreen extends StatelessWidget {
                 ],
               ),
             ),
+
+            // Calendar grid showing all days of the month
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                // Weekday labels
+                children: const [
+                  Text('Sun', style: TextStyle(color: Colors.white70)),
+                  Text('Mon', style: TextStyle(color: Colors.white70)),
+                  Text('Tue', style: TextStyle(color: Colors.white70)),
+                  Text('Wed', style: TextStyle(color: Colors.white70)),
+                  Text('Thu', style: TextStyle(color: Colors.white70)),
+                  Text('Fri', style: TextStyle(color: Colors.white70)),
+                  Text('Sat', style: TextStyle(color: Colors.white70)),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // Calendar day grid
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
 
@@ -92,6 +114,8 @@ class CalendarScreen extends StatelessWidget {
                 }),
               ),
             ),
+
+            // Daily Productivity summary card
             Padding(
               padding: const EdgeInsets.all(20),
 
