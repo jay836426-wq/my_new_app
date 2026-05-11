@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:my_new_app/screens/calendar_screen.dart';
 
 import 'home_screen.dart';
+
+import 'calendar_screen.dart';
 
 // ---------------------------
 // Main Navigation Screen
@@ -17,7 +20,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
   final List<Widget> screens = const [
     HomeScreen(),
-    CalendarPlaceholderScreen(),
+    CalendarScreen(),
     FriendsPlaceholderScreen(),
     SettingsPlaceholderScreen(),
   ];
