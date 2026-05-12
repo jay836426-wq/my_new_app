@@ -18,7 +18,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
       backgroundColor: Colors.black,
 
       body: SafeArea(
-        child: Column(
+        child: SingleChildScrollView(
+          child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
 
           children: [
@@ -116,9 +117,25 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
                     decoration: BoxDecoration(
                       color: isToday
-                      ? Colors.greenAccent
+                      ? Colors.greenAccent.withOpacity(0.85)
                       : Colors.white10,
                       borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: isToday
+                            ? Colors.greenAccent
+                            : Colors.transparent,
+                        width: 2,
+                      ),
+                      boxShadow: isToday
+                          ? [
+                              BoxShadow(
+                                color: Colors.greenAccent.withOpacity(0.35),
+                                blurRadius: 10,
+                                spreadRadius: 1,
+                              
+                              ),
+                            ]
+                          : [],
                     ),
 
                     child: Center(
@@ -197,6 +214,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
           ],
         ),
       ),
+    )
     );
   }
 }
