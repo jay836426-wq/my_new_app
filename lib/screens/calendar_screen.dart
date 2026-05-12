@@ -1,7 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
-class CalendarScreen extends StatelessWidget {
+class CalendarScreen extends StatefulWidget {
   const CalendarScreen({super.key});
+
+  @override
+  State<CalendarScreen> createState() =>_CalendarScreenState();
+}
+
+class _CalendarScreenState extends State<CalendarScreen> {
+
+  int selectedDay = 11;
 
   @override
   Widget build(BuildContext context) {
@@ -92,24 +101,39 @@ class CalendarScreen extends StatelessWidget {
                 physics: const NeverScrollableScrollPhysics(),
 
                 children: List.generate(31, (index) {
-                  return Container(
+                  final int dayNumber = index + 1;
+                  final bool isToday = dayNumber == selectedDay;
+
+                  return GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        selectedDay = dayNumber;
+                      });
+                    },
+
+                    child: Container(
                     margin: const EdgeInsets.all(4),
 
                     decoration: BoxDecoration(
-                      color: Colors.white10,
+                      color: isToday
+                      ? Colors.greenAccent
+                      : Colors.white10,
                       borderRadius: BorderRadius.circular(12),
                     ),
 
                     child: Center(
                       child: Text(
-                        '${index + 1}',
+                        '$dayNumber',
 
-                        style: const TextStyle(
-                          color: Colors.white,
+                        style: TextStyle(
+                          color: isToday
+                          ? Colors.black
+                          : Colors.white,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
+                  )
                   );
                 }),
               ),
@@ -134,8 +158,8 @@ class CalendarScreen extends StatelessWidget {
 
                   children: [
 
-                    const Text(
-                      'May 10',
+                    Text(
+                      'May $selectedDay',
 
                       style: TextStyle(
                         color: Colors.white,
@@ -146,8 +170,8 @@ class CalendarScreen extends StatelessWidget {
 
                     const SizedBox(height: 12),
 
-                    const Text(
-                      'Tasks Completed: 3/5',
+                    Text(
+                      'Tasks Completed: ${selectedDay % 5}/5',
 
                       style: TextStyle(
                         color: Colors.white70,
