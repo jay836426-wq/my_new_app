@@ -159,6 +159,21 @@ class _CalendarScreenState extends State<CalendarScreen> {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
+
+                      if (selectedDay == 11)
+                        const Padding(
+                          padding: EdgeInsets.only(top: 6),
+                          child: Text(
+                            'TODAY',
+                            style: TextStyle(
+                              color: Colors.greenAccent,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1.2,
+                            ),
+                          ),
+                        ),
+
                       const SizedBox(height: 12),
                       Text(
                         'Tasks Completed: ${selectedDay % 5}/5',
@@ -174,6 +189,43 @@ class _CalendarScreenState extends State<CalendarScreen> {
                           color: Colors.greenAccent,
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
+                        ),
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      const Text(
+                        'Tasks',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+
+                      const SizedBox(height: 10),
+
+                      Text(
+                        '• Gym',
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontSize: 15,
+                        ),
+                      ),
+
+                      Text(
+                        '• Study Security+',
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontSize: 15,
+                        ),
+                      ),
+
+                      Text(
+                        '• Work on Traqon',
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontSize: 15,
                         ),
                       ),
                     ],
