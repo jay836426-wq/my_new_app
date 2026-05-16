@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:my_new_app/screens/calendar_screen.dart';
 
 import 'home_screen.dart';
-
 import 'calendar_screen.dart';
+import 'settings_screen.dart';
+import 'friends_screen.dart';
 
 // ---------------------------
 // Main Navigation Screen
@@ -21,8 +22,8 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   final List<Widget> screens = const [
     HomeScreen(),
     CalendarScreen(),
-    FriendsPlaceholderScreen(),
-    SettingsPlaceholderScreen(),
+    FriendsScreen(),
+    SettingsScreen(),
   ];
 
   void onTabTapped(int index) {
@@ -59,73 +60,6 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
             icon: Icon(Icons.settings),
             label: 'Settings',
           ),
-        ],
-      ),
-    );
-  }
-}
-
-// Temporary placeholder screens
-class CalendarPlaceholderScreen extends StatelessWidget {
-  const CalendarPlaceholderScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const Center(
-      child: Text(
-        'Calendar coming soon',
-        style: TextStyle(color: Colors.white, fontSize: 24),
-      ),
-    );
-  }
-}
-
-class FriendsPlaceholderScreen extends StatelessWidget {
-  const FriendsPlaceholderScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const Center(
-      child: Text(
-        'Friends coming soon',
-        style: TextStyle(color: Colors.white, fontSize: 24),
-      ),
-    );
-  }
-}
-
-class SettingsPlaceholderScreen extends StatelessWidget {
-  const SettingsPlaceholderScreen({super.key});
-
-  Widget buildItem(String title, IconData icon) {
-    return ListTile(
-      leading: Icon(icon, color: Colors.white),
-      title: Text(
-        title,
-        style: const TextStyle(color: Colors.white),
-      ),
-      trailing: const Icon(Icons.arrow_forward_ios, color: Colors.white54, size: 16),
-      onTap: () {},
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        title: const Text('Settings'),
-        backgroundColor: Colors.black,
-        foregroundColor: Colors.white,
-      ),
-      body: ListView(
-        children: [
-          buildItem('About Us', Icons.info_outline),
-          buildItem('Theme', Icons.palette_outlined),
-          buildItem('Usage Tips', Icons.lightbulb_outline),
-          buildItem('FAQs', Icons.help_outline),
-          buildItem('Share App', Icons.share_outlined),
-          buildItem('Review & Support', Icons.star_outline),
         ],
       ),
     );
