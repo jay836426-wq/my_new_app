@@ -81,6 +81,28 @@ class FriendsScreen extends StatelessWidget {
           ),
           SizedBox(height:30),
 
+          ListTile(
+            title: Text('Jordan'),
+          ),
+
+          SizedBox(height: 30),
+
+          Text(
+            'Recent Activity',
+          ),
+
+          ListTile(
+            title: Text('Alex completed all daily tasks',
+            style: TextStyle(color: Colors.white),
+          )),
+
+          ListTile(
+            title: Text('Maya reached a 7 day streak',
+            style: TextStyle(color: Colors.white),
+          )),
+
+          SizedBox(height: 30),
+
           ElevatedButton.icon(
             onPressed: () {},
             icon: Icon(Icons.person_add),

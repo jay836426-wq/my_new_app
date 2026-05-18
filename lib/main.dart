@@ -6,6 +6,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:my_new_app/screens/main_navigation_screen.dart';
 
 import 'screens/Mfa_screen.dart';
+import 'screens/tutorial_screen.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -14,6 +15,8 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   final prefs = await SharedPreferences.getInstance();
+
+  await prefs.setBool('hasSeenOnboarding', false);
 
   final bool hasSeenOnboarding =
       prefs.getBool('hasSeenOnboarding') ?? false;
@@ -73,11 +76,7 @@ class MyApp extends StatelessWidget {
         ),
       ),
 
-      home: isLoggedIn
-          ? const MainNavigationScreen()
-          : hasSeenOnboarding
-          ? const AuthChoiceScreen()
-          : const WelcomeScreen(),
+        home: const WelcomeScreen(),
     );
   }
 }
@@ -399,7 +398,8 @@ void submitForm() {
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
         builder: (context) => MfaScreen(
-          contactInfo: emailController.text.trim(),
+          contactInfo: emailController.text,
+          isNewUser: true,
         ),
       ),
     );

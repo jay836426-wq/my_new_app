@@ -42,9 +42,43 @@ class SettingsScreen extends StatelessWidget {
           ),
 
           ListTile(
+            leading: Icon(Icons.lock_outline, color: Colors.white),
+            title: Text(
+              'Privacy',
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+
+          ListTile(
+            leading: Icon(Icons.notifications_outlined, color: Colors.white),
+            title: Text(
+              'Notifications',
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+
+          ListTile(
+            leading: Icon(Icons.description_outlined, color: Colors.white),
+            title: Text(
+              'Terms & Conditions',
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+
+          SizedBox(height: 20),
+          
+          ListTile(
             leading: Icon(Icons.logout, color: Colors.redAccent),
             title: Text(
               'Sign Out',
+              style: TextStyle(color: Colors.redAccent),
+            ),
+          ),
+
+          ListTile(
+            leading: Icon(Icons.delete_outline, color: Colors.redAccent),
+            title: Text(
+              'Delete Account',
               style: TextStyle(color: Colors.redAccent),
             ),
           ),

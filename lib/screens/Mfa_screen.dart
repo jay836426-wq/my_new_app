@@ -5,17 +5,20 @@ import 'package:flutter/material.dart';
 
 import 'main_navigation_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'tutorial_screen.dart';
 
 
 // ---------------------------
 // MFA Screen
 // ---------------------------
 class MfaScreen extends StatefulWidget {
+  final bool isNewUser;
   final String contactInfo;
 
   const MfaScreen({
     super.key,
     required this.contactInfo,
+    required this.isNewUser,
   });
 
   @override
@@ -88,7 +91,9 @@ class _MfaScreenState extends State<MfaScreen> {
       await prefs.setBool('isLoggedIn', true);
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
-          builder: (context) => const MainNavigationScreen(),
+          builder: (context) => widget.isNewUser
+          ? const TutorialScreen()
+          : const MainNavigationScreen(),
         ),
       );
     } else {

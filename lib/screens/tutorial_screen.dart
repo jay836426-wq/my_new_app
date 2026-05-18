@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:my_new_app/screens/main_navigation_screen.dart';
 
-import 'main_navigation_screen.dart';
+//import 'main_navigation_screen.dart';
+
+// import 'mfa_screen.dart';
 
 import  'package:shared_preferences/shared_preferences.dart';
+
+import 'package:my_new_app/main.dart';
 
 class TutorialScreen extends StatefulWidget {
   const TutorialScreen({super.key});
@@ -35,9 +40,11 @@ class _TutorialScreenState extends State<TutorialScreen> {
 
   Future<void> finishTutorial() async {
     final prefs = await SharedPreferences.getInstance();
+
     await prefs.setBool('hasSeenOnBoarding', true);
-    Navigator.pushReplacement(
-      context,
+    await prefs.setBool('isLoggedIn', true);
+
+    Navigator.of(context).pushReplacement(
       MaterialPageRoute(
         builder: (context) => const MainNavigationScreen(),
       ),
