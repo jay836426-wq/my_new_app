@@ -163,6 +163,40 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Widget taskTile({
+    required String title,
+    required bool completed,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.white10,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: ListTile(
+        leading: Icon(
+          completed
+              ? Icons.check_circle
+              : Icons.radio_button_unchecked,
+          color:
+              completed
+                  ? Colors.greenAccent
+                  : Colors.white54,
+        ),
+        title: Text(
+          title,
+          style: TextStyle(
+            color: Colors.white,
+            decoration:
+                completed
+                    ? TextDecoration.lineThrough
+                    : null,
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final double progress = getProgress();
@@ -193,6 +227,46 @@ class _HomeScreenState extends State<HomeScreen> {
               style: TextStyle(color: Colors.white70, fontSize: 16),
             ),
             const SizedBox(height: 32),
+
+            const SizedBox(height: 30),
+
+            const Text(
+              'Today\'s Tasks',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            taskTile(
+              title: 'Morning Workout',
+              completed: true,
+            ),
+
+            taskTile(
+              title: 'Study Flutter',
+              completed: false,
+            ),
+
+            taskTile(
+              title: 'Read 10 Pages',
+              completed: false,
+            ),
+
+            const SizedBox(height: 20),
+
+            SizedBox(
+              width: double.infinity,
+              height: 55,
+              child: ElevatedButton.icon(
+                onPressed: () {},
+                icon: const Icon(Icons.add),
+                label: const Text('Add Task'),
+              ),
+            ),
 
             // Progress Section
             Container(
@@ -268,6 +342,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   borderRadius: BorderRadius.circular(18),
                   border: Border.all(color: Colors.white12),
                 ),
+            
                 child: Row(
                   children: [
                     Text('🔥', style: TextStyle(fontSize: 28)),
@@ -378,7 +453,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             if (getProgress() == 1 && tasks.isNotEmpty)
-              const Padding(
+              Padding(
                 padding: EdgeInsets.only(top: 16),
                 child: Center(
                   child: Text(
