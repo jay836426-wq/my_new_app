@@ -110,26 +110,31 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void showAddTaskPopup() {
+
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
           backgroundColor: Colors.black,
           title: const Text('Add Task', style: TextStyle(color: Colors.white)),
-          content: TextField(
-            controller: taskController,
-            style: const TextStyle(color: Colors.white),
-            decoration: const InputDecoration(
-              labelText: 'Task name',
-              labelStyle: TextStyle(color: Colors.white),
-              enabledBorder: OutlineInputBorder(
-                borderSide: BorderSide(color: Colors.white),
+          content: SizedBox(
+            width: 300,
+            child: TextField(
+              controller: taskController,
+              style: const TextStyle(color: Colors.white),
+              decoration: const InputDecoration(
+                labelText: 'Task name',
+                labelStyle: TextStyle(color: Colors.white),
+                enabledBorder: OutlineInputBorder(
+                  borderSide: BorderSide(color: Colors.white),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderSide: BorderSide(color: Colors.white),
+                ),
               ),
-              focusedBorder: OutlineInputBorder(
-                borderSide: BorderSide(color: Colors.white),
               ),
             ),
-          ),
+
           actions: [
             TextButton(
               onPressed: () {
@@ -208,267 +213,213 @@ class _HomeScreenState extends State<HomeScreen> {
         foregroundColor: Colors.white,
         automaticallyImplyLeading: false,
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Welcome to Traqon!',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 30,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Track. Focus. Achieve.',
-              style: TextStyle(color: Colors.white70, fontSize: 16),
-            ),
-            const SizedBox(height: 32),
-
-            const SizedBox(height: 30),
-
-            const Text(
-              'Today\'s Tasks',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-
-            const SizedBox(height: 20),
-
-            taskTile(
-              title: 'Morning Workout',
-              completed: true,
-            ),
-
-            taskTile(
-              title: 'Study Flutter',
-              completed: false,
-            ),
-
-            taskTile(
-              title: 'Read 10 Pages',
-              completed: false,
-            ),
-
-            const SizedBox(height: 20),
-
-            SizedBox(
-              width: double.infinity,
-              height: 55,
-              child: ElevatedButton.icon(
-                onPressed: () {},
-                icon: const Icon(Icons.add),
-                label: const Text('Add Task'),
-              ),
-            ),
-
-            // Progress Section
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white10,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Today’s Progress',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  // BIG custom progress bar
-                  Container(
-                    height: 30, // 👈 adjust this (20–30 looks great)
-                    decoration: BoxDecoration(
-                      color: Colors.white12,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: FractionallySizedBox(
-                      alignment: Alignment.centerLeft,
-                      widthFactor: progress, // fills based on progress
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: getProgressColor(progress),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 8),
-
-                  Text(
-                    '${(progress * 100).toInt()}% complete',
-                    style: const TextStyle(color: Colors.white70),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 8),
-
-            Center(
-              child: Text(
-                getMotivationMessage(progress),
-                style: const TextStyle(
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Welcome to Traqon!',
+                style: TextStyle(
                   color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
+                  fontSize: 30,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
-            ),
+              const SizedBox(height: 8),
+              const Text(
+                'Track. Focus. Achieve.',
+                style: TextStyle(color: Colors.white70, fontSize: 16),
+              ),
+              const SizedBox(height: 32),
 
-            const SizedBox(height: 16),
-            if (streakCounter > 0)
+              const SizedBox(height: 30),
+
+              // Progress Section
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: Colors.white10,
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: Colors.white12),
+                  borderRadius: BorderRadius.circular(20),
                 ),
-            
-                child: Row(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('🔥', style: TextStyle(fontSize: 28)),
-                    SizedBox(width: 12),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '$streakCounter Day Streak',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
+                    const Text(
+                      'Today’s Progress',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    // BIG custom progress bar
+                    Container(
+                      height: 30, // 👈 adjust this (20–30 looks great)
+                      decoration: BoxDecoration(
+                        color: Colors.white12,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: FractionallySizedBox(
+                        alignment: Alignment.centerLeft,
+                        widthFactor: progress, // fills based on progress
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: getProgressColor(progress),
+                            borderRadius: BorderRadius.circular(20),
                           ),
                         ),
-                        SizedBox(height: 4),
-                        Text(
-                          'Keep showing up daily.',
-                          style: TextStyle(color: Colors.white70, fontSize: 14),
-                        ),
-                      ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 8),
+
+                    Text(
+                      '${(progress * 100).toInt()}% complete',
+                      style: const TextStyle(color: Colors.white70),
                     ),
                   ],
                 ),
               ),
 
-            const SizedBox(height: 24),
-
-            const Text(
-              "Today's Tasks",
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 22,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // TASK LIST
-            tasks.isEmpty
-                ? const Center(
-                    child: Text(
-                      'No tasks yet. Add your first task below.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Colors.white54,
-                        fontSize: 16,
-                        height: 1.4,
-                      ),
-                    ),
-                  )
-                : Expanded(
-                    child: ListView.builder(
-                      itemCount: tasks.length,
-                      itemBuilder: (context, index) {
-                        return Card(
-                          color: Colors.white10,
-                          child: ListTile(
-                            leading: Checkbox(
-                              value: tasks[index]['completed'],
-                              activeColor: Colors.white,
-                              checkColor: Colors.black,
-                              onChanged: (value) {
-                                setState(() {
-                                  tasks[index]['completed'] = value!;
-                                });
-
-                                saveTasks();
-                              },
-                            ),
-                            title: Text(
-                              tasks[index]['title'],
-                              style: TextStyle(
-                                color: Colors.white,
-                                decoration: tasks[index]['completed']
-                                    ? TextDecoration.lineThrough
-                                    : TextDecoration.none,
-                              ),
-                            ),
-                            trailing: IconButton(
-                              icon: const Icon(
-                                Icons.delete,
-                                color: Colors.redAccent,
-                              ),
-                              onPressed: () {
-                                setState(() {
-                                  tasks.removeAt(index);
-                                });
-                                saveTasks();
-                              },
+              const SizedBox(height: 16),
+              if (streakCounter > 0)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white10,
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: Colors.white12),
+                  ),
+              
+                  child: Row(
+                    children: [
+                      Text('🔥', style: TextStyle(fontSize: 28)),
+                      SizedBox(width: 12),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '$streakCounter Day Streak',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
-                        );
-                      },
-                    ),
+                          SizedBox(height: 4),
+                          Text(
+                            'Keep showing up daily.',
+                            style: TextStyle(color: Colors.white70, fontSize: 14),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
+                ),
 
-            const SizedBox(height: 16),
+              // TASK LIST
+              tasks.isEmpty
+                  ? const Center(
+                      child: Text(
+                        'No tasks yet. Add your first task below.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Colors.white54,
+                          fontSize: 16,
+                          height: 1.4,
+                        ),
+                      ),
+                    )
+                  : ListView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                        itemCount: tasks.length,
+                        itemBuilder: (context, index) {
+                          return Card(
+                            color: Colors.white10,
+                            child: ListTile(
+                              leading: Checkbox(
+                                value: tasks[index]['completed'],
+                                activeColor: Colors.white,
+                                checkColor: Colors.black,
+                                onChanged: (value) {
+                                  setState(() {
+                                    tasks[index]['completed'] = value!;
+                                  });
 
-            // ADD TASK BUTTON
-            SizedBox(
-              width: double.infinity,
-              height: 55,
-              child: ElevatedButton.icon(
-                onPressed: showAddTaskPopup,
-                icon: const Icon(Icons.add),
-                label: const Text('Add Task'),
-              ),
-            ),
-            if (getProgress() == 1 && tasks.isNotEmpty)
-              Padding(
-                padding: EdgeInsets.only(top: 16),
-                child: Center(
-                  child: Text(
-                    'Tasks complete for the day!',
-                    style: TextStyle(
-                      color: Colors.greenAccent,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
+                                  saveTasks();
+                                },
+                              ),
+                              title: Text(
+                                tasks[index]['title'],
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  decoration: tasks[index]['completed']
+                                      ? TextDecoration.lineThrough
+                                      : TextDecoration.none,
+                                ),
+                              ),
+                              trailing: IconButton(
+                                icon: const Icon(
+                                  Icons.delete,
+                                  color: Colors.redAccent,
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    tasks.removeAt(index);
+                                  });
+                                  saveTasks();
+                                },
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+
+              const SizedBox(height: 16),
+
+              // ADD TASK BUTTON
+              SizedBox(
+                width: double.infinity,
+                height: 55,
+                child: ElevatedButton.icon(
+                  onPressed: showAddTaskPopup,
+                  icon: const Icon(Icons.add),
+                  label: const Text('Add Task'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.greenAccent,
+                    foregroundColor: Colors.black,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
                     ),
                   ),
                 ),
               ),
-          ],
+              if (getProgress() == 1 && tasks.isNotEmpty)
+                Padding(
+                  padding: EdgeInsets.only(top: 16),
+                  child: Center(
+                    child: Text(
+                      'Tasks complete for the day!',
+                      style: TextStyle(
+                        color: Colors.greenAccent,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
-    );
+      );
   }
 }
