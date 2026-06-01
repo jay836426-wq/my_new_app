@@ -19,7 +19,19 @@ class _HomeScreenState extends State<HomeScreen> {
   // Controller to get input text
   final TextEditingController taskController = TextEditingController();
 
-  // streak counter
+  // Store the category selected in the dropdown
+  String selectedCategory = '🏠 Personal';
+
+  // List of available task categories
+  final List<String> categories = [
+    '🏋️ Gym',
+    '📚 Study',
+    '💼 Work',
+    '🏠 Personal',
+    '✨ Other',
+  ];
+
+  // Tracks the user's current streak
   int streakCounter = 0;
 
   // Calculates how much of today's tasks are completed
@@ -32,6 +44,19 @@ class _HomeScreenState extends State<HomeScreen> {
 
     // Return progress as a value between 0.0 and 1.0
     return completed / tasks.length;
+  }
+
+  // Calculates the user's current streak
+  int getCurrentStreak() {
+
+    // If there are no tasks, streak is 0
+    if (tasks.isEmpty) return 0;
+
+    // Check if every task is completed
+    final bool allTasksComplete = tasks.every((task) => task['completed'] == true);
+
+    // Return 1 if all tasks are complete, otherwise 0
+    return allTasksComplete ? 1 : 0;
   }
 
   // Smoothly transitions color based on progress
@@ -111,6 +136,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void showAddTaskPopup() {
 
+    
     showDialog(
       context: context,
       builder: (context) {
@@ -119,21 +145,42 @@ class _HomeScreenState extends State<HomeScreen> {
           title: const Text('Add Task', style: TextStyle(color: Colors.white)),
           content: SizedBox(
             width: 300,
-            child: TextField(
-              controller: taskController,
-              style: const TextStyle(color: Colors.white),
-              decoration: const InputDecoration(
-                labelText: 'Task name',
-                labelStyle: TextStyle(color: Colors.white),
-                enabledBorder: OutlineInputBorder(
-                  borderSide: BorderSide(color: Colors.white),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderSide: BorderSide(color: Colors.white),
-                ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                  TextField(
+                    controller: taskController,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: const InputDecoration(
+                      labelText: 'Task name',
+                      labelStyle: TextStyle(color: Colors.white),
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  DropdownButton<String>(
+                    value: selectedCategory,
+                    dropdownColor: Colors.black,
+                    isExpanded: true,
+                    style: const TextStyle(color: Colors.white),
+
+                    items: categories.map((category) {
+                      return DropdownMenuItem(
+                        value: category,
+                        child: Text(category),
+                      );
+                    }).toList(),
+
+                    onChanged: (value) {
+                      setState(() {
+                        selectedCategory = value!;
+                      });
+                    },
+                  ),
+                ],
               ),
               ),
-            ),
 
           actions: [
             TextButton(
@@ -150,8 +197,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 if (newTask.isNotEmpty) {
                   setState(() {
                     tasks.add({
-                      'title': newTask,
+                      'title': taskController.text,
                       'completed': false,
+                      'category': selectedCategory,
                     }); // SAVE TASK
                   });
                   saveTasks();
@@ -288,8 +336,8 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
 
               const SizedBox(height: 16),
-              if (streakCounter > 0)
-                Container(
+
+              Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
@@ -358,7 +406,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 },
                               ),
                               title: Text(
-                                tasks[index]['title'],
+                                '${tasks[index]['category'] ?? '🏠 Personal'} • ${tasks[index]['title']}',
                                 style: TextStyle(
                                   color: Colors.white,
                                   decoration: tasks[index]['completed']
