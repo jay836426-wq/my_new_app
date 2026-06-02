@@ -8,7 +8,7 @@ class CalendarScreen extends StatefulWidget {
 }
 
 class _CalendarScreenState extends State<CalendarScreen> {
-  int selectedDay = 11;
+  int selectedDay = DateTime.now().day;
 
   @override
   Widget build(BuildContext context) {
@@ -25,8 +25,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
-                      'May 2026',
+                    Text(
+                      '${DateTime.now().month}/${DateTime.now().year}',
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 28,
