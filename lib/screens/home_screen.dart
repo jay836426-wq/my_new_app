@@ -22,6 +22,9 @@ class _HomeScreenState extends State<HomeScreen> {
   // Store the category selected in the dropdown
   String selectedCategory = '🏠 Personal';
 
+  // Stores which category filter is currently selected
+  String selectedFilter = 'All';
+
   // List of available task categories
   final List<String> categories = [
     '🏋️ Gym',
@@ -57,6 +60,17 @@ class _HomeScreenState extends State<HomeScreen> {
 
     // Return 1 if all tasks are complete, otherwise 0
     return allTasksComplete ? 1 : 0;
+  }
+
+  // Returns tasks based on selected category filter
+  List<Map<String, dynamic>> getFilteredTasks() {
+    if (selectedFilter == 'All') {
+      return tasks;
+    }
+
+    return tasks.where((task) {
+      return task['category'] == selectedFilter;
+    }).toList();
   }
 
   // Smoothly transitions color based on progress
@@ -157,7 +171,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
 
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 24),
 
                   DropdownButton<String>(
                     value: selectedCategory,
@@ -253,6 +267,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final double progress = getProgress();
+    final List<Map<String, dynamic>> filteredTasks = getFilteredTasks();
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
@@ -335,7 +350,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
 
-              const SizedBox(height: 16),
+              const SizedBox(height: 24),
 
               Container(
                   width: double.infinity,
@@ -354,7 +369,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            '$streakCounter Day Streak',
+                            '${getCurrentStreak()} Day Streak',
                             style: TextStyle(
                               color: Colors.white,
                               fontSize: 18,
@@ -372,8 +387,42 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
 
+              // Category filter buttons
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    'All',
+                    ...categories,
+                  ].map((filter) {
+                    final bool isSelected = selectedFilter == filter;
+
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: ChoiceChip(
+                        label: Text(filter),
+                        selected: isSelected,
+                        selectedColor: Colors.greenAccent,
+                        backgroundColor: Colors.white10,
+                        labelStyle: TextStyle(
+                          color: isSelected ? Colors.black : Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        onSelected: (selected) {
+                          setState(() {
+                            selectedFilter = filter;
+                          });
+                        },
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+
+              const SizedBox(height: 24),
+
               // TASK LIST
-              tasks.isEmpty
+              filteredTasks.isEmpty
                   ? const Center(
                       child: Text(
                         'No tasks yet. Add your first task below.',
@@ -388,28 +437,28 @@ class _HomeScreenState extends State<HomeScreen> {
                   : ListView.builder(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
-                        itemCount: tasks.length,
+                        itemCount: filteredTasks.length,
                         itemBuilder: (context, index) {
                           return Card(
                             color: Colors.white10,
                             child: ListTile(
                               leading: Checkbox(
-                                value: tasks[index]['completed'],
+                                value: filteredTasks[index]['completed'],
                                 activeColor: Colors.white,
                                 checkColor: Colors.black,
                                 onChanged: (value) {
                                   setState(() {
-                                    tasks[index]['completed'] = value!;
+                                    filteredTasks[index]['completed'] = value!;
                                   });
 
                                   saveTasks();
                                 },
                               ),
                               title: Text(
-                                '${tasks[index]['category'] ?? '🏠 Personal'} • ${tasks[index]['title']}',
+                                '${filteredTasks[index]['category'] ?? '🏠 Personal'} • ${filteredTasks[index]['title']}',
                                 style: TextStyle(
                                   color: Colors.white,
-                                  decoration: tasks[index]['completed']
+                                  decoration: filteredTasks[index]['completed']
                                       ? TextDecoration.lineThrough
                                       : TextDecoration.none,
                                 ),
@@ -421,7 +470,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ),
                                 onPressed: () {
                                   setState(() {
-                                    tasks.removeAt(index);
+                                    tasks.remove(filteredTasks[index]);
                                   });
                                   saveTasks();
                                 },
@@ -431,7 +480,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         },
                       ),
 
-              const SizedBox(height: 16),
+              const SizedBox(height: 24),
 
               // ADD TASK BUTTON
               SizedBox(
@@ -450,14 +499,16 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
               ),
+
+
               if (getProgress() == 1 && tasks.isNotEmpty)
                 Padding(
                   padding: EdgeInsets.only(top: 16),
                   child: Center(
                     child: Text(
-                      'Tasks complete for the day!',
+                      'Tasks complete for the day! 🎉',
                       style: TextStyle(
-                        color: Colors.greenAccent,
+                        color: Colors.white,
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
                       ),
