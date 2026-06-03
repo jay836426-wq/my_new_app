@@ -3,7 +3,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:my_new_app/screens/main_navigation_screen.dart';
+import 'package:traqon/screens/main_navigation_screen.dart';
 
 import 'screens/Mfa_screen.dart';
 import 'screens/tutorial_screen.dart';

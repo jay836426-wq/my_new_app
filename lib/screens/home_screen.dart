@@ -154,47 +154,49 @@ class _HomeScreenState extends State<HomeScreen> {
     showDialog(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          backgroundColor: Colors.black,
-          title: const Text('Add Task', style: TextStyle(color: Colors.white)),
-          content: SizedBox(
-            width: 300,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                  TextField(
-                    controller: taskController,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: const InputDecoration(
-                      labelText: 'Task name',
-                      labelStyle: TextStyle(color: Colors.white),
-                    ),
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              backgroundColor: Colors.black,
+              title: const Text('Add Task', style: TextStyle(color: Colors.white)),
+              content: SizedBox(
+                width: 300,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                      TextField(
+                        controller: taskController,
+                        style: const TextStyle(color: Colors.white),
+                        decoration: const InputDecoration(
+                          labelText: 'Task name',
+                          labelStyle: TextStyle(color: Colors.white),
+                        ),
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      DropdownButton<String>(
+                        value: selectedCategory,
+                        dropdownColor: Colors.black,
+                        isExpanded: true,
+                        style: const TextStyle(color: Colors.white),
+
+                        items: categories.map((category) {
+                          return DropdownMenuItem(
+                            value: category,
+                            child: Text(category),
+                          );
+                        }).toList(),
+
+                        onChanged: (value) {
+                          setDialogState(() {
+                            selectedCategory = value!;
+                          });
+                        },
+                      ),
+                    ],
                   ),
-
-                  const SizedBox(height: 24),
-
-                  DropdownButton<String>(
-                    value: selectedCategory,
-                    dropdownColor: Colors.black,
-                    isExpanded: true,
-                    style: const TextStyle(color: Colors.white),
-
-                    items: categories.map((category) {
-                      return DropdownMenuItem(
-                        value: category,
-                        child: Text(category),
-                      );
-                    }).toList(),
-
-                    onChanged: (value) {
-                      setState(() {
-                        selectedCategory = value!;
-                      });
-                    },
                   ),
-                ],
-              ),
-              ),
 
           actions: [
             TextButton(
@@ -226,8 +228,8 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ],
         );
-      },
-    );
+      });
+    });
   }
 
   Widget taskTile({

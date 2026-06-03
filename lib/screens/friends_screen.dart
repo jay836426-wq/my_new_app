@@ -18,7 +18,7 @@ class FriendsScreen extends StatelessWidget {
         padding: const EdgeInsets.all(20),
         children: [
           Text(
-            'Friends',
+            'Friends feature coming soon 🚀',
             style: TextStyle(
               color: Colors.white,
               fontSize: 28,
@@ -27,79 +27,6 @@ class FriendsScreen extends StatelessWidget {
           ),
 
           SizedBox(height: 12),
-
-          Text(
-            'See how your friends are staying consistent.',
-            style: TextStyle(
-              color: Colors.white70,
-              fontSize: 16,
-            ),
-          ),
-
-          SizedBox(height: 24),
-
-          ListTile(
-            leading: CircleAvatar(
-              child: Text('A'),
-            ),
-            title: Text(
-              'Alex',
-              style: TextStyle(color: Colors.white),
-            ),
-            subtitle: Text(
-              '🔥 5 day streak',
-              style: TextStyle(color: Colors.white70),
-            ),
-          ),
-
-          ListTile(
-            leading: CircleAvatar(
-              child: Text('M'),
-            ),
-            title: Text(
-              'Maya',
-              style: TextStyle(color: Colors.white),
-            ),
-            subtitle: Text(
-              'Completed 4 tasks today',
-              style: TextStyle(color: Colors.white70),
-            ),
-          ),
-
-          ListTile(
-            leading: CircleAvatar(
-              child: Text('J'),
-            ),
-            title: Text(
-              'Jordan',
-              style: TextStyle(color: Colors.white),
-            ),
-            subtitle: Text(
-              '🔥 2 day streak',
-              style: TextStyle(color: Colors.white70),
-            ),
-          ),
-          SizedBox(height:30),
-
-          ListTile(
-            title: Text('Jordan'),
-          ),
-
-          SizedBox(height: 30),
-
-          Text(
-            'Recent Activity',
-          ),
-
-          ListTile(
-            title: Text('Alex completed all daily tasks',
-            style: TextStyle(color: Colors.white),
-          )),
-
-          ListTile(
-            title: Text('Maya reached a 7 day streak',
-            style: TextStyle(color: Colors.white),
-          )),
 
           SizedBox(height: 30),
 

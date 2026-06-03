@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:my_new_app/screens/calendar_screen.dart';
+import 'package:traqon/screens/calendar_screen.dart';
 
 import 'home_screen.dart';
 import 'calendar_screen.dart';

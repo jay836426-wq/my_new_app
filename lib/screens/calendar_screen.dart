@@ -152,7 +152,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'May $selectedDay',
+                        '${DateTime.now().month}/$selectedDay/${DateTime.now().year}',
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 22,
@@ -160,7 +160,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         ),
                       ),
 
-                      if (selectedDay == 11)
+                      if (selectedDay == DateTime.now().day)
                         const Padding(
                           padding: EdgeInsets.only(top: 6),
                           child: Text(
@@ -175,59 +175,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         ),
 
                       const SizedBox(height: 12),
-                      Text(
-                        'Tasks Completed: ${selectedDay % 5}/5',
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 16,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        'Productivity: 60%',
-                        style: TextStyle(
-                          color: Colors.greenAccent,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-
-                      const SizedBox(height: 16),
-
-                      const Text(
-                        'Tasks',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-
-                      const SizedBox(height: 10),
-
-                      Text(
-                        '• Gym',
-                        style: TextStyle(
-                          color: Colors.white70,
-                          fontSize: 15,
-                        ),
-                      ),
-
-                      Text(
-                        '• Study Security+',
-                        style: TextStyle(
-                          color: Colors.white70,
-                          fontSize: 15,
-                        ),
-                      ),
-
-                      Text(
-                        '• Work on Traqon',
-                        style: TextStyle(
-                          color: Colors.white70,
-                          fontSize: 15,
-                        ),
-                      ),
+                      Text( 'Tasks for this day coming soon')
                     ],
                   ),
                 ),
