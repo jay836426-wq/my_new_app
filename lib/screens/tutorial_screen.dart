@@ -7,7 +7,7 @@ import 'package:traqon/screens/main_navigation_screen.dart';
 
 import  'package:shared_preferences/shared_preferences.dart';
 
-import 'package:traqon/main.dart';
+//import 'package:traqon/main.dart';
 
 class TutorialScreen extends StatefulWidget {
   const TutorialScreen({super.key});

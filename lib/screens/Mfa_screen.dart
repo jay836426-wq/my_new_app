@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:math';
+//import 'dart:math';
 
 import 'package:flutter/material.dart';
 
@@ -40,6 +40,7 @@ class _MfaScreenState extends State<MfaScreen> {
   Timer? countdownTimer;
   int secondsRemaining = 60;
   bool codeExpired = false;
+  bool showCode = false;
 
   @override
   void dispose() {
@@ -49,8 +50,9 @@ class _MfaScreenState extends State<MfaScreen> {
   }
 
   void generateNewCode() {
-    final random = Random();
-    generatedCode = (10000 + random.nextInt(90000)).toString();
+    //final random = Random();
+    // Temp code for testing purposes
+    generatedCode = '123456';
   }
 
   void startCountdown() {
@@ -126,10 +128,22 @@ class _MfaScreenState extends State<MfaScreen> {
 
             TextField(
               controller: codeController,
+              obscureText: !showCode,
               style: const TextStyle(color: Colors.white),
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Enter code',
-                labelStyle: TextStyle(color: Colors.white),
+                labelStyle: const TextStyle(color: Colors.white),
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    showCode ? Icons.visibility : Icons.visibility_off,
+                    color: Colors.white,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      showCode = !showCode;
+                    });
+                  },
+                ),
               ),
             ),
 

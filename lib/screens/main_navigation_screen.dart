@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:traqon/screens/calendar_screen.dart';
 
 import 'home_screen.dart';
-import 'calendar_screen.dart';
+//import 'calendar_screen.dart';
 import 'settings_screen.dart';
 import 'friends_screen.dart';
 
