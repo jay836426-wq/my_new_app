@@ -491,14 +491,27 @@ class _HomeScreenState extends State<HomeScreen> {
                                   saveTasks();
                                 },
                               ),
-                              title: Text(
-                                '${filteredTasks[index]['category'] ?? '🏠 Personal'} • ${filteredTasks[index]['title']}',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  decoration: filteredTasks[index]['completed']
-                                      ? TextDecoration.lineThrough
-                                      : TextDecoration.none,
+                              title: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                  '${filteredTasks[index]['category'] ?? '🏠 Personal'} • ${filteredTasks[index]['title']}',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    decoration: filteredTasks[index]['completed']
+                                        ? TextDecoration.lineThrough
+                                        : TextDecoration.none,
+                                  ),
+                                  ),
+
+                                  Text(
+                                    filteredTasks[index]['priority'] ?? '🟡 Medium',
+                                    style: const TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 12,
+                                    ),
                                 ),
+                                ],
                               ),
                               trailing: IconButton(
                                 icon: const Icon(
