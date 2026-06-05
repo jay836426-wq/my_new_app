@@ -22,18 +22,33 @@ class _HomeScreenState extends State<HomeScreen> {
   // Store the category selected in the dropdown
   String selectedCategory = '🏠 Personal';
 
+  // Store the priority level is currently selected
+  String selectedPriority = '🟡 Medium';
+
   // Stores which category filter is currently selected
   String selectedFilter = 'All';
 
   // List of available task categories
   final List<String> categories = [
-    '🏋️ Gym',
-    '📚 Study',
+    '🏋️ Fitness',
+    '📚 School',
     '💼 Work',
     '🏠 Personal',
+    '🛍️ Shopping',
+    '👨‍👩‍👧‍👦 Family',
+    '🏦 Finance',
+    '❤️‍🩹 Health',
+    '✈️ Travel',
     '✨ Other',
+    '🙌 Religious',
   ];
 
+  // Listt of available task priority levels
+    final List<String> priorities = [
+    '🔴 High',
+    '🟡 Medium',
+    '🟢 Low',
+  ];
   // Tracks the user's current streak
   int streakCounter = 0;
 
@@ -173,9 +188,9 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
 
-                      const SizedBox(height: 24),
-
-                      DropdownButton<String>(
+                     const SizedBox(height: 24),
+ 
+                    DropdownButton<String>(
                         value: selectedCategory,
                         dropdownColor: Colors.black,
                         isExpanded: true,
@@ -194,9 +209,28 @@ class _HomeScreenState extends State<HomeScreen> {
                           });
                         },
                       ),
+                      DropdownButton<String>(
+                        value: selectedPriority,
+                        dropdownColor: Colors.black,
+                        isExpanded: true,
+                        style: const TextStyle(color: Colors.white),
+
+                        items: priorities.map((priority) {
+                          return DropdownMenuItem(
+                            value: priority,
+                            child: Text(priority),
+                          );
+                        }).toList(),
+
+                        onChanged: (value) {
+                          setDialogState(() {
+                            selectedPriority = value!;
+                          });
+                        },
+                      ),
                     ],
-                  ),
-                  ),
+                  )
+              ),
 
           actions: [
             TextButton(
@@ -216,6 +250,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       'title': taskController.text,
                       'completed': false,
                       'category': selectedCategory,
+                      'priority': selectedPriority,
                     }); // SAVE TASK
                   });
                   saveTasks();
