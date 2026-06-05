@@ -28,6 +28,9 @@ class _HomeScreenState extends State<HomeScreen> {
   // Stores which category filter is currently selected
   String selectedFilter = 'All';
 
+  // Temp username until login is built
+  String userName = 'Jamaal';
+
   // List of available task categories
   final List<String> categories = [
     '🏋️ Fitness',
@@ -319,15 +322,31 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Welcome to Traqon!',
-                style: TextStyle(
+              Text(
+                DateTime.now().hour < 12
+                    ? 'Good Morning, $userName 👋 '
+                    : DateTime.now().hour < 17
+                        ? 'Good Afternoon, $userName 👋'
+                        : 'Good Evening, $userName 👋',
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 30,
                   fontWeight: FontWeight.bold,
                 ),
               ),
+
+              const SizedBox(height: 10),
+
+              const Text(
+                'Welcome back to Traqon!',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
               const SizedBox(height: 8),
+              
               const Text(
                 'Track. Focus. Achieve.',
                 style: TextStyle(color: Colors.white70, fontSize: 16),
@@ -425,35 +444,22 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
 
               // Category filter buttons
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: [
-                    'All',
-                    ...categories,
-                  ].map((filter) {
-                    final bool isSelected = selectedFilter == filter;
-
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: ChoiceChip(
-                        label: Text(filter),
-                        selected: isSelected,
-                        selectedColor: Colors.greenAccent,
-                        backgroundColor: Colors.white10,
-                        labelStyle: TextStyle(
-                          color: isSelected ? Colors.black : Colors.white,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        onSelected: (selected) {
-                          setState(() {
-                            selectedFilter = filter;
-                          });
-                        },
-                      ),
-                    );
-                  }).toList(),
-                ),
+              DropdownButton<String>(
+                value: selectedFilter,
+                dropdownColor: Colors.grey[900],
+                isExpanded: true,
+                style: const TextStyle(color: Colors.white),
+                items: ['All', ... categories].map((filter) {
+                  return DropdownMenuItem<String>(
+                    value: filter,
+                    child: Text(filter),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  setState(() {
+                    selectedFilter = value!;
+                  });
+                },
               ),
 
               const SizedBox(height: 24),

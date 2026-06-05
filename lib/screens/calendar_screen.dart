@@ -8,7 +8,7 @@ class CalendarScreen extends StatefulWidget {
 }
 
 class _CalendarScreenState extends State<CalendarScreen> {
-  int selectedDay = DateTime.now().day;
+  DateTime selectedDate = DateTime.now();
 
   DateTime currentMonth = DateTime.now();
 
@@ -92,15 +92,29 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   children: List.generate(
-                    DateTime(currentMonth.year, currentMonth.month +1, 0).day,
+                    DateTime(currentMonth.year, currentMonth.month +1, 0).day +
+                        DateTime(currentMonth.year, currentMonth.month, 1). weekday % 7,
                     (index){
-                    final int dayNumber = index + 1;
-                    final bool isSelected = dayNumber == selectedDay;
+                      final int firstWeekdayOffset = 
+                          DateTime(currentMonth.year, currentMonth.month, 1). weekday % 7;
 
+                          if (index < firstWeekdayOffset) {
+                            return const SizedBox.shrink();
+                          }
+                          final int dayNumber = index - firstWeekdayOffset + 1;
+                    final bool isSelected = (
+                        selectedDate.year == currentMonth.year &&
+                        selectedDate.month == currentMonth.month &&
+                        selectedDate.day == dayNumber
+                    );
                     return GestureDetector(
                       onTap: () {
                         setState(() {
-                          selectedDay = dayNumber;
+                          selectedDate = DateTime(
+                            currentMonth.year,
+                            currentMonth.month,
+                            dayNumber,
+                          );
                         });
                       },
                       child: Container(
@@ -170,7 +184,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '${currentMonth.month}/$selectedDay/${currentMonth.year}',
+                        '${selectedDate.month}/${selectedDate.day}/${selectedDate.year}',
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 22,
@@ -179,9 +193,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       ),
 
                       if (
-                          selectedDay == DateTime.now().day &&
-                          currentMonth.month == DateTime.now().month &&
-                          currentMonth.year == DateTime.now().year
+                          selectedDate.day == DateTime.now().day &&
+                          selectedDate.month == DateTime.now().month &&
+                          selectedDate.year == DateTime.now().year
                       )
                         const Padding(
                           padding: EdgeInsets.only(top: 6),

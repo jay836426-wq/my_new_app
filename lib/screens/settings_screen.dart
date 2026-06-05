@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-// import 'package:shared_preferences/shared_preferences.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:traqon/main.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -12,19 +13,21 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
-  /*Future<void> signOut(BuildContext context) async {
+  Future<void> signOut(BuildContext context) async {
     final prefs = await SharedPreferences.getInstance();
 
     await prefs.setBool('isLoggedIn', false);
 
     if (!context.mounted) return;
 
-    Navigator.pushNamedAndRemoveUntil(
+    Navigator.pushAndRemoveUntil(
       context,
-      '/',
+      MaterialPageRoute(
+        builder: (context) => const AuthChoiceScreen(),
+      ),
       (route) => false,
     );
-  }*/
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -97,12 +100,49 @@ class SettingsScreen extends StatelessWidget {
           SizedBox(height: 20),
           
           ListTile(
-            leading: Icon(Icons.logout, color: Colors.redAccent),
-            title: Text(
-              '🚪 Sign Out',
+            leading: const Icon(Icons.logout, color: Colors.redAccent),
+            title: const Text(
+              'Sign Out',
               style: TextStyle(color: Colors.redAccent),
             ),
-            onTap: () => showComingSoon(context),
+            onTap: () async {
+              final bool? confirm = await showDialog<bool>(
+                context: context,
+                builder: (context) => AlertDialog(
+                  backgroundColor: Colors.grey[900],
+                  title: const Text(
+                    'Sign Out',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                  content: const Text(
+                    'Are you sure you want to sign out?',
+                    style: TextStyle(color: Colors.white70),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      child: const Text(
+                      'No',
+                      style: TextStyle(
+                        color: Colors.white70,
+                      ),
+                    ),
+                  ),
+                    TextButton(
+                      child: const Text(
+                        'Yes',
+                        style: TextStyle(color: Colors.redAccent),
+                      ),
+                      onPressed: () => Navigator.pop(context, true),
+                    ),
+                  ],
+                ),
+              );
+
+              if (confirm == true) {
+                signOut(context);
+              }
+            },
           ),
 
           ListTile(
