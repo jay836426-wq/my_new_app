@@ -28,9 +28,20 @@ class _HomeScreenState extends State<HomeScreen> {
   // Stores which category filter is currently selected
   String selectedFilter = 'All';
 
-  // Temp username until login is built
-  String userName = 'Jamaal';
+  // Stores dynamic username for login
+  String userName = 'User';
 
+  // Loads saved username/full name from local storage
+  Future<void> loadUserName() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    setState(() {
+      userName = 
+          prefs.getString('fullName') ??
+          prefs.getString('username') ??
+          'User';
+    });
+  }
   // List of available task categories
   final List<String> categories = [
     '🏋️ Fitness',
@@ -65,6 +76,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
     // Return progress as a value between 0.0 and 1.0
     return completed / tasks.length;
+  }
+
+  // Runs when Home screen is first opened and loads the saved username
+  @override
+  void initState() {
+    super.initState();
+    loadTasks();
+    loadUserName();
   }
 
   // Calculates the user's current streak
@@ -159,12 +178,6 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  // Runs when HomeScreen first opens
-  @override
-  void initState() {
-    super.initState();
-    loadTasks();
-  }
 
   void showAddTaskPopup() {
 
@@ -304,6 +317,107 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  void showEditTaskPopup(Map<String, dynamic> task) {
+    final editController = TextEditingController(text: task['title']);
+    String editCategory = task['category'] ?? selectedCategory;
+    String editPriority = task['priority'] ?? selectedPriority;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              backgroundColor: Colors.black,
+              title: const Text(
+                'Edit Task',
+                style: TextStyle(color: Colors.white),
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: editController,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: const InputDecoration(
+                      labelText: 'Task name',
+                      labelStyle: TextStyle(color: Colors.white70),
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  DropdownButton<String>(
+                    value: editCategory,
+                    dropdownColor: Colors.black,
+                    isExpanded: true,
+                    style: const TextStyle(color: Colors.white),
+                    items: categories.map((category) {
+                      return DropdownMenuItem<String>(
+                        value: category,
+                        child: Text(category),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      setDialogState(() {
+                        editCategory = value!;
+                      });
+                    },
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  DropdownButton<String>(
+                    value: editPriority,
+                    dropdownColor: Colors.black,
+                    isExpanded: true,
+                    style: const TextStyle(color: Colors.white),
+                    items: priorities.map((priority) {
+                      return DropdownMenuItem<String>(
+                        value: priority,
+                        child: Text(priority),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      setDialogState(() {
+                        editPriority = value!;
+                      });
+                    },
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text(
+                    'Cancel',
+                    style: TextStyle(color: Colors.white70),
+                  ),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    final updatedTitle = editController.text.trim();
+
+                    if (updatedTitle.isNotEmpty) {
+                      setState(() {
+                        task['title'] = updatedTitle;
+                        task['category'] = editCategory;
+                        task['priority'] = editPriority;
+                      });
+
+                      saveTasks();
+                      Navigator.pop(context);
+                    }
+                  },
+                  child: const Text('Save'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
   @override
   Widget build(BuildContext context) {
     final double progress = getProgress();
@@ -519,18 +633,33 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ),
                                 ],
                               ),
-                              trailing: IconButton(
-                                icon: const Icon(
-                                  Icons.delete,
-                                  color: Colors.redAccent,
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(
+                                    icon: const Icon(
+                                      Icons.edit,
+                                      color: Colors.greenAccent,
+                                    ),
+                                    onPressed: () {
+                                      // edit task code here
+                                      showEditTaskPopup(filteredTasks[index]);
+                                    },
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(
+                                    Icons.delete,
+                                    color: Colors.redAccent,
+                                  ),
+                                  onPressed: () {
+                                    setState(() {
+                                      tasks.remove(filteredTasks[index]);
+                                    });
+                                    saveTasks();
+                                  },
                                 ),
-                                onPressed: () {
-                                  setState(() {
-                                    tasks.remove(filteredTasks[index]);
-                                  });
-                                  saveTasks();
-                                },
-                              ),
+                                ],
+                            ),
                             ),
                           );
                         },

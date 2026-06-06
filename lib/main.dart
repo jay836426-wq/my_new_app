@@ -389,12 +389,22 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
 
   // Controllers store user input
   final nameController = TextEditingController();
+  final usernameController = TextEditingController();
   final dobController = TextEditingController();
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
 
-void submitForm() {
+Future<void> submitForm() async {
   if (_formKey.currentState!.validate()) {
+    
+    final prefs = await SharedPreferences.getInstance();
+
+    await prefs.setString('fullName', nameController.text.trim());
+    await prefs.setString('username', usernameController.text.trim());
+    await prefs.setString('contactInfo', emailController.text.trim());
+    await prefs.setString('password', passwordController.text);
+    await prefs.setBool('isLoggedIn', true);
+
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
         builder: (context) => MfaScreen(
@@ -539,6 +549,34 @@ void submitForm() {
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Enter your name';
+                  }
+                  return null;
+                },
+              ),
+
+              const SizedBox(height: 16),
+
+              TextFormField(
+                controller: usernameController,
+                style: const TextStyle(color: Colors.white),
+                decoration: const InputDecoration(
+                  labelText: 'Username',
+                  hintText: 'Example: jbok24',
+                  labelStyle: TextStyle(color: Colors.white),
+                  hintStyle: TextStyle(color: Colors.white38),
+                  enabledBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: Colors.white),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: Colors.white),
+                  ),
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Enter a username';
+                  }
+                  if(value.trim().length < 3) {
+                    return 'Username must be at least 3 characters';
                   }
                   return null;
                 },
