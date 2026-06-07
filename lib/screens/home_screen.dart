@@ -222,6 +222,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  TimeOfDay ? selectedReminderTime;
 
   void showAddTaskPopup() {
 
@@ -288,6 +289,32 @@ class _HomeScreenState extends State<HomeScreen> {
                           });
                         },
                       ),
+                      const SizedBox(height: 16),
+
+                      ListTile(
+                        title: Text(
+                          selectedReminderTime == null
+                              ? 'Set Reminder'
+                              : 'Reminder: ${selectedReminderTime!.format(context)}',
+                          style: const TextStyle(color: Colors.white),
+                        ),
+                        trailing: const Icon(
+                          Icons.notifications,
+                          color: Colors.white,
+                        ),
+                        onTap: () async {
+                          final picked = await showTimePicker(
+                            context: context,
+                            initialTime: TimeOfDay.now(),
+                          );
+
+                          if (picked != null) {
+                            setDialogState(() {
+                              selectedReminderTime = picked;
+                            });
+                          }
+                        },
+                      )
                     ],
                   )
               ),
@@ -311,6 +338,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       'completed': false,
                       'category': selectedCategory,
                       'priority': selectedPriority,
+                      'reminderTime': selectedReminderTime?.format(context),
                     }); // SAVE TASK
                   });
                   saveTasks();
@@ -721,6 +749,14 @@ class _HomeScreenState extends State<HomeScreen> {
                                       fontSize: 12,
                                     ),
                                 ),
+                                  if (filteredTasks[index]['reminderTime'] != null)
+                                    Text(
+                                      '🔔 ${filteredTasks[index]['reminderTime']}',
+                                      style: const TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 12,
+                                      ),
+                                    ),
                                 ],
                               ),
                               trailing: Row(
