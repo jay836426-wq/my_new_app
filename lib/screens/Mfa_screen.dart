@@ -90,7 +90,9 @@ class _MfaScreenState extends State<MfaScreen> {
 
     if (enteredCode == generatedCode) {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool('isLoggedIn', true);
+      final rememberMe = prefs.getBool('rememberMe') ?? true;
+      
+      await prefs.setBool('isLoggedIn', rememberMe);
       await prefs.setBool('hasSeenOnboarding', true);
 
       print('MFA saved login: ${prefs.getBool('isLoggedIn')}');

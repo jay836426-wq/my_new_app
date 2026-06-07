@@ -66,6 +66,9 @@ class _HomeScreenState extends State<HomeScreen> {
   // Tracks the user's current streak
   int streakCounter = 0;
 
+  // Tracks whether today's tasks have been completed
+  bool dayCompleted = false;
+
   // Calculates how much of today's tasks are completed
   double getProgress() {
     // If there are no tasks, progress is 0%
@@ -76,6 +79,47 @@ class _HomeScreenState extends State<HomeScreen> {
 
     // Return progress as a value between 0.0 and 1.0
     return completed / tasks.length;
+  }
+
+  // Marks the day and completed and updates the user's streak
+  Future<void> completeDay() async {
+  final prefs = await SharedPreferences.getInstance();
+
+  setState(() {
+    dayCompleted = true;
+    streakCounter += 1;
+  });
+
+  await prefs.setBool('dayCompleted', dayCompleted);
+  await prefs.setInt('streakCounter', streakCounter);
+
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(
+      content: Text('Day completed! Streak updated 🔥'),
+    ),
+  );
+}
+
+  // Reverses the completed day status and lowers the streak if needed
+  Future<void> undoCompleteDay() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    setState(() {
+      dayCompleted = false;
+
+      if (streakCounter > 0) {
+        streakCounter -= 1;
+      }
+    });
+
+    await prefs.setBool('dayCompleted', dayCompleted);
+    await prefs.setInt('streakCounter', streakCounter);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Day status updated.'),
+      ),
+    );
   }
 
   // Runs when Home screen is first opened and loads the saved username
@@ -510,7 +554,53 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
 
-                    const SizedBox(height: 8),
+              // Complete Task Button
+                ElevatedButton(
+                  onPressed: () async {
+                    if (dayCompleted) {
+                      await undoCompleteDay();
+                    } else{
+                      final bool? confirm = await showDialog<bool>(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: const Text('Complete Day'),
+                          content: const Text(
+                            'Are you sure you completed your day?',
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, false),
+                              child: const Text('No'),
+                            ),
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, true),
+                              child: const Text('Yes'),
+                            ),
+                          ],
+                        ),
+                      );
+
+                        if (confirm == true) {
+                          completeDay();
+                        }
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 10,
+                    ),
+                  ),
+                  child: Text(
+                    dayCompleted
+                    ? '✅ Day Complete'
+                    : '⭕ Mark Day Complete',
+                  ),
+                ),
+
+                const SizedBox(height: 20),
+
+                const SizedBox(height: 8),
 
                     Text(
                       '${(progress * 100).toInt()}% complete',
@@ -539,7 +629,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            '${getCurrentStreak()} Day Streak',
+                            '${streakCounter} Day Streak',
                             style: TextStyle(
                               color: Colors.white,
                               fontSize: 18,

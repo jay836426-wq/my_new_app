@@ -702,8 +702,52 @@ Future<void> submitForm() async {
 // ---------------------------
 // Login Screen
 // ---------------------------
-class LoginScreen extends StatelessWidget {
+class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
+
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  final loginController = TextEditingController();
+  final passwordController = TextEditingController();
+
+  bool rememberMe = true;
+  bool obscurePassword = true;
+
+  Future<void> loginUser() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    final savedUsername = prefs.getString('username');
+    final savedContactInfo = prefs.getString('contactInfo');
+    final savedPassword = prefs.getString('password');
+
+    final loginInput = loginController.text.trim();
+    final passwordInput = passwordController.text;
+
+    final loginMatches =
+        loginInput == savedUsername || loginInput == savedContactInfo;
+
+    if (loginMatches && passwordInput == savedPassword) {
+      await prefs.setBool('rememberMe', rememberMe);
+
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (context) => MfaScreen(
+            contactInfo: savedContactInfo ?? loginInput,
+            isNewUser: false,
+          ),
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Incorrect username/contact or password.'),
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -714,10 +758,89 @@ class LoginScreen extends StatelessWidget {
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
       ),
-      body: const Center(
-        child: Text(
-          'Login Screen (we will build next)',
-          style: TextStyle(color: Colors.white),
+      body: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            TextField(
+              controller: loginController,
+              style: const TextStyle(color: Colors.white),
+              decoration: const InputDecoration(
+                labelText: 'Username, Email, or Phone',
+                labelStyle: TextStyle(color: Colors.white70),
+                enabledBorder: OutlineInputBorder(
+                  borderSide: BorderSide(color: Colors.white),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderSide: BorderSide(color: Colors.white),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            TextField(
+              controller: passwordController,
+              obscureText: obscurePassword,
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                labelText: 'Password',
+                labelStyle: const TextStyle(color: Colors.white70),
+                enabledBorder: const OutlineInputBorder(
+                  borderSide: BorderSide(color: Colors.white),
+                ),
+                focusedBorder: const OutlineInputBorder(
+                  borderSide: BorderSide(color: Colors.white),
+                ),
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    obscurePassword
+                        ? Icons.visibility_off
+                        : Icons.visibility,
+                    color: Colors.white70,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      obscurePassword = !obscurePassword;
+                    });
+                  },
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 12),
+
+            Row(
+              children: [
+                Checkbox(
+                  value: rememberMe,
+                  activeColor: Colors.greenAccent,
+                  checkColor: Colors.black,
+                  onChanged: (value) {
+                    setState(() {
+                      rememberMe = value ?? true;
+                    });
+                  },
+                ),
+                const Text(
+                  'Remember Me',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 20),
+
+            SizedBox(
+              width: double.infinity,
+              height: 55,
+              child: ElevatedButton(
+                onPressed: loginUser,
+                child: const Text('Login'),
+              ),
+            ),
+          ],
         ),
       ),
     );
