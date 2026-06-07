@@ -91,11 +91,16 @@ class _MfaScreenState extends State<MfaScreen> {
     if (enteredCode == generatedCode) {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('isLoggedIn', true);
+      await prefs.setBool('hasSeenOnboarding', true);
+
+      print('MFA saved login: ${prefs.getBool('isLoggedIn')}');
+      print('MFA saved onboarding: ${prefs.getBool('hasSeenOnboarding')}');
+
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
           builder: (context) => widget.isNewUser
-          ? const TutorialScreen()
-          : const MainNavigationScreen(),
+              ? const TutorialScreen()
+              : const MainNavigationScreen(),
         ),
       );
     } else {

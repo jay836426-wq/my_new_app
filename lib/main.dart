@@ -3,6 +3,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:traqon/screens/main_navigation_screen.dart';
 //import 'package:traqon/screens/main_navigation_screen.dart';
 
 import 'screens/Mfa_screen.dart';
@@ -16,13 +17,17 @@ Future<void> main() async {
 
   final prefs = await SharedPreferences.getInstance();
 
-  await prefs.setBool('hasSeenOnboarding', false);
+  // await prefs.setBool('hasSeenOnboarding', false);
+
 
   final bool hasSeenOnboarding =
       prefs.getBool('hasSeenOnboarding') ?? false;
 
   final bool isLoggedIn = 
        prefs.getBool('isLoggedIn') ?? false;
+  
+  print('isLoggedIn: $isLoggedIn');
+  print('hasSeenOnboarding: $hasSeenOnboarding');
 
   runApp(
     MyApp(
@@ -76,7 +81,11 @@ class MyApp extends StatelessWidget {
         ),
       ),
 
-        home: const WelcomeScreen(),
+        home: isLoggedIn
+            ? const MainNavigationScreen()
+            : hasSeenOnboarding
+                ? const AuthChoiceScreen()
+                : const WelcomeScreen(),
     );
   }
 }
