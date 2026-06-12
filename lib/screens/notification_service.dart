@@ -47,9 +47,17 @@ class NotificationService {
           priority: Priority.high,
         );
     
-    const NotificationDetails details = 
+    const DarwinNotificationDetails iosDetails =
+        DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    );
+
+    const NotificationDetails details =
         NotificationDetails(
-          android: androidDetails,
+      android: androidDetails,
+      iOS: iosDetails,
     );
 
     await notificationsPlugin.show(
