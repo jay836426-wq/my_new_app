@@ -20,8 +20,14 @@ Future<void> main() async {
 
   await NotificationService.init();
 
-  await NotificationService.showNotification(
-    title: 'Traqon', body: 'Notifications are working!',
+  Future.delayed(
+    const Duration(seconds: 5),
+    () async { 
+      await NotificationService.showNotification(
+      title: 'Traqon', 
+      body: 'Notifications are working!',
+      );
+    },
   );
 
   // Show a notification
