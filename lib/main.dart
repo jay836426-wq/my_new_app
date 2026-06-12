@@ -3,6 +3,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:traqon/screens/main_navigation_screen.dart';
 //import 'package:traqon/screens/main_navigation_screen.dart';
 
@@ -11,9 +12,20 @@ import 'screens/Mfa_screen.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'screens/notification_service.dart';
+
 // Entry point of the app
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  await NotificationService.init();
+
+  await NotificationService.showNotification(
+    title: 'Traqon', body: 'Notifications are working!',
+  );
+
+  // Show a notification
+  
 
   final prefs = await SharedPreferences.getInstance();
 

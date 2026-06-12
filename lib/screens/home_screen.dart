@@ -748,7 +748,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            '${streakCounter} Day Streak',
+                            '$streakCounter Day Streak',
                             style: TextStyle(
                               color: Colors.white,
                               fontSize: 18,
