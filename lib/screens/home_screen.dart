@@ -23,13 +23,16 @@ class _HomeScreenState extends State<HomeScreen> {
   String selectedCategory = '🏠 Personal';
 
   // Store the priority level is currently selected
-  String selectedPriority = '🟡 Medium';
+  String? selectedPriority;
 
   // Stores which category filter is currently selected
   String selectedFilter = 'All';
 
   // Stores dynamic username for login
   String userName = 'User';
+
+  // Store selected Reminder Time
+  TimeOfDay ? selectedReminderTime;
 
   // Loads saved username/full name from local storage
   Future<void> loadUserName() async {
@@ -52,6 +55,7 @@ class _HomeScreenState extends State<HomeScreen> {
     '👨‍👩‍👧‍👦 Family',
     '🏦 Finance',
     '❤️‍🩹 Health',
+    '🥘 Food',
     '✈️ Travel',
     '✨ Other',
     '🙌 Religious',
@@ -222,7 +226,6 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  TimeOfDay ? selectedReminderTime;
 
   void showAddTaskPopup() {
 
@@ -272,6 +275,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       DropdownButton<String>(
                         value: selectedPriority,
+                        hint: const Text(
+                          'Optional Priority',
+                          style: TextStyle(color: Colors.white70),
+                        ),
                         dropdownColor: Colors.black,
                         isExpanded: true,
                         style: const TextStyle(color: Colors.white),
@@ -314,10 +321,24 @@ class _HomeScreenState extends State<HomeScreen> {
                             });
                           }
                         },
-                      )
-                    ],
-                  )
-              ),
+                      ),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: TextButton(
+                        onPressed: () {
+                          setDialogState(() {
+                            selectedReminderTime = null;
+                          });
+                        },
+                        child: const Text(
+                          'Clear Reminder',
+                          style: TextStyle(color: Colors.redAccent),
+                        ),
+                      ),
+                    ),
+                ],
+              )
+            ),
 
           actions: [
             TextButton(
@@ -340,6 +361,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       'priority': selectedPriority,
                       'reminderTime': selectedReminderTime?.format(context),
                     }); // SAVE TASK
+
+                    selectedPriority = null;
+                    selectedReminderTime = null;
                   });
                   saveTasks();
                 }
@@ -389,10 +413,14 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+
   void showEditTaskPopup(Map<String, dynamic> task) {
     final editController = TextEditingController(text: task['title']);
     String editCategory = task['category'] ?? selectedCategory;
-    String editPriority = task['priority'] ?? selectedPriority;
+    String? editPriority = task['priority'];
+    String? editReminderTime = task['reminderTime'];
+
+
 
     showDialog(
       context: context,
@@ -405,60 +433,121 @@ class _HomeScreenState extends State<HomeScreen> {
                 'Edit Task',
                 style: TextStyle(color: Colors.white),
               ),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: editController,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: const InputDecoration(
-                      labelText: 'Task name',
-                      labelStyle: TextStyle(color: Colors.white70),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: editController,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: const InputDecoration(
+                        labelText: 'Task name',
+                        labelStyle: TextStyle(color: Colors.white70),
+                      ),
                     ),
-                  ),
 
-                  const SizedBox(height: 16),
+                    const SizedBox(height: 16),
 
-                  DropdownButton<String>(
-                    value: editCategory,
-                    dropdownColor: Colors.black,
-                    isExpanded: true,
-                    style: const TextStyle(color: Colors.white),
-                    items: categories.map((category) {
-                      return DropdownMenuItem<String>(
-                        value: category,
-                        child: Text(category),
-                      );
-                    }).toList(),
-                    onChanged: (value) {
-                      setDialogState(() {
-                        editCategory = value!;
-                      });
-                    },
-                  ),
+                    DropdownButton<String>(
+                      value: editCategory,
+                      dropdownColor: Colors.black,
+                      isExpanded: true,
+                      style: const TextStyle(color: Colors.white),
+                      items: categories.map((category) {
+                        return DropdownMenuItem<String>(
+                          value: category,
+                          child: Text(category),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        setDialogState(() {
+                          editCategory = value!;
+                        });
+                      },
+                    ),
 
-                  const SizedBox(height: 16),
+                    const SizedBox(height: 16),
 
-                  DropdownButton<String>(
-                    value: editPriority,
-                    dropdownColor: Colors.black,
-                    isExpanded: true,
-                    style: const TextStyle(color: Colors.white),
-                    items: priorities.map((priority) {
-                      return DropdownMenuItem<String>(
-                        value: priority,
-                        child: Text(priority),
-                      );
-                    }).toList(),
-                    onChanged: (value) {
-                      setDialogState(() {
-                        editPriority = value!;
-                      });
-                    },
-                  ),
-                ],
+                    DropdownButton<String>(
+                      value: editPriority,
+                      hint: const Text(
+                        'Optional Priority',
+                        style: TextStyle(color: Colors.white70),
+                      ),
+                      dropdownColor: Colors.black,
+                      isExpanded: true,
+                      style: const TextStyle(color: Colors.white),
+                      items: priorities.map((priority) {
+                        return DropdownMenuItem<String>(
+                          value: priority,
+                          child: Text(priority),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        setDialogState(() {
+                          editPriority = value!;
+                        });
+                      },
+                    ),
+
+                    Align(
+                      alignment: Alignment.centerLeft,
+                        child: TextButton(
+                        onPressed: () {
+                          setDialogState(() {
+                            editPriority = null;
+                          });
+                        },
+                        child: const Text(
+                          'Clear Priority',
+                          style: TextStyle(color: Colors.red),
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    ListTile(
+                      title: Text(
+                        editReminderTime == null
+                            ? 'Set Reminder'
+                            : 'Reminder: $editReminderTime',
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                      trailing: const Icon(
+                        Icons.notifications,
+                        color: Colors.white,
+                      ),
+                      onTap: () async {
+                        final picked = await showTimePicker(
+                          context: context,
+                          initialTime: TimeOfDay.now(),
+                        );
+
+                        if (picked != null) {
+                          setDialogState(() {
+                            editReminderTime = picked.format(context);
+                          });
+                        }
+                      },
+                    ),
+
+                    TextButton(
+                      onPressed: () {
+                        setDialogState(() {
+                          editReminderTime = null;
+                        });
+                      },
+                      child: const Text(
+                        'Clear Reminder',
+                        style: TextStyle(color: Colors.red),
+                      ),
+                    ),
+                  ],
+                ),
               ),
               actions: [
+
                 TextButton(
                   onPressed: () => Navigator.pop(context),
                   child: const Text(
@@ -466,6 +555,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     style: TextStyle(color: Colors.white70),
                   ),
                 ),
+
                 ElevatedButton(
                   onPressed: () {
                     final updatedTitle = editController.text.trim();
@@ -475,6 +565,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         task['title'] = updatedTitle;
                         task['category'] = editCategory;
                         task['priority'] = editPriority;
+                        task['reminderTime'] = editReminderTime;
                       });
 
                       saveTasks();
@@ -742,13 +833,14 @@ class _HomeScreenState extends State<HomeScreen> {
                                   ),
                                   ),
 
-                                  Text(
-                                    filteredTasks[index]['priority'] ?? '🟡 Medium',
-                                    style: const TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: 12,
-                                    ),
-                                ),
+                                  if(filteredTasks[index]['priority'] != null)
+                                    Text(
+                                      filteredTasks[index]['priority'],
+                                      style: const TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 12,
+                                      ),
+                                  ),
                                   if (filteredTasks[index]['reminderTime'] != null)
                                     Text(
                                       '🔔 ${filteredTasks[index]['reminderTime']}',
