@@ -14,8 +14,12 @@ class NotificationService {
         AndroidInitializationSettings('@mipmap/ic_launcher');
 
     // iOS settings
-    const DarwinInitializationSettings iosSettings =
-        DarwinInitializationSettings();
+    const DarwinInitializationSettings iosSettings = 
+        DarwinInitializationSettings(
+          requestAlertPermission: true,
+          requestBadgePermission: true,
+          requestSoundPermission: true,
+    );
 
     // Combine Android and iOS settings
     const InitializationSettings settings =
@@ -27,6 +31,8 @@ class NotificationService {
     // Start notifications
     await notificationsPlugin.initialize(settings: settings,);
   }
+
+
 
   // Show a notification
   static Future showNotification({
