@@ -441,6 +441,9 @@ class _HomeScreenState extends State<HomeScreen> {
                         const Duration(days: 1),
                       );
                     }
+
+                    print('Scheduling notifications for: $reminderDateTime');
+                    
                     await NotificationService.scheduleNotification(
                       id: tasks.length,
                       title: 'Task Reminder',
