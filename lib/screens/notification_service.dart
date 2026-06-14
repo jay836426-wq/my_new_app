@@ -1,4 +1,6 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:timezone/data/latest.dart' as tz;
+import 'package:timezone/timezone.dart' as tz;
 
 // Handles all local notifications in app
 class NotificationService {
@@ -8,6 +10,9 @@ class NotificationService {
       FlutterLocalNotificationsPlugin();
   // Intialize notifications
   static Future init() async {
+
+    // Time zone
+    tz.initializeTimeZones();
 
     // Android settings
     const AndroidInitializationSettings androidSettings =
@@ -65,6 +70,46 @@ class NotificationService {
       title: title,
       body: body,
       notificationDetails: details,
+    );
+  }
+
+  // Schedule a notification for a future time
+  static Future scheduleNotification({
+    required int id,
+    required String title,
+    required String body,
+    required DateTime scheduledTime,
+  }) async {
+
+    const AndroidNotificationDetails androidDetails =
+        AndroidNotificationDetails(
+      'task_channel',
+      'Task Notifications',
+      importance: Importance.max,
+      priority: Priority.high,
+    );
+
+    const DarwinNotificationDetails iosDetails =
+        DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    );
+
+    const NotificationDetails details =
+        NotificationDetails(
+      android: androidDetails,
+      iOS: iosDetails,
+    );
+
+    await notificationsPlugin.zonedSchedule(
+      id: id,
+      title: title,
+      body: body,
+      scheduledDate: tz.TZDateTime.from(scheduledTime, tz.local),
+      notificationDetails: details,
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      matchDateTimeComponents: null,
     );
   }
 }

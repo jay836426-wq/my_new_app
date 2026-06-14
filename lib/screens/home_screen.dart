@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'notification_service.dart';
 
 // ---------------------------
 // Home Screen
@@ -73,6 +74,9 @@ class _HomeScreenState extends State<HomeScreen> {
   // Tracks whether today's tasks have been completed
   bool dayCompleted = false;
 
+  // Stores the date when the user last completed a day
+  String lastCompletedDate = '';
+
   // Calculates how much of today's tasks are completed
   double getProgress() {
     // If there are no tasks, progress is 0%
@@ -85,24 +89,47 @@ class _HomeScreenState extends State<HomeScreen> {
     return completed / tasks.length;
   }
 
-  // Marks the day and completed and updates the user's streak
+  // Marks the day completed and updates the user's streak
   Future<void> completeDay() async {
-  final prefs = await SharedPreferences.getInstance();
+    final prefs = await SharedPreferences.getInstance();
 
-  setState(() {
-    dayCompleted = true;
-    streakCounter += 1;
-  });
+    final DateTime today = DateTime.now();
 
-  await prefs.setBool('dayCompleted', dayCompleted);
-  await prefs.setInt('streakCounter', streakCounter);
+    final String todayString =
+        '${today.year}-${today.month}-${today.day}';
 
-  ScaffoldMessenger.of(context).showSnackBar(
-    const SnackBar(
-      content: Text('Day completed! Streak updated 🔥'),
-    ),
-  );
-}
+    final DateTime yesterday = today.subtract(const Duration(days: 1));
+
+    final String yesterdayString =
+        '${yesterday.year}-${yesterday.month}-${yesterday.day}';
+
+    setState(() {
+      dayCompleted = true;
+
+      if (lastCompletedDate == todayString) {
+        // Already completed today, do not increase streak again
+        streakCounter = streakCounter;
+      } else if (lastCompletedDate == yesterdayString) {
+        // Completed yesterday, continue streak
+        streakCounter += 1;
+      } else {
+        // Missed a day, reset streak
+        streakCounter = 1;
+      }
+
+      lastCompletedDate = todayString;
+    });
+
+    await prefs.setBool('dayCompleted', dayCompleted);
+    await prefs.setInt('streakCounter', streakCounter);
+    await prefs.setString('lastCompletedDate', lastCompletedDate);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Day completed! Streak updated 🔥'),
+      ),
+    );
+  }
 
   // Reverses the completed day status and lowers the streak if needed
   Future<void> undoCompleteDay() async {
@@ -132,6 +159,7 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     loadTasks();
     loadUserName();
+    checkStreakReset();
   }
 
   // Calculates the user's current streak
@@ -222,10 +250,43 @@ class _HomeScreenState extends State<HomeScreen> {
         tasks = decodedTasks.map((task) {
           return Map<String, dynamic>.from(task);
         }).toList();
+
+        dayCompleted = prefs.getBool('dayCompleted') ?? false;
+        streakCounter = prefs.getInt('streakCounter') ?? 0;
+        lastCompletedDate = prefs.getString('lastCompletedDate') ?? '';
+      });
+    } else{
+      setState(() {
+        dayCompleted = prefs.getBool('dayCompleted') ?? false;
+        streakCounter = prefs.getInt('streakCounter') ?? 0;
+        lastCompletedDate = prefs.getString('lastCompletedDate') ?? '';
       });
     }
   }
 
+  // Resets the streak if the user missed a day
+  Future<void> checkStreakReset() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    final DateTime today = DateTime.now();
+    final String todayString = '${today.year}-${today.month}-${today.day}';
+
+    final DateTime yesterday = today.subtract(const Duration(days: 1));
+    final String yesterdayString =
+        '${yesterday.year}-${yesterday.month}-${yesterday.day}';
+
+    if (lastCompletedDate.isNotEmpty &&
+        lastCompletedDate != todayString &&
+        lastCompletedDate != yesterdayString) {
+      setState(() {
+        streakCounter = 0;
+        dayCompleted = false;
+      });
+
+      await prefs.setInt('streakCounter', streakCounter);
+      await prefs.setBool('dayCompleted', dayCompleted);
+    }
+  }
 
   void showAddTaskPopup() {
 
@@ -349,10 +410,11 @@ class _HomeScreenState extends State<HomeScreen> {
               child: const Text('Cancel'),
             ),
             ElevatedButton(
-              onPressed: () {
+              onPressed: () async {
                 final newTask = taskController.text.trim();
 
                 if (newTask.isNotEmpty) {
+                  final TimeOfDay? reminderToSchedule = selectedReminderTime;
                   setState(() {
                     tasks.add({
                       'title': taskController.text,
@@ -360,11 +422,32 @@ class _HomeScreenState extends State<HomeScreen> {
                       'category': selectedCategory,
                       'priority': selectedPriority,
                       'reminderTime': selectedReminderTime?.format(context),
+                      'date': DateTime.now().toIso8601String(),
                     }); // SAVE TASK
 
                     selectedPriority = null;
                     selectedReminderTime = null;
                   });
+                  if(reminderToSchedule != null) {
+                        DateTime reminderDateTime = DateTime(
+                          DateTime.now().year,
+                          DateTime.now().month,
+                          DateTime.now().day,
+                          reminderToSchedule.hour,
+                          reminderToSchedule.minute,
+                    );
+                    if(reminderDateTime.isBefore(DateTime.now())) {
+                      reminderDateTime = reminderDateTime.add(
+                        const Duration(days: 1),
+                      );
+                    }
+                    await NotificationService.scheduleNotification(
+                      id: tasks.length,
+                      title: 'Task Reminder',
+                      body: newTask,
+                      scheduledTime: reminderDateTime,
+                    );
+                  };
                   saveTasks();
                 }
 

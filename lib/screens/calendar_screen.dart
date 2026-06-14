@@ -1,4 +1,7 @@
+
 import 'package:flutter/material.dart';
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class CalendarScreen extends StatefulWidget {
   const CalendarScreen({super.key});
@@ -10,10 +13,42 @@ class CalendarScreen extends StatefulWidget {
 class _CalendarScreenState extends State<CalendarScreen> {
   DateTime selectedDate = DateTime.now();
 
+  List<Map<String, dynamic>> tasks =[];
+
   DateTime currentMonth = DateTime.now();
 
   @override
+  void initState() {
+    super.initState();
+    loadTasks();
+  }
+
+  Future<void> loadTasks() async {
+    final prefs = await SharedPreferences.getInstance();
+    final String? savedTasks = prefs.getString('tasks');
+
+    if (savedTasks != null) {
+      final List decodedTasks = jsonDecode(savedTasks);
+
+      setState(() {
+        tasks = decodedTasks.map((task) {
+          return Map<String, dynamic>.from(task);
+        }).toList();
+      });
+    }
+  }
+  @override
   Widget build(BuildContext context) {
+    final selectedTasks = tasks.where((task) {
+      if (task['date'] == null) return false;
+
+      final taskDate = DateTime.parse(task['date']);
+
+      return taskDate.year == selectedDate.year && 
+          taskDate.month == selectedDate.month && 
+          taskDate.day == selectedDate.day;
+    }).toList();
+
     return Scaffold(
       backgroundColor: Colors.black,
       body: SafeArea(
@@ -84,6 +119,44 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
               const SizedBox(height: 12),
 
+              // Month Navigation
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.chevron_left, color: Colors.white),
+                    onPressed: () {
+                      setState(() {
+                        currentMonth = DateTime(
+                          currentMonth.year,
+                          currentMonth.month - 1,
+                        );
+                      });
+                    },
+                  ),
+
+                  Text(
+                    '${currentMonth.month}/${currentMonth.year}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+
+                  IconButton(
+                    icon: const Icon(Icons.chevron_right, color: Colors.white),
+                    onPressed: () {
+                      setState(() {
+                        currentMonth = DateTime(
+                          currentMonth.year,
+                          currentMonth.month + 1,
+                        );
+                      });
+                    },
+                  ),
+                ],
+              ),
               // Calendar day grid
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -121,7 +194,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         margin: const EdgeInsets.all(4),
                         decoration: BoxDecoration(
                           color: isSelected
-                              ? Colors.greenAccent.withOpacity(0.85)
+                              ? Colors.white.withValues(alpha: 0.35)
                               : Colors.white10,
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
@@ -133,7 +206,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                           boxShadow: isSelected
                               ? [
                                   BoxShadow(
-                                    color: Colors.greenAccent.withOpacity(0.35),
+                                    color: Colors.greenAccent.withValues(alpha: 0.85),
                                     blurRadius: 10,
                                     spreadRadius: 1,
                                   ),
@@ -210,8 +283,49 @@ class _CalendarScreenState extends State<CalendarScreen> {
                           ),
                         ),
 
-                      const SizedBox(height: 12),
-                      Text( 'Tasks for this day coming soon')
+                        const SizedBox(height: 12),
+
+                        Text(
+                          selectedDate.day == DateTime.now().day &&
+                                  selectedDate.month == DateTime.now().month &&
+                                  selectedDate.year == DateTime.now().year
+                              ? 'Today\'s productivity'
+                              : 'Selected day summary',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+
+                        const SizedBox(height: 10),
+
+                        if(selectedDate.day == DateTime.now().day && 
+                          selectedDate.month== DateTime.now().month && 
+                          selectedDate.year == DateTime.now().year) ... [
+                          if (selectedTasks.isEmpty)
+                            const Text(
+                              'No tasks for this day.',
+                              style: TextStyle(
+                                color: Colors.white70,
+                                fontSize: 14,
+                              ),
+                            ),
+                            ...selectedTasks.map((task) {
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 6),
+                                  child: Text(
+                                    task['completed']
+                                        ? '✅ ${task['title']}'
+                                        : '⬜ ${task['title']}',
+                                    style: const TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                );
+                              }),
+                          ],
                     ],
                   ),
                 ),
