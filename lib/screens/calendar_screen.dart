@@ -17,6 +17,21 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   DateTime currentMonth = DateTime.now();
 
+  final List<String> monthNames = [
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December'
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -70,32 +85,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    Row(
-                      children: [
-                        IconButton(
-                          onPressed: () {
-                            setState(() {
-                              currentMonth = DateTime(
-                                currentMonth.year,
-                                currentMonth.month - 1,
-                              );
-                          });
-                          },
-                          icon: const Icon(Icons.chevron_left, color: Colors.white),
-                        ),
-                        IconButton(
-                          onPressed: () {
-                            setState(() {
-                              currentMonth = DateTime(
-                                currentMonth.year,
-                                currentMonth.month + 1,
-                              );
-                          });
-                          },
-                          icon: const Icon(Icons.chevron_right, color: Colors.white),
-                        ),
-                      ],
-                    ),
                   ],
                 ),
               ),
@@ -136,7 +125,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   ),
 
                   Text(
-                    '${currentMonth.month}/${currentMonth.year}',
+                    '${monthNames[currentMonth.month - 1]} ${currentMonth.year}',
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 22,
@@ -300,9 +289,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
                         const SizedBox(height: 10),
 
-                        if(selectedDate.day == DateTime.now().day && 
-                          selectedDate.month== DateTime.now().month && 
-                          selectedDate.year == DateTime.now().year) ... [
+                        ... [
                           if (selectedTasks.isEmpty)
                             const Text(
                               'No tasks for this day.',
