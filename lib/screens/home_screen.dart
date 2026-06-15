@@ -77,6 +77,12 @@ class _HomeScreenState extends State<HomeScreen> {
   // Stores the date when the user last completed a day
   String lastCompletedDate = '';
 
+  // Stores the last date the app was opened/used
+  String lastActiveDate = '';
+
+  // Stores the previous day's task
+  String selectedTaskDate = '';
+
   // Calculates how much of today's tasks are completed
   double getProgress() {
     // If there are no tasks, progress is 0%
@@ -157,7 +163,9 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    loadTasks();
+    loadTasks().then((_) {
+      checkForNewDay();
+    });
     loadUserName();
     checkStreakReset();
   }
@@ -231,17 +239,42 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> saveTasks() async {
     final prefs = await SharedPreferences.getInstance();
 
+    selectedTaskDate = prefs.getString('selectedTaskDate') ?? '';
+
     // Convert tasks list into a JSON string
     final String encodedTasks = jsonEncode(tasks);
 
-    await prefs.setString('tasks', encodedTasks);
+    final String todayKey =
+    '${DateTime.now().year}-${DateTime.now().month}-${DateTime.now().day}';
+
+    final String taskKey =
+        (selectedTaskDate.isEmpty || selectedTaskDate == todayKey)
+            ? 'tasks'
+            : 'tasks_$selectedTaskDate';
+
+    await prefs.setString(taskKey, encodedTasks);
+    await prefs.setBool('dayCompleted', dayCompleted);
+    await prefs.setInt('streakCounter', streakCounter);
+    await prefs.setString('lastCompletedDate', lastCompletedDate);
+    await prefs.setString('lastActiveDate', lastActiveDate);
+    await prefs.setString('selectedTaskDate', selectedTaskDate);
   }
 
   // Loads saved tasks from local phone storage
   Future<void> loadTasks() async {
     final prefs = await SharedPreferences.getInstance();
 
-    final String? savedTasks = prefs.getString('tasks');
+    selectedTaskDate = prefs.getString('selectedTaskDate') ?? '';
+
+    final String todayKey =
+    '${DateTime.now().year}-${DateTime.now().month}-${DateTime.now().day}';
+
+    final String taskKey =
+        (selectedTaskDate.isEmpty || selectedTaskDate == todayKey)
+            ? 'tasks'
+            : 'tasks_$selectedTaskDate';
+
+    final String? savedTasks = prefs.getString(taskKey);
 
     if (savedTasks != null) {
       final List decodedTasks = jsonDecode(savedTasks);
@@ -254,13 +287,53 @@ class _HomeScreenState extends State<HomeScreen> {
         dayCompleted = prefs.getBool('dayCompleted') ?? false;
         streakCounter = prefs.getInt('streakCounter') ?? 0;
         lastCompletedDate = prefs.getString('lastCompletedDate') ?? '';
+        lastActiveDate = prefs.getString('lastActiveDate') ?? '';
+        selectedTaskDate = prefs.getString('selectedTaskDate') ?? '';
       });
     } else{
       setState(() {
         dayCompleted = prefs.getBool('dayCompleted') ?? false;
         streakCounter = prefs.getInt('streakCounter') ?? 0;
         lastCompletedDate = prefs.getString('lastCompletedDate') ?? '';
+        lastActiveDate = prefs.getString('lastActiveDate') ?? '';
+        selectedTaskDate = prefs.getString('selectedTaskDate') ?? '';
       });
+    }
+  }
+
+  // Checks if a new day has started and resets tasks for a fresh day
+  Future<void> checkForNewDay() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    final DateTime today = DateTime.now();
+    final String todayString = '${today.year}-${today.month}-${today.day}';
+
+    if (lastActiveDate.isEmpty) {
+      lastActiveDate = todayString;
+      await prefs.setString('lastActiveDate', lastActiveDate);
+      return;
+    }
+
+    if (lastActiveDate != todayString) {
+        // New Day Started
+
+      if(tasks.isNotEmpty) {
+        final String historyKey = 'tasks_$lastActiveDate';
+        final String encodedOldTasks = jsonEncode(tasks);
+
+        await prefs.setString(
+          historyKey,
+          encodedOldTasks,
+        );
+      }
+
+      setState(() {
+        tasks = [];
+        dayCompleted = false;
+        lastActiveDate = todayString;
+      });
+
+      await saveTasks();
     }
   }
 

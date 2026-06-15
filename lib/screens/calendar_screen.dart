@@ -35,12 +35,23 @@ class _CalendarScreenState extends State<CalendarScreen> {
   @override
   void initState() {
     super.initState();
-    loadTasks();
+    loadTasksForSelectedDate();
   }
 
-  Future<void> loadTasks() async {
+  Future<void> loadTasksForSelectedDate() async {
     final prefs = await SharedPreferences.getInstance();
-    final String? savedTasks = prefs.getString('tasks');
+
+    final String selectedDateKey =
+        '${selectedDate.year}-${selectedDate.month}-${selectedDate.day}';
+
+    final bool isToday =
+        selectedDate.day == DateTime.now().day &&
+        selectedDate.month == DateTime.now().month &&
+        selectedDate.year == DateTime.now().year;
+
+    final String? savedTasks = isToday
+        ? prefs.getString('tasks')
+        : prefs.getString('tasks_$selectedDateKey');
 
     if (savedTasks != null) {
       final List decodedTasks = jsonDecode(savedTasks);
@@ -49,6 +60,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
         tasks = decodedTasks.map((task) {
           return Map<String, dynamic>.from(task);
         }).toList();
+      });
+    } else {
+      setState(() {
+        tasks = [];
       });
     }
   }
@@ -170,7 +185,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         selectedDate.day == dayNumber
                     );
                     return GestureDetector(
-                      onTap: () {
+                      onTap: () async {
                         setState(() {
                           selectedDate = DateTime(
                             currentMonth.year,
@@ -178,6 +193,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
                             dayNumber,
                           );
                         });
+
+                        final prefs = await SharedPreferences.getInstance();
+
+                        final String selectedDateKey = 
+                            '${selectedDate.year}-${selectedDate.month}-${selectedDate.day}';
+                        await prefs.setString('selectedTaskDate', selectedDateKey);
+
+                        loadTasksForSelectedDate();
                       },
                       child: Container(
                         margin: const EdgeInsets.all(4),
