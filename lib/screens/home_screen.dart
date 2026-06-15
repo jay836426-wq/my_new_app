@@ -442,8 +442,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       );
                     }
 
-                    print('Scheduling notifications for: $reminderDateTime');
-                    
                     await NotificationService.scheduleNotification(
                       id: tasks.length,
                       title: 'Task Reminder',
