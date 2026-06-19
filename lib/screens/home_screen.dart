@@ -270,10 +270,13 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> loadTasks() async {
     final prefs = await SharedPreferences.getInstance();
 
-    selectedTaskDate = prefs.getString('selectedTaskDate') ?? '';
+    final DateTime today = DateTime.now();
 
-    final String todayKey =
-    '${DateTime.now().year}-${DateTime.now().month}-${DateTime.now().day}';
+    final String todayKey = '${today.year}-${today.month}-${today.day}';
+
+    // Home should always open on today by default
+    selectedTaskDate = todayKey;
+    await prefs.setString('selectedTaskDate', selectedTaskDate);
 
     final String taskKey =
         (selectedTaskDate.isEmpty || selectedTaskDate == todayKey)
