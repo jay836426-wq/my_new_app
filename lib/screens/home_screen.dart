@@ -274,9 +274,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
     final String todayKey = '${today.year}-${today.month}-${today.day}';
 
-    // Home should always open on today by default
-    selectedTaskDate = todayKey;
-    await prefs.setString('selectedTaskDate', selectedTaskDate);
+    // Load selected date, defaulting to today
+    selectedTaskDate = prefs.getString('selectedTaskDate') ?? todayKey;
 
     final String taskKey =
         (selectedTaskDate.isEmpty || selectedTaskDate == todayKey)
