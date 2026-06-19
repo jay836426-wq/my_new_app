@@ -126,7 +126,7 @@ class _HomeScreenState extends State<HomeScreen> {
       lastCompletedDate = todayString;
     });
 
-    await prefs.setBool('dayCompleted', dayCompleted);
+    await prefs.setBool('dayCompleted_$todayString', dayCompleted);
     await prefs.setInt('streakCounter', streakCounter);
     await prefs.setString('lastCompletedDate', lastCompletedDate);
 
@@ -141,6 +141,10 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> undoCompleteDay() async {
     final prefs = await SharedPreferences.getInstance();
 
+    final DateTime today = DateTime.now();
+
+    final String todayString = '${today.year}-${today.month}-{$today.day}';
+
     setState(() {
       dayCompleted = false;
 
@@ -149,7 +153,7 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     });
 
-    await prefs.setBool('dayCompleted', dayCompleted);
+    await prefs.setBool('dayCompleted_$todayString', dayCompleted);
     await prefs.setInt('streakCounter', streakCounter);
 
     ScaffoldMessenger.of(context).showSnackBar(
@@ -163,11 +167,11 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    loadTasks().then((_) {
-      checkForNewDay();
+    loadTasks().then((_) async {
+      await checkForNewDay();
+      await checkStreakReset();
     });
     loadUserName();
-    checkStreakReset();
   }
 
   // Calculates the user's current streak
@@ -284,7 +288,8 @@ class _HomeScreenState extends State<HomeScreen> {
           return Map<String, dynamic>.from(task);
         }).toList();
 
-        dayCompleted = prefs.getBool('dayCompleted') ?? false;
+        final String completedKey = 'dayCompleted_$todayKey';
+        dayCompleted = prefs.getBool(completedKey) ?? false;
         streakCounter = prefs.getInt('streakCounter') ?? 0;
         lastCompletedDate = prefs.getString('lastCompletedDate') ?? '';
         lastActiveDate = prefs.getString('lastActiveDate') ?? '';
@@ -292,7 +297,8 @@ class _HomeScreenState extends State<HomeScreen> {
       });
     } else{
       setState(() {
-        dayCompleted = prefs.getBool('dayCompleted') ?? false;
+        final String completedKey = 'dayCompleted_$todayKey';
+        dayCompleted = prefs.getBool(completedKey) ?? false;
         streakCounter = prefs.getInt('streakCounter') ?? 0;
         lastCompletedDate = prefs.getString('lastCompletedDate') ?? '';
         lastActiveDate = prefs.getString('lastActiveDate') ?? '';
@@ -331,9 +337,11 @@ class _HomeScreenState extends State<HomeScreen> {
         tasks = [];
         dayCompleted = false;
         lastActiveDate = todayString;
+        selectedTaskDate = todayString;
       });
 
       await saveTasks();
+      await prefs.setString('selectedTaskDate', selectedTaskDate);
     }
   }
 
