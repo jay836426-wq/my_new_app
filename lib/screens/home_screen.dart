@@ -215,21 +215,23 @@ class _HomeScreenState extends State<HomeScreen> {
 
   String getMotivationMessage(double progress) {
     if (tasks.isEmpty) {
-      return "Add your first task to start your day.";
+      return "Plan your day and start strong 🚀 ";
     }
-
     if (progress == 0) {
       return "Let’s get started 💪";
     }
-
+    if (progress < 0.25) {
+      return "One task at a time 🔥";
+    }
     if (progress < 0.5) {
       return "Good start — keep going!";
     }
-
+    if (progress < 0.75) {
+      return "Halfway there 👏";
+    }
     if (progress < 1) {
       return "You’re on a roll 🔥";
     }
-
     return "Tasks complete for the day! 🎉";
   }
 
@@ -342,6 +344,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
       await saveTasks();
       await prefs.setString('selectedTaskDate', selectedTaskDate);
+      await prefs.setBool('dayCompleted_$todayString', false);
     }
   }
 
@@ -367,6 +370,15 @@ class _HomeScreenState extends State<HomeScreen> {
       await prefs.setInt('streakCounter', streakCounter);
       await prefs.setBool('dayCompleted', dayCompleted);
     }
+  }
+
+  // Check if the user is currently viewing today's tasks
+  bool isViewingToday() {
+    final DateTime today = DateTime.now();
+
+    final String todayString = '${today.year}-${today.month}-${today.day}';
+
+    return selectedTaskDate.isEmpty || selectedTaskDate == todayString;
   }
 
   void showAddTaskPopup() {
@@ -748,7 +760,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }
   @override
   Widget build(BuildContext context) {
-    final double progress = getProgress();
+    final int completedTasks = tasks.where((task) => task['completed'] == true).length;
+    final double progress = tasks.isEmpty ? 0: completedTasks / tasks.length;
+
     final List<Map<String, dynamic>> filteredTasks = getFilteredTasks();
     return Scaffold(
       backgroundColor: Colors.black,
@@ -837,10 +851,24 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
                     ),
+                  
+                  // Motivational messages
+                  const SizedBox(height: 10),
 
+                  Text(
+                    getMotivationMessage(progress),
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500
+                    ),
+                  ),
+
+                  const SizedBox(height: 15),
+                  
               // Complete Task Button
                 ElevatedButton(
-                  onPressed: () async {
+                  onPressed: isViewingToday() ? () async {
                     if (dayCompleted) {
                       await undoCompleteDay();
                     } else{
@@ -868,7 +896,8 @@ class _HomeScreenState extends State<HomeScreen> {
                           completeDay();
                         }
                     }
-                  },
+                  }
+                  : null,
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 20,

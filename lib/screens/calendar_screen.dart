@@ -69,15 +69,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
   @override
   Widget build(BuildContext context) {
-    final selectedTasks = tasks.where((task) {
-      if (task['date'] == null) return false;
 
-      final taskDate = DateTime.parse(task['date']);
-
-      return taskDate.year == selectedDate.year && 
-          taskDate.month == selectedDate.month && 
-          taskDate.day == selectedDate.day;
-    }).toList();
+    final selectedTasks = tasks;
 
     return Scaffold(
       backgroundColor: Colors.black,
