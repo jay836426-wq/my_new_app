@@ -245,8 +245,6 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> saveTasks() async {
     final prefs = await SharedPreferences.getInstance();
 
-    selectedTaskDate = prefs.getString('selectedTaskDate') ?? '';
-
     // Convert tasks list into a JSON string
     final String encodedTasks = jsonEncode(tasks);
 
@@ -315,7 +313,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> checkForNewDay() async {
     final prefs = await SharedPreferences.getInstance();
 
-    final DateTime today = DateTime.now();
+    final DateTime today = DateTime(2026, 6, 21);
     final String todayString = '${today.year}-${today.month}-${today.day}';
 
     if (lastActiveDate.isEmpty) {
