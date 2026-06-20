@@ -151,10 +151,13 @@ class _HomeScreenState extends State<HomeScreen> {
       if (streakCounter > 0) {
         streakCounter -= 1;
       }
+
+      lastCompletedDate = '';
     });
 
     await prefs.setBool('dayCompleted_$todayString', dayCompleted);
     await prefs.setInt('streakCounter', streakCounter);
+    await prefs.setString('lastCompletedDate', lastCompletedDate);
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
@@ -313,7 +316,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> checkForNewDay() async {
     final prefs = await SharedPreferences.getInstance();
 
-    final DateTime today = DateTime(2026, 6, 21);
+    final DateTime today = DateTime.now();
     final String todayString = '${today.year}-${today.month}-${today.day}';
 
     if (lastActiveDate.isEmpty) {
