@@ -276,7 +276,8 @@ class _HomeScreenState extends State<HomeScreen> {
     final String todayKey = '${today.year}-${today.month}-${today.day}';
 
     // Load selected date, defaulting to today
-    selectedTaskDate = prefs.getString('selectedTaskDate') ?? todayKey;
+    selectedTaskDate = todayKey;
+    await prefs.setString('selectedTaskDate', selectedTaskDate);
 
     final String taskKey =
         (selectedTaskDate.isEmpty || selectedTaskDate == todayKey)
@@ -298,7 +299,6 @@ class _HomeScreenState extends State<HomeScreen> {
         streakCounter = prefs.getInt('streakCounter') ?? 0;
         lastCompletedDate = prefs.getString('lastCompletedDate') ?? '';
         lastActiveDate = prefs.getString('lastActiveDate') ?? '';
-        selectedTaskDate = prefs.getString('selectedTaskDate') ?? '';
       });
     } else{
       setState(() {
@@ -307,7 +307,6 @@ class _HomeScreenState extends State<HomeScreen> {
         streakCounter = prefs.getInt('streakCounter') ?? 0;
         lastCompletedDate = prefs.getString('lastCompletedDate') ?? '';
         lastActiveDate = prefs.getString('lastActiveDate') ?? '';
-        selectedTaskDate = prefs.getString('selectedTaskDate') ?? '';
       });
     }
   }
