@@ -137,6 +137,10 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
 
     Timer.periodic(const Duration(milliseconds: 70), (timer) {
       if (currentIndex < welcomeText.length) {
+        if(!mounted) {
+          timer.cancel();
+          return;
+        }
         setState(() {
           displayedText += welcomeText[currentIndex];
         });
@@ -146,39 +150,35 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
 
         // Track appears after 1 second
         Future.delayed(const Duration(seconds: 1), () {
-          if (mounted) {
+          if (!mounted) return;
             setState(() {
               showTrack = true;
             });
-          }
-        });
+          });
 
         // Focus appears after 3 seconds
         Future.delayed(const Duration(seconds: 3), () {
-          if (mounted) {
+          if (!mounted) return;
             setState(() {
               showFocus = true;
             });
-          }
-        });
+          });
 
         // Achieve appears after 5 seconds
         Future.delayed(const Duration(seconds: 5), () {
-          if (mounted) {
-            setState(() {
+          if (!mounted) return;
+          setState(() {
               showAchieve = true;
             });
-          }
-        });
+          });
 
         // Button appears after 7 seconds
         Future.delayed(const Duration(seconds: 7), () {
-          if (mounted) {
+          if (!mounted) return;
             setState(() {
               showButton = true;
             });
-          }
-        });
+          });
       }
     });
   }
@@ -280,6 +280,9 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                           onPressed: () async {
                             final prefs = await SharedPreferences.getInstance();
                             bool isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
+
+                            if(!mounted) return;
+                            
                             if (isLoggedIn) {
                               Navigator.of(context).pushReplacement(
                                 MaterialPageRoute(
