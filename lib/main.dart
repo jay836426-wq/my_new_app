@@ -4,8 +4,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:traqon/screens/main_navigation_screen.dart';
-//import 'package:traqon/screens/main_navigation_screen.dart';
+import 'package:TrakOn/screens/main_navigation_screen.dart';
+//import 'package:TrakOn/screens/main_navigation_screen.dart';
 
 import 'screens/Mfa_screen.dart';
 //import 'screens/tutorial_screen.dart';
@@ -24,7 +24,7 @@ Future<void> main() async {
     const Duration(seconds: 5),
     () async { 
       await NotificationService.showNotification(
-      title: 'Traqon', 
+      title: 'TrakOn', 
       body: 'Notifications are working!',
       );
     },
@@ -99,11 +99,7 @@ class MyApp extends StatelessWidget {
         ),
       ),
 
-        home: isLoggedIn
-            ? const MainNavigationScreen()
-            : hasSeenOnboarding
-                ? const AuthChoiceScreen()
-                : const WelcomeScreen(),
+        home: const WelcomeScreen(),
     );
   }
 }
@@ -126,7 +122,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   bool showAchieve = false;
   bool showButton = false;
 
-  final String welcomeText = 'Welcome to Traqon';
+  final String welcomeText = 'Welcome to TrakOn';
 
   @override
   void initState() {
@@ -281,12 +277,22 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                             backgroundColor: Colors.white,
                             foregroundColor: Colors.black,
                           ),
-                          onPressed: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (context) => const AuthChoiceScreen(),
-                              ),
-                            );
+                          onPressed: () async {
+                            final prefs = await SharedPreferences.getInstance();
+                            bool isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
+                            if (isLoggedIn) {
+                              Navigator.of(context).pushReplacement(
+                                MaterialPageRoute(
+                                  builder: (context) => const MainNavigationScreen(),
+                                ),
+                              );
+                            } else {
+                              Navigator.of(context).pushReplacement(
+                                MaterialPageRoute(
+                                  builder: (context) => const AuthChoiceScreen(),
+                                ),
+                              );
+                            }
                           },
                           child: const Text(
                             "Let's get you Started!",

@@ -44,7 +44,7 @@ class MfaSuccessScreen extends StatelessWidget {
                 ),
               );
             },
-            child: const Text('Continue to Traqon'),
+            child: const Text('Continue to TrakOn'),
           ),
         ],
       ),

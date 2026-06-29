@@ -769,7 +769,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        title: const Text('Traqon'),
+        title: const Text('TrakOn'),
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
         automaticallyImplyLeading: false,
@@ -796,7 +796,7 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 10),
 
               const Text(
-                'Welcome back to Traqon!',
+                'Welcome back to TrakOn!',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 22,

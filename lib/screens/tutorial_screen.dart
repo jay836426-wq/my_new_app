@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:traqon/screens/main_navigation_screen.dart';
+import 'package:TrakOn/screens/main_navigation_screen.dart';
 
 //import 'main_navigation_screen.dart';
 
@@ -7,7 +7,7 @@ import 'package:traqon/screens/main_navigation_screen.dart';
 
 import  'package:shared_preferences/shared_preferences.dart';
 
-//import 'package:traqon/main.dart';
+//import 'package:TrakOn/main.dart';
 
 class TutorialScreen extends StatefulWidget {
   const TutorialScreen({super.key});

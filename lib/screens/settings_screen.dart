@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:traqon/main.dart';
+import 'package:TrakOn/main.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -205,7 +205,7 @@ class SettingsScreen extends StatelessWidget {
 
           Center(
             child: Text(
-              'Traqon v1.0',
+              'TrakOn v1.0',
               style: TextStyle(
                 color: Colors.grey,
                 fontSize: 14,
