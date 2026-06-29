@@ -99,7 +99,11 @@ class MyApp extends StatelessWidget {
         ),
       ),
 
-        home: const WelcomeScreen(),
+        home: isLoggedIn
+            ? const MainNavigationScreen()
+            : hasSeenOnboarding
+                ? const AuthChoiceScreen()
+                : const WelcomeScreen(),
     );
   }
 }
