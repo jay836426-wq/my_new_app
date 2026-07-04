@@ -14,6 +14,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'screens/notification_service.dart';
 
+import 'screens/SplashScreen.dart';
+
 // Entry point of the app
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -99,11 +101,7 @@ class MyApp extends StatelessWidget {
         ),
       ),
 
-        home: isLoggedIn
-            ? const MainNavigationScreen()
-            : hasSeenOnboarding
-                ? const AuthChoiceScreen()
-                : const WelcomeScreen(),
+        home: const SplashScreen(),
     );
   }
 }
