@@ -426,18 +426,35 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
   final _formKey = GlobalKey<FormState>();
 
   // Controllers store user input
-  final nameController = TextEditingController();
+  final firstNameController = TextEditingController();
+  final lastNameController = TextEditingController();
   final usernameController = TextEditingController();
   final dobController = TextEditingController();
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
+
+  @override
+  void dispose() {
+    firstNameController.dispose();
+    lastNameController.dispose();
+    usernameController.dispose();
+    dobController.dispose();
+    emailController.dispose();
+    passwordController.dispose();
+    super.dispose();
+  }
 
 Future<void> submitForm() async {
   if (_formKey.currentState!.validate()) {
     
     final prefs = await SharedPreferences.getInstance();
 
-    await prefs.setString('fullName', nameController.text.trim());
+    final fullName =
+    '${firstNameController.text.trim()} ${lastNameController.text.trim()}';
+
+    await prefs.setString('firstName', firstNameController.text.trim());
+    await prefs.setString('lastName', lastNameController.text.trim());
+    await prefs.setString('fullName', fullName.trim());
     await prefs.setString('username', usernameController.text.trim());
     await prefs.setString('contactInfo', emailController.text.trim());
     await prefs.setString('password', passwordController.text);
@@ -570,12 +587,12 @@ Future<void> submitForm() async {
 
           child: Column(
             children: [
-              // NAME FIELD
+              // First Name
               TextFormField(
-                controller: nameController,
+                controller: firstNameController,
                 style: const TextStyle(color: Colors.white),
                 decoration: const InputDecoration(
-                  labelText: 'Name',
+                  labelText: 'First Name',
                   labelStyle: TextStyle(color: Colors.white),
                   enabledBorder: OutlineInputBorder(
                     borderSide: BorderSide(color: Colors.white),
@@ -585,8 +602,32 @@ Future<void> submitForm() async {
                   ),
                 ),
                 validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Enter your name';
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Required';
+                  }
+                  return null;
+                },
+              ),
+
+              const SizedBox(height: 16),
+
+              // Last Name
+              TextFormField(
+                controller: lastNameController,
+                style: const TextStyle(color: Colors.white),
+                decoration: const InputDecoration(
+                  labelText: 'Last Name',
+                  labelStyle: TextStyle(color: Colors.white),
+                  enabledBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: Colors.white),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: Colors.white),
+                  ),
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Required';
                   }
                   return null;
                 },

@@ -1,8 +1,9 @@
 import 'dart:convert';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'notification_service.dart';
-import 'future_tasks_screen.dart';
+import 'package:flutter/cupertino.dart';
 
 // ---------------------------
 // Home Screen
@@ -144,7 +145,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
     final DateTime today = DateTime.now();
 
-    final String todayString = '${today.year}-${today.month}-{$today.day}';
+    final String todayString =
+    '${today.year}-${today.month}-${today.day}';
 
     setState(() {
       dayCompleted = false;
@@ -338,17 +340,18 @@ class _HomeScreenState extends State<HomeScreen> {
         );
       }
 
-      setState(() {
-        tasks = [];
-        dayCompleted = false;
-        lastActiveDate = todayString;
-        selectedTaskDate = todayString;
-      });
+  setState(() {
+    dayCompleted = false;
+    lastActiveDate = todayString;
+    selectedTaskDate = todayString;
+  });
 
-      await saveTasks();
-      await prefs.setString('selectedTaskDate', selectedTaskDate);
-      await prefs.setBool('dayCompleted_$todayString', false);
-    }
+  await prefs.setString('lastActiveDate', lastActiveDate);
+  await prefs.setString('selectedTaskDate', selectedTaskDate);
+  await prefs.setBool('dayCompleted_$todayString', false);
+
+  await loadTasksForSelectedDate();
+  }
   }
 
   // Resets the streak if the user missed a day
@@ -377,12 +380,101 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // Check if the user is currently viewing today's tasks
   bool isViewingToday() {
-    final DateTime today = DateTime.now();
-
-    final String todayString = '${today.year}-${today.month}-${today.day}';
-
-    return selectedTaskDate.isEmpty || selectedTaskDate == todayString;
+    final todayString = getDateKey(DateTime.now());
+    return selectedTaskDate == todayString;
   }
+
+  // Returns a date as a unique string key
+  String getDateKey(DateTime date) {
+    return '${date.year}-${date.month}-${date.day}';
+  }
+
+  // Returns the full month and year (e.g. July 2026)
+  String getMonthYearLabel(DateTime date) {
+    const months = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
+    ];
+
+    return '${months[date.month - 1]} ${date.year}';
+  }
+
+  // Returns the correct storage key for the selected date
+  String getTaskStorageKey(String dateKey) {
+    final today = DateTime.now();
+    final todayKey = getDateKey(today);
+
+    return dateKey == todayKey ? 'tasks' : 'tasks_$dateKey';
+  }
+
+  // Loads tasks for the selected date from local storage
+  Future<void> loadTasksForSelectedDate() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    final taskKey = getTaskStorageKey(selectedTaskDate);
+    final savedTasks = prefs.getString(taskKey);
+
+    setState(() {
+      if (savedTasks != null) {
+        final List decodedTasks = jsonDecode(savedTasks);
+        tasks = decodedTasks.map((task) {
+          return Map<String, dynamic>.from(task);
+        }).toList();
+      } else {
+        tasks = [];
+      }
+
+      dayCompleted = prefs.getBool('dayCompleted_$selectedTaskDate') ?? false;
+      selectedFilter = 'All';
+    });
+  }
+
+  // Calculates completion progress for a specific day
+  Future<double> getProgressForDate(DateTime date) async {
+    final prefs = await SharedPreferences.getInstance();
+
+    final dateKey = getDateKey(date);
+    final taskKey = getTaskStorageKey(dateKey);
+    final savedTasks = prefs.getString(taskKey);
+
+    if (savedTasks == null) return 0;
+
+    final List decodedTasks = jsonDecode(savedTasks);
+
+    if (decodedTasks.isEmpty) return 0;
+
+    // Count completed tasks for that day
+    final completed = decodedTasks.where((task) {
+      return task['completed'] == true;
+    }).length;
+
+    return completed / decodedTasks.length;
+  }
+
+  Future<int> getTaskCountForDate(DateTime date) async {
+  final prefs = await SharedPreferences.getInstance();
+
+  final dateKey = getDateKey(date);
+  final taskKey = getTaskStorageKey(dateKey);
+  final savedTasks = prefs.getString(taskKey);
+
+  if (savedTasks == null) return 0;
+
+  final List decodedTasks = jsonDecode(savedTasks);
+
+  return decodedTasks.length;
+}
+
 
   void showAddTaskPopup() {
 
@@ -467,16 +559,80 @@ class _HomeScreenState extends State<HomeScreen> {
                           color: Colors.white,
                         ),
                         onTap: () async {
-                          final picked = await showTimePicker(
-                            context: context,
-                            initialTime: TimeOfDay.now(),
-                          );
+                          TimeOfDay tempReminderTime =
+                              selectedReminderTime ?? TimeOfDay.now();
 
-                          if (picked != null) {
-                            setDialogState(() {
-                              selectedReminderTime = picked;
-                            });
-                          }
+                          await showModalBottomSheet(
+                            context: context,
+                            backgroundColor: Colors.black,
+                            builder: (context) {
+                              return SizedBox(
+                                height: 300,
+                                child: Column(
+                                  children: [
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                        vertical: 8,
+                                      ),
+                                      child: Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          TextButton(
+                                            onPressed: () => Navigator.pop(context),
+                                            child: const Text(
+                                              'Cancel',
+                                              style: TextStyle(color: Colors.white),
+                                            ),
+                                          ),
+                                          TextButton(
+                                            onPressed: () {
+                                              setDialogState(() {
+                                                selectedReminderTime = tempReminderTime;
+                                              });
+
+                                              Navigator.pop(context);
+                                            },
+                                            child: const Text(
+                                              'Done',
+                                              style: TextStyle(color: Colors.white),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+
+                                    const Divider(color: Colors.white24),
+
+                                    Expanded(
+                                      child: CupertinoTheme(
+                                        data: const CupertinoThemeData(
+                                          brightness: Brightness.dark,
+                                        ),
+                                        child: CupertinoDatePicker(
+                                          mode: CupertinoDatePickerMode.time,
+                                          use24hFormat: false,
+                                          initialDateTime: DateTime(
+                                            2026,
+                                            1,
+                                            1,
+                                            tempReminderTime.hour,
+                                            tempReminderTime.minute,
+                                          ),
+                                          onDateTimeChanged: (newTime) {
+                                            tempReminderTime = TimeOfDay(
+                                              hour: newTime.hour,
+                                              minute: newTime.minute,
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          );
                         },
                       ),
                       Align(
@@ -518,17 +674,20 @@ class _HomeScreenState extends State<HomeScreen> {
                       'category': selectedCategory,
                       'priority': selectedPriority,
                       'reminderTime': selectedReminderTime?.format(context),
-                      'date': DateTime.now().toIso8601String(),
+                      'date': selectedTaskDate,
                     }); // SAVE TASK
 
                     selectedPriority = null;
                     selectedReminderTime = null;
                   });
                   if(reminderToSchedule != null) {
+
+                    final selectedDate = DateTime.parse(selectedTaskDate);
+
                         DateTime reminderDateTime = DateTime(
-                          DateTime.now().year,
-                          DateTime.now().month,
-                          DateTime.now().day,
+                          selectedDate.year,
+                          selectedDate.month,
+                          selectedDate.day,
                           reminderToSchedule.hour,
                           reminderToSchedule.minute,
                     );
@@ -699,18 +858,112 @@ class _HomeScreenState extends State<HomeScreen> {
                         color: Colors.white,
                       ),
                       onTap: () async {
-                        final picked = await showTimePicker(
-                          context: context,
-                          initialTime: TimeOfDay.now(),
-                        );
+                        TimeOfDay tempReminderTime = TimeOfDay.now();
 
-                        if (picked != null) {
-                          setDialogState(() {
-                            editReminderTime = picked.format(context);
-                          });
+                        // If a reminder already exists, use it as the initial picker value
+                        if (editReminderTime != null) {
+                          final parts = editReminderTime!.split(':');
+
+                          if (parts.length == 2) {
+                            int hour = int.parse(parts[0]);
+                            final minuteAndPeriod = parts[1].split(' ');
+
+                            int minute = int.parse(minuteAndPeriod[0]);
+
+                            if (minuteAndPeriod.length == 2) {
+                              final period = minuteAndPeriod[1];
+
+                              if (period == 'PM' && hour != 12) {
+                                hour += 12;
+                              }
+
+                              if (period == 'AM' && hour == 12) {
+                                hour = 0;
+                              }
+                            }
+
+                            tempReminderTime = TimeOfDay(
+                              hour: hour,
+                              minute: minute,
+                            );
+                          }
                         }
+
+                        await showModalBottomSheet(
+                          context: context,
+                          backgroundColor: Colors.black,
+                          builder: (context) {
+                            return SizedBox(
+                              height: 300,
+                              child: Column(
+                                children: [
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 8,
+                                    ),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        TextButton(
+                                          onPressed: () => Navigator.pop(context),
+                                          child: const Text(
+                                            'Cancel',
+                                            style: TextStyle(color: Colors.white),
+                                          ),
+                                        ),
+                                        TextButton(
+                                          onPressed: () {
+                                            setDialogState(() {
+                                              editReminderTime =
+                                                  tempReminderTime.format(context);
+                                            });
+
+                                            Navigator.pop(context);
+                                          },
+                                          child: const Text(
+                                            'Done',
+                                            style: TextStyle(color: Colors.white),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+
+                                  const Divider(color: Colors.white24),
+
+                                  Expanded(
+                                    child: CupertinoTheme(
+                                      data: const CupertinoThemeData(
+                                        brightness: Brightness.dark,
+                                      ),
+                                      child: CupertinoDatePicker(
+                                        mode: CupertinoDatePickerMode.time,
+                                        use24hFormat: false,
+                                        initialDateTime: DateTime(
+                                          2026,
+                                          1,
+                                          1,
+                                          tempReminderTime.hour,
+                                          tempReminderTime.minute,
+                                        ),
+                                        onDateTimeChanged: (newTime) {
+                                          tempReminderTime = TimeOfDay(
+                                            hour: newTime.hour,
+                                            minute: newTime.minute,
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        );
                       },
                     ),
+
 
                     TextButton(
                       onPressed: () {
@@ -781,17 +1034,50 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                DateTime.now().hour < 12
-                    ? 'Good Morning, $userName 👋 '
-                    : DateTime.now().hour < 17
-                        ? 'Good Afternoon, $userName 👋'
-                        : 'Good Evening, $userName 👋',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 30,
-                  fontWeight: FontWeight.bold,
-                ),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Text(
+                      DateTime.now().hour < 12
+                          ? 'Good Morning, $userName 👋'
+                          : DateTime.now().hour < 17
+                              ? 'Good Afternoon, $userName 👋'
+                              : 'Good Evening, $userName 👋',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 30,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                    decoration: BoxDecoration(
+                      color: Colors.white10,
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: Colors.white12),
+                    ),
+                    child: Column(
+                      children: [
+                        const Text('🔥', style: TextStyle(fontSize: 28)),
+                        Text(
+                          '$streakCounter',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const Text(
+                          'Day Streak',
+                          style: TextStyle(color: Colors.white70, fontSize: 12),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
 
               const SizedBox(height: 10),
@@ -811,8 +1097,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 style: TextStyle(color: Colors.white70, fontSize: 16),
               ),
               const SizedBox(height: 32),
-
-              const SizedBox(height: 30),
 
               // Progress Section
               Container(
@@ -929,39 +1213,138 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 24),
 
               Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white10,
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: Colors.white12),
-                  ),
-              
-                  child: Row(
-                    children: [
-                      Text('🔥', style: TextStyle(fontSize: 28)),
-                      SizedBox(width: 12),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            '$streakCounter Day Streak',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          SizedBox(height: 4),
-                          Text(
-                            'Keep showing up daily.',
-                            style: TextStyle(color: Colors.white70, fontSize: 14),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white10,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: Colors.white12),
                 ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      getMonthYearLabel(DateTime.now()),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+
+                    const SizedBox(height: 14),
+
+                    SizedBox(
+                      height: 110,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: List.generate(7, (index) {
+                          final date = DateTime.now().add(Duration(days: index));
+                          final dateKey = getDateKey(date);
+                          final todayKey = getDateKey(DateTime.now());
+
+                          final isSelected = selectedTaskDate == dateKey;
+                          final isToday = dateKey == todayKey;
+
+                          final dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+                          return FutureBuilder<double>(
+                            future: getProgressForDate(date),
+                            builder: (context, progressSnapshot) {
+                              final dayProgress = progressSnapshot.data ?? 0;
+
+                              final ringColor = dayProgress == 0
+                                  ? Colors.white24
+                                  : getProgressColor(dayProgress);
+
+                              return FutureBuilder<int>(
+                                future: getTaskCountForDate(date),
+                                builder: (context, countSnapshot) {
+                                  final taskCount = countSnapshot.data ?? 0;
+
+                                  return GestureDetector(
+                                    onTap: () async {
+                                      await saveTasks();
+
+                                      setState(() {
+                                        selectedTaskDate = dateKey;
+                                      });
+
+                                      await loadTasksForSelectedDate();
+                                    },
+                                    child: Container(
+                                      width: 48,
+                                      decoration: BoxDecoration(
+                                        color: isSelected ? Colors.white12 : Colors.transparent,
+                                        borderRadius: BorderRadius.circular(18),
+                                        border: isSelected
+                                            ? Border.all(color: ringColor, width: 1.5)
+                                            : isToday
+                                                ? Border.all(color: Colors.white54, width: 1)
+                                                : null,
+                                      ),
+                                      child: Column(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Text(
+                                            dayNames[date.weekday - 1],
+                                            style: const TextStyle(
+                                              color: Colors.white70,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+
+                                          const SizedBox(height: 8),
+
+                                          CustomPaint(
+                                            painter: DayProgressPainter(
+                                              progress: dayProgress,
+                                              color: ringColor,
+                                            ),
+                                            child: SizedBox(
+                                              width: 42,
+                                              height: 42,
+                                              child: Center(
+                                                child: Text(
+                                                  '${date.day}',
+                                                  style: TextStyle(
+                                                    color: isSelected
+                                                        ? ringColor
+                                                        : isToday
+                                                            ? Colors.white
+                                                            : Colors.white70,
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 16,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+
+                                          const SizedBox(height: 6),
+
+                                          Text(
+                                            taskCount == 1 ? '1 task' : '$taskCount tasks',
+                                            style: const TextStyle(
+                                              color: Colors.white54,
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
+                              );
+                            },
+                          );
+                        }),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
 
               // Category filter buttons
               DropdownButton<String>(
@@ -1005,17 +1388,33 @@ class _HomeScreenState extends State<HomeScreen> {
                           return Card(
                             color: Colors.white10,
                             child: ListTile(
-                              leading: Checkbox(
-                                value: filteredTasks[index]['completed'],
-                                activeColor: Colors.white,
-                                checkColor: Colors.black,
-                                onChanged: (value) {
+                              leading: GestureDetector(
+                                onTap: () {
                                   setState(() {
-                                    filteredTasks[index]['completed'] = value!;
+                                    filteredTasks[index]['completed'] =
+                                        !(filteredTasks[index]['completed'] == true);
                                   });
 
                                   saveTasks();
                                 },
+                                child: CustomPaint(
+                                  painter: DayProgressPainter(
+                                    progress: filteredTasks[index]['completed'] == true ? 1.0 : 0.0,
+                                  ),
+                                  child: SizedBox(
+                                    width: 34,
+                                    height: 34,
+                                    child: Center(
+                                      child: filteredTasks[index]['completed'] == true
+                                          ? const Icon(
+                                              Icons.check,
+                                              color: Colors.greenAccent,
+                                              size: 20,
+                                            )
+                                          : const SizedBox(),
+                                    ),
+                                  ),
+                                ),
                               ),
                               title: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1102,31 +1501,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
               const SizedBox(height: 16),
 
-              // FUTURE TASK BUTTON
-              SizedBox(
-                width: double.infinity,
-                height: 55,
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const FutureTasksScreen(),
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.event_note),
-                  label: const Text('Future Tasks'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blueAccent,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                ),
-              ),
-
 
               if (getProgress() == 1 && tasks.isNotEmpty)
                 Padding(
@@ -1147,5 +1521,50 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
       );
+  }
+}
+
+class DayProgressPainter extends CustomPainter {
+  final double progress;
+  final Color color;
+
+  DayProgressPainter({
+    required this.progress,
+    this.color = Colors.greenAccent,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = size.width / 2;
+
+    final backgroundPaint = Paint()
+      ..color = Colors.white12
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 5
+      ..strokeCap = StrokeCap.round;
+
+    final progressPaint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 5
+      ..strokeCap = StrokeCap.round;
+
+    canvas.drawCircle(center, radius, backgroundPaint);
+
+    if (progress > 0) {
+      canvas.drawArc(
+        Rect.fromCircle(center: center, radius: radius),
+        -math.pi / 2,
+        2 * math.pi * progress,
+        false,
+        progressPaint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(DayProgressPainter oldDelegate) {
+    return oldDelegate.progress != progress || oldDelegate.color != color;
   }
 }
