@@ -35,40 +35,72 @@ class _CalendarScreenState extends State<CalendarScreen> {
   @override
   void initState() {
     super.initState();
-    loadTasksForSelectedDate();
+    loadSelectedDateAndTasks();
   }
+
+  String getDateKey(DateTime date) {
+  return '${date.year}-${date.month}-${date.day}';
+  }
+
+  String getTaskStorageKey(String dateKey) {
+    final todayKey = getDateKey(DateTime.now());
+    return dateKey == todayKey ? 'tasks' : 'tasks_$dateKey';
+  }
+
+  DateTime parseDateKey(String dateKey) {
+    final parts = dateKey.split('-');
+
+    return DateTime(
+      int.parse(parts[0]),
+      int.parse(parts[1]),
+      int.parse(parts[2]),
+    );
+  }  
+
+
+  Future<void> loadSelectedDateAndTasks() async {
+  final prefs = await SharedPreferences.getInstance();
+
+  final savedDateKey = prefs.getString('selectedTaskDate');
+
+  if (savedDateKey != null) {
+    final savedDate = parseDateKey(savedDateKey);
+
+    setState(() {
+      selectedDate = savedDate;
+      currentMonth = DateTime(savedDate.year, savedDate.month);
+    });
+  }
+
+  await loadTasksForSelectedDate();
+}
 
   Future<void> loadTasksForSelectedDate() async {
     final prefs = await SharedPreferences.getInstance();
 
-    final String selectedDateKey =
-        '${selectedDate.year}-${selectedDate.month}-${selectedDate.day}';
+    final selectedDateKey = getDateKey(selectedDate);
+    final taskKey = getTaskStorageKey(selectedDateKey);
 
-    final bool isToday =
-        selectedDate.day == DateTime.now().day &&
-        selectedDate.month == DateTime.now().month &&
-        selectedDate.year == DateTime.now().year;
+    final savedTasks = prefs.getString(taskKey);
 
-    final String? savedTasks = isToday
-        ? prefs.getString('tasks')
-        : prefs.getString('tasks_$selectedDateKey');
+    setState(() {
+      if (savedTasks != null) {
+        final List decodedTasks = jsonDecode(savedTasks);
 
-    if (savedTasks != null) {
-      final List decodedTasks = jsonDecode(savedTasks);
-
-      setState(() {
         tasks = decodedTasks.map((task) {
           return Map<String, dynamic>.from(task);
         }).toList();
-      });
-    } else {
-      setState(() {
+      } else {
         tasks = [];
-      });
-    }
+      }
+    });
   }
   @override
   Widget build(BuildContext context) {
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      loadSelectedDateAndTasks();
+    });
 
     final selectedTasks = tasks;
 

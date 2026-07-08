@@ -22,6 +22,9 @@ class _HomeScreenState extends State<HomeScreen> {
   // Controller to get input text
   final TextEditingController taskController = TextEditingController();
 
+  // Controller for optional task description
+  final TextEditingController descriptionController = TextEditingController();
+
   // Store the category selected in the dropdown
   String selectedCategory = '🏠 Personal';
 
@@ -244,6 +247,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void dispose() {
     taskController.dispose();
+    descriptionController.dispose();
     super.dispose();
   }
 
@@ -279,8 +283,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final String todayKey = '${today.year}-${today.month}-${today.day}';
 
     // Load selected date, defaulting to today
-    selectedTaskDate = todayKey;
-    await prefs.setString('selectedTaskDate', selectedTaskDate);
+    selectedTaskDate = prefs.getString('selectedTaskDate') ?? todayKey;
 
     final String taskKey =
         (selectedTaskDate.isEmpty || selectedTaskDate == todayKey)
@@ -439,6 +442,23 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  // Loads the selected date shared between Home and Calendar
+  Future<void> loadSelectedTaskDateFromPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    final savedDate = prefs.getString('selectedTaskDate');
+
+    if (savedDate != null && savedDate != selectedTaskDate) {
+      setState(() {
+        selectedTaskDate = savedDate;
+      });
+
+      await loadTasksForSelectedDate();
+    }
+  }
+
+
+
   // Calculates completion progress for a specific day
   Future<double> getProgressForDate(DateTime date) async {
     final prefs = await SharedPreferences.getInstance();
@@ -501,7 +521,20 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
 
-                     const SizedBox(height: 24),
+                      const SizedBox(height: 16),
+
+                      TextField(
+                        controller: descriptionController,
+                        style: const TextStyle(color: Colors.white),
+                        maxLines: 3,
+                        decoration: const InputDecoration(
+                          labelText: 'Description (Optional)',
+                          labelStyle: TextStyle(color: Colors.white70),
+                          alignLabelWithHint: true,
+                        ),
+                      ),
+
+                      const SizedBox(height: 20),
  
                     DropdownButton<String>(
                         value: selectedCategory,
@@ -658,6 +691,7 @@ class _HomeScreenState extends State<HomeScreen> {
               onPressed: () {
                 Navigator.pop(context);
                 taskController.clear();
+                descriptionController.clear();
               },
               child: const Text('Cancel'),
             ),
@@ -670,6 +704,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   setState(() {
                     tasks.add({
                       'title': taskController.text,
+                      'description': descriptionController.text.trim(),
                       'completed': false,
                       'category': selectedCategory,
                       'priority': selectedPriority,
@@ -709,6 +744,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
                 Navigator.pop(context);
                 taskController.clear();
+                descriptionController.clear();
               },
               child: const Text('Add'),
             ),
@@ -755,6 +791,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void showEditTaskPopup(Map<String, dynamic> task) {
     final editController = TextEditingController(text: task['title']);
+    final editDescriptionController = TextEditingController(
+    text: task['description'] ?? '',);
     String editCategory = task['category'] ?? selectedCategory;
     String? editPriority = task['priority'];
     String? editReminderTime = task['reminderTime'];
@@ -782,6 +820,19 @@ class _HomeScreenState extends State<HomeScreen> {
                       decoration: const InputDecoration(
                         labelText: 'Task name',
                         labelStyle: TextStyle(color: Colors.white70),
+                      ),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    TextField(
+                      controller: editDescriptionController,
+                      style: const TextStyle(color: Colors.white),
+                      maxLines: 3,
+                      decoration: const InputDecoration(
+                        labelText: 'Description (Optional)',
+                        labelStyle: TextStyle(color: Colors.white70),
+                        alignLabelWithHint: true,
                       ),
                     ),
 
@@ -996,6 +1047,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     if (updatedTitle.isNotEmpty) {
                       setState(() {
                         task['title'] = updatedTitle;
+                        task['description'] = editDescriptionController.text.trim();
                         task['category'] = editCategory;
                         task['priority'] = editPriority;
                         task['reminderTime'] = editReminderTime;
@@ -1014,8 +1066,12 @@ class _HomeScreenState extends State<HomeScreen> {
       },
     );
   }
+  
   @override
   Widget build(BuildContext context) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      loadSelectedTaskDateFromPrefs();
+    });
     final int completedTasks = tasks.where((task) => task['completed'] == true).length;
     final double progress = tasks.isEmpty ? 0: completedTasks / tasks.length;
 
@@ -1266,9 +1322,13 @@ class _HomeScreenState extends State<HomeScreen> {
                                     onTap: () async {
                                       await saveTasks();
 
+                                      final prefs = await SharedPreferences.getInstance();
+
                                       setState(() {
                                         selectedTaskDate = dateKey;
                                       });
+
+                                      await prefs.setString('selectedTaskDate', selectedTaskDate);
 
                                       await loadTasksForSelectedDate();
                                     },
@@ -1428,6 +1488,19 @@ class _HomeScreenState extends State<HomeScreen> {
                                         : TextDecoration.none,
                                   ),
                                   ),
+
+                                  if ((filteredTasks[index]['description'] ?? '').toString().isNotEmpty)
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 6),
+                                      child: Text(
+                                        filteredTasks[index]['description'],
+                                        style: const TextStyle(
+                                          color: Colors.white60,
+                                          fontSize: 13,
+                                          height: 1.3,
+                                        ),
+                                      ),
+                                    ),
 
                                   if(filteredTasks[index]['priority'] != null)
                                     Text(
