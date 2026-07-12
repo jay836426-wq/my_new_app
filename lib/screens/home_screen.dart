@@ -176,12 +176,28 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    loadTasks().then((_) async {
-      await checkForNewDay();
-      await checkStreakReset();
-    });
+    initializeHomeScreen();
     loadUserName();
   }
+
+  Future<void> initializeHomeScreen() async {
+  final prefs = await SharedPreferences.getInstance();
+
+  final yesterday = DateTime.now().subtract(
+    const Duration(days: 1),
+  );
+
+  // TEMP: Pretend the app was last opened yesterday
+  await prefs.setString(
+    'lastActiveDate',
+    getDateKey(yesterday),
+  );
+
+  await loadTasks();
+  await checkForNewDay();
+  await checkStreakReset();
+}
+
 
   // Calculates the user's current streak
   int getCurrentStreak() {
@@ -317,12 +333,12 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  // Checks if a new day has started and resets tasks for a fresh day
-  Future<void> checkForNewDay() async {
+  Future<void> checkForNewDay({DateTime? testDate}) async {
     final prefs = await SharedPreferences.getInstance();
 
-    final DateTime today = DateTime.now();
-    final String todayString = '${today.year}-${today.month}-${today.day}';
+    // Use the test date when testing, otherwise use the real current date
+    final today = testDate ?? DateTime.now();
+    final todayString = getDateKey(today);
 
     if (lastActiveDate.isEmpty) {
       lastActiveDate = todayString;
@@ -330,31 +346,87 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
 
-    if (lastActiveDate != todayString) {
-        // New Day Started
+    if (lastActiveDate == todayString) return;
 
-      if(tasks.isNotEmpty) {
-        final String historyKey = 'tasks_$lastActiveDate';
-        final String encodedOldTasks = jsonEncode(tasks);
+    // Preserve the previous day's tasks in its history
+    final previousDayTasks = tasks
+        .map((task) => Map<String, dynamic>.from(task))
+        .toList();
 
-        await prefs.setString(
-          historyKey,
-          encodedOldTasks,
+    if (previousDayTasks.isNotEmpty) {
+      await prefs.setString(
+        'tasks_$lastActiveDate',
+        jsonEncode(previousDayTasks),
+      );
+    }
+
+    // Keep only unfinished tasks
+    final incompleteTasks = previousDayTasks.where((task) {
+      return task['completed'] != true;
+    }).map((task) {
+      return Map<String, dynamic>.from(task);
+    }).toList();
+
+    setState(() {
+      dayCompleted = false;
+      lastActiveDate = todayString;
+      selectedTaskDate = todayString;
+    });
+
+    await prefs.setString('lastActiveDate', todayString);
+    await prefs.setString('selectedTaskDate', todayString);
+    await prefs.setBool('dayCompleted_$todayString', false);
+
+    // Load tasks that may already exist for the new day
+    await loadTasksForSelectedDate();
+
+    if (!mounted || incompleteTasks.isEmpty) return;
+
+    final shouldCarryOver = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Carry Over Tasks?'),
+          content: Text(
+            'You have ${incompleteTasks.length} unfinished '
+            '${incompleteTasks.length == 1 ? 'task' : 'tasks'} from yesterday.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Skip'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Carry Over'),
+            ),
+          ],
         );
-      }
+      },
+    );
 
-  setState(() {
-    dayCompleted = false;
-    lastActiveDate = todayString;
-    selectedTaskDate = todayString;
-  });
-
-  await prefs.setString('lastActiveDate', lastActiveDate);
-  await prefs.setString('selectedTaskDate', selectedTaskDate);
-  await prefs.setBool('dayCompleted_$todayString', false);
-
-  await loadTasksForSelectedDate();
+    if (shouldCarryOver == true) {
+      await carryOverIncompleteTasks(incompleteTasks);
+    }
   }
+  // Carries unfinished tasks from the previous day into today
+  Future<void> carryOverIncompleteTasks(
+    List<Map<String, dynamic>> incompleteTasks,
+  ) async {
+    if (incompleteTasks.isEmpty) return;
+
+    setState(() {
+      for (final task in incompleteTasks) {
+        tasks.add({
+          ...task,
+          'completed': false,
+          'date': selectedTaskDate,
+        });
+      }
+    });
+
+    await saveTasks();
   }
 
   // Resets the streak if the user missed a day
@@ -738,8 +810,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       body: newTask,
                       scheduledTime: reminderDateTime,
                     );
-                  };
-                  saveTasks();
+                  }
+                  await saveTasks();
                 }
 
                 Navigator.pop(context);
@@ -1572,7 +1644,34 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
 
+              const SizedBox(height: 12),
+
+              // TEMPORARY TEST BUTTON
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () async {
+                    final prefs = await SharedPreferences.getInstance();
+
+                    final today = DateTime.now();
+                    final tomorrow = today.add(const Duration(days: 1));
+
+                    lastActiveDate = getDateKey(today);
+
+                    await prefs.setString(
+                      'lastActiveDate',
+                      lastActiveDate,
+                    );
+
+                    await checkForNewDay(testDate: tomorrow);
+                  },
+                  child: const Text('Test Carry Over')
+                ),
+              ),
+
               const SizedBox(height: 16),
+
+
 
 
               if (getProgress() == 1 && tasks.isNotEmpty)
