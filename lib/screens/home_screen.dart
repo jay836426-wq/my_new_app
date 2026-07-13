@@ -34,11 +34,169 @@ class _HomeScreenState extends State<HomeScreen> {
   // Stores which category filter is currently selected
   String selectedFilter = 'All';
 
+  // List of daily motivational quotes
+  final List<String> motivationalQuotes = [
+    'Small progress is still progress.',
+    'Stay focused. Your goals are worth it.',
+    'Discipline today creates freedom tomorrow.',
+    'You do not have to be perfect. Just keep moving.',
+    'Success starts with showing up.',
+    'One task at a time. One day at a time.',
+    'Your future is built by what you do today.',
+    'Keep going. You are closer than you think.',
+    'Consistency beats motivation.',
+    'Focus on progress, not perfection.',
+    'Dream big. Start small. Act now.',
+    'Every task completed is a step forward.',
+    'The hardest part is getting started.',
+    'Great things take time.',
+    'You are stronger than yesterday.',
+    'Win the day.',
+    'Progress compounds over time.',
+    'Your habits shape your future.',
+    'Keep promises to yourself.',
+    'Action beats intention.',
+    'Believe in your ability to grow.',
+    'Do something today your future self will thank you for.',
+    'A little progress every day adds up.',
+    'Stay patient and trust the process.',
+    'Success is built on consistency.',
+    'The only bad workout is the one you did not do.',
+    'Start where you are. Use what you have.',
+    'Momentum starts with one step.',
+    'Hard work always leaves a mark.',
+    'Be better than yesterday.',
+    'Success comes from daily discipline.',
+    'Done is better than perfect.',
+    'Every accomplishment begins with a decision to try.',
+    'Focus creates results.',
+    'You are capable of amazing things.',
+    'Do not stop until you are proud.',
+    'Your only competition is who you were yesterday.',
+    'Keep your eyes on the goal.',
+    'Little victories lead to big wins.',
+    'Every day is a new opportunity.',
+    'Build the life you want one task at a time.',
+    'The effort you make today pays off tomorrow.',
+    'Stay committed even when motivation fades.',
+    'Progress requires patience.',
+    'Your consistency will become your success.',
+    'Take the next step. Then another.',
+    'Success is earned, not given.',
+    'Finish what you started.',
+    'Keep moving forward.',
+    'To learn to succeed, you must learn how to fail.',
+    'The moment you give up is the moment you let someone else win.',
+    'Don’t count the days, make the days count.',
+    'Success begins with one decision.',
+    'Stay hungry for improvement.',
+    'Every step forward matters.',
+    'Discipline outlasts motivation.',
+    'Make today count.',
+    'Growth happens outside your comfort zone.',
+    'The best investment is in yourself.',
+    'Choose progress over excuses.',
+    'Your dreams deserve your effort.',
+    'One more rep. One more task. One more win.',
+    'Build habits that build your future.',
+    'The grind is temporary. The results are lasting.',
+    'Turn your goals into daily actions.',
+    'Stay consistent when no one is watching.',
+    'Nothing changes if nothing changes.',
+    'Show up even on the hard days.',
+    'You become what you repeatedly do.',
+    'Small victories create big transformations.',
+    'Keep your standards high.',
+    'The work you avoid is often the work you need most.',
+    'Progress starts with action.',
+    'Your future self is counting on you.',
+    'Every day is another chance to improve.',
+    'Keep building, even if it is one brick at a time.',
+    'Greatness is earned daily.',
+    'Trust your journey.',
+    'Make discipline your superpower.',
+    'Push through the discomfort.',
+    'Stay committed to your vision.',
+    "Today's effort becomes tomorrow's success.",
+    'The only shortcut is consistency.',
+    'Be proud of every step you take.',
+    'Focus on what you can control.',
+    'Hard work compounds over time.',
+    'Do something today that scares you.',
+    'Winners master the basics.',
+    'Every challenge is an opportunity to grow.',
+    'Stay patient. Progress is happening.',
+    'Outwork your excuses.',
+    'Success is a collection of small wins.',
+    'Keep climbing. The view is worth it.',
+    'Believe in your potential.',
+    'Turn setbacks into comebacks.',
+    'One disciplined day leads to another.',
+    'Do the work even when you do not feel like it.',
+    'Nothing worthwhile comes easy.',
+    'Keep improving your best.',
+    'Momentum comes from action.',
+    'Do not let fear make your decisions.',
+    'Success rewards consistency.',
+    'The first step changes everything.',
+    'Train your mind to stay focused.',
+    'Keep chasing excellence.',
+    'You are capable of more than you realize.',
+    'The strongest habits create the strongest future.',
+    'Make progress impossible to ignore.',
+    'Keep your promises to yourself.',
+    'Your goals deserve your best effort.',
+    'Every day is Day One.',
+    'Stay focused on your purpose.',
+    'The process creates the outcome.',
+    'Discipline wins when motivation disappears.',
+    'Keep learning. Keep growing.',
+    'Success favors those who prepare.',
+    'Never settle for average.',
+    'The best time to start is now.',
+    'Your effort is never wasted.',
+    'One positive choice changes your day.',
+    'The climb builds your character.',
+    'Push yourself because no one else can do it for you.',
+    'Stay strong through the struggle.',
+    'Growth is built one decision at a time.',
+    'Keep aiming higher.',
+    'The finish line belongs to those who keep moving.',
+    'Every task completed builds confidence.',
+    'Be relentless in your pursuit of improvement.',
+    'Take pride in your discipline.',
+    'Your consistency is your competitive advantage.',
+    'The goal is progress, not perfection.',
+    'Every accomplishment starts with belief.',
+    'You are writing your future today.',
+    'Focus creates momentum.',
+    'Hard days build stronger people.',
+    'Keep your eyes on the bigger picture.',
+    'Your actions define your future.',
+    'Be the person your goals require.',
+    'Keep earning your confidence.',
+    'You are stronger than your excuses.',
+    'Every hour invested matters.',
+    'Stay committed to becoming better.',
+    'Do not fear slow progress.',
+    "The next level demands today's effort.",
+    'Consistency creates confidence.',
+    'Win your morning, win your day.',
+    'Take action before you feel ready.',
+    'Every challenge strengthens your character.',
+    'Keep moving even when progress feels slow.',
+    'Great achievements start with small actions.',
+    'Success follows preparation.',
+    'You are one decision away from a better future.',
+    'Finish strong every day.',
+    "Today's discipline creates tomorrow's opportunities.",
+  ];
+
   // Stores dynamic username for login
   String userName = 'User';
 
   // Store selected Reminder Time
-  TimeOfDay ? selectedReminderTime;
+  TimeOfDay? selectedReminderTime;
 
   // Loads saved username/full name from local storage
   Future<void> loadUserName() async {
@@ -119,7 +277,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
       if (lastCompletedDate == todayString) {
         // Already completed today, do not increase streak again
-        streakCounter = streakCounter;
       } else if (lastCompletedDate == yesterdayString) {
         // Completed yesterday, continue streak
         streakCounter += 1;
@@ -181,22 +338,10 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> initializeHomeScreen() async {
-  final prefs = await SharedPreferences.getInstance();
-
-  final yesterday = DateTime.now().subtract(
-    const Duration(days: 1),
-  );
-
-  // TEMP: Pretend the app was last opened yesterday
-  await prefs.setString(
-    'lastActiveDate',
-    getDateKey(yesterday),
-  );
-
-  await loadTasks();
-  await checkForNewDay();
-  await checkStreakReset();
-}
+    await loadTasks();
+    await checkForNewDay();
+    await checkStreakReset();
+  }
 
 
   // Calculates the user's current streak
@@ -258,6 +403,25 @@ class _HomeScreenState extends State<HomeScreen> {
       return "You’re on a roll 🔥";
     }
     return "Tasks complete for the day! 🎉";
+  }
+
+  // Returns one motivational quote for the selected day
+  String getDailyQuote() {
+    final dateParts = selectedTaskDate.split('-');
+
+    final selectedDate = DateTime(
+      int.parse(dateParts[0]),
+      int.parse(dateParts[1]),
+      int.parse(dateParts[2]),
+    );
+
+    final dayNumber = selectedDate.difference(
+      DateTime(selectedDate.year, 1, 1),
+    ).inDays;
+
+    final quoteIndex = dayNumber % motivationalQuotes.length;
+
+    return motivationalQuotes[quoteIndex];
   }
 
   @override
@@ -333,11 +497,11 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<void> checkForNewDay({DateTime? testDate}) async {
+  Future<void> checkForNewDay() async {
     final prefs = await SharedPreferences.getInstance();
 
-    // Use the test date when testing, otherwise use the real current date
-    final today = testDate ?? DateTime.now();
+    // Get the current date
+    final today = DateTime.now();
     final todayString = getDateKey(today);
 
     if (lastActiveDate.isEmpty) {
@@ -1222,8 +1386,52 @@ class _HomeScreenState extends State<HomeScreen> {
               
               const Text(
                 'Track. Focus. Achieve.',
-                style: TextStyle(color: Colors.white70, fontSize: 16),
+                style: TextStyle(
+                  color: Colors.white70,
+                  fontSize: 16,
+                ),
               ),
+
+              const SizedBox(height: 24),
+
+              // Daily motivational quote card
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  color: Colors.white10,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(
+                    color: Colors.white12,
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      '💡 Daily Motivation',
+                      style: TextStyle(
+                        color: Colors.greenAccent,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+
+                    const SizedBox(height: 10),
+
+                    Text(
+                      getDailyQuote(),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontStyle: FontStyle.italic,
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
               const SizedBox(height: 32),
 
               // Progress Section
@@ -1645,31 +1853,6 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
 
               const SizedBox(height: 12),
-
-              // TEMPORARY TEST BUTTON
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () async {
-                    final prefs = await SharedPreferences.getInstance();
-
-                    final today = DateTime.now();
-                    final tomorrow = today.add(const Duration(days: 1));
-
-                    lastActiveDate = getDateKey(today);
-
-                    await prefs.setString(
-                      'lastActiveDate',
-                      lastActiveDate,
-                    );
-
-                    await checkForNewDay(testDate: tomorrow);
-                  },
-                  child: const Text('Test Carry Over')
-                ),
-              ),
-
-              const SizedBox(height: 16),
 
 
 
