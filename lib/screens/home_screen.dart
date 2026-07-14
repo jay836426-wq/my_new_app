@@ -262,6 +262,8 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> completeDay() async {
     final prefs = await SharedPreferences.getInstance();
 
+    if (!isViewingToday()) return;
+
     final DateTime today = DateTime.now();
 
     final String todayString =
@@ -302,6 +304,8 @@ class _HomeScreenState extends State<HomeScreen> {
   // Reverses the completed day status and lowers the streak if needed
   Future<void> undoCompleteDay() async {
     final prefs = await SharedPreferences.getInstance();
+
+    if (!isViewingToday()) return;
 
     final DateTime today = DateTime.now();
 
@@ -447,7 +451,13 @@ class _HomeScreenState extends State<HomeScreen> {
             : 'tasks_$selectedTaskDate';
 
     await prefs.setString(taskKey, encodedTasks);
-    await prefs.setBool('dayCompleted', dayCompleted);
+
+    if (selectedTaskDate.isNotEmpty) {
+      await prefs.setBool(
+        'dayCompleted_$selectedTaskDate',
+        dayCompleted,
+      );
+    }
     await prefs.setInt('streakCounter', streakCounter);
     await prefs.setString('lastCompletedDate', lastCompletedDate);
     await prefs.setString('lastActiveDate', lastActiveDate);
@@ -541,7 +551,21 @@ class _HomeScreenState extends State<HomeScreen> {
     await prefs.setString('selectedTaskDate', todayString);
     await prefs.setBool('dayCompleted_$todayString', false);
 
-    // Load tasks that may already exist for the new day
+    // Check whether tasks were already planned for today
+    final plannedTodayTasks = prefs.getString('tasks_$todayString');
+
+    if (plannedTodayTasks != null) {
+      // Move today's previously planned tasks into the main current-day key
+      await prefs.setString('tasks', plannedTodayTasks);
+
+      // Remove the dated copy after moving it
+      await prefs.remove('tasks_$todayString');
+    } else {
+      // Prevent yesterday's tasks from appearing as today's tasks
+      await prefs.remove('tasks');
+    }
+
+    // Load the correct tasks for the new current day
     await loadTasksForSelectedDate();
 
     if (!mounted || incompleteTasks.isEmpty) return;
@@ -613,7 +637,10 @@ class _HomeScreenState extends State<HomeScreen> {
       });
 
       await prefs.setInt('streakCounter', streakCounter);
-      await prefs.setBool('dayCompleted', dayCompleted);
+      await prefs.setBool(
+        'dayCompleted_$todayString',
+        dayCompleted,
+      );
     }
   }
 

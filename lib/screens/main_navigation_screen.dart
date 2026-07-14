@@ -4,7 +4,7 @@ import 'package:TrakOn/screens/calendar_screen.dart';
 import 'home_screen.dart';
 //import 'calendar_screen.dart';
 import 'settings_screen.dart';
-import 'friends_screen.dart';
+// import 'friends_screen.dart';
 
 // ---------------------------
 // Main Navigation Screen
@@ -22,7 +22,6 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   final List<Widget> screens = const [
     HomeScreen(),
     CalendarScreen(),
-    FriendsScreen(),
     SettingsScreen(),
   ];
 
@@ -51,10 +50,6 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
           BottomNavigationBarItem(
             icon: Icon(Icons.calendar_month),
             label: 'Calendar',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.people),
-            label: 'Friends',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.settings),
