@@ -769,12 +769,24 @@ class _HomeScreenState extends State<HomeScreen> {
     required String dateKey,
     required TimeOfDay reminderTime,
   }) {
-    final selectedDate = DateTime.parse(dateKey);
+    final dateParts = dateKey.split('-');
+
+    if (dateParts.length != 3) {
+      throw FormatException('Invalid task date: $dateKey');
+    }
+
+    final year = int.tryParse(dateParts[0]);
+    final month = int.tryParse(dateParts[1]);
+    final day = int.tryParse(dateParts[2]);
+
+    if (year == null || month == null || day == null) {
+      throw FormatException('Invalid task date: $dateKey');
+    }
 
     return DateTime(
-      selectedDate.year,
-      selectedDate.month,
-      selectedDate.day,
+      year,
+      month,
+      day,
       reminderTime.hour,
       reminderTime.minute,
     );
@@ -1158,7 +1170,7 @@ class _HomeScreenState extends State<HomeScreen> {
     required bool completed,
   }) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: const EdgeInsets.only(bottom: 20),
       decoration: BoxDecoration(
         color: Colors.white10,
         borderRadius: BorderRadius.circular(16),
@@ -1624,7 +1636,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ],
               ),
 
-              const SizedBox(height: 10),
+              const SizedBox(height: 18),
 
               const Text(
                 'Welcome back to TrakOn!',
@@ -1634,7 +1646,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
               
               const Text(
                 'Track. Focus. Achieve.',
@@ -1644,12 +1656,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
 
-              const SizedBox(height: 24),
+              const SizedBox(height: 32),
 
               // Daily motivational quote card
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.all(18),
+                padding: const EdgeInsets.all(22),
                 decoration: BoxDecoration(
                   color: Colors.white10,
                   borderRadius: BorderRadius.circular(18),
@@ -1689,7 +1701,7 @@ class _HomeScreenState extends State<HomeScreen> {
               // Progress Section
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(22),
                 decoration: BoxDecoration(
                   color: Colors.white10,
                   borderRadius: BorderRadius.circular(20),
@@ -1798,11 +1810,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
 
-              const SizedBox(height: 24),
+              const SizedBox(height: 32),
 
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
                   color: Colors.white10,
                   borderRadius: BorderRadius.circular(18),

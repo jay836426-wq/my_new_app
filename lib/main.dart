@@ -77,6 +77,8 @@ class MyApp extends StatelessWidget {
         brightness: Brightness.dark, // ** IMPORTANT
 
         scaffoldBackgroundColor: Colors.black,
+        canvasColor: Colors.black,
+        dialogBackgroundColor: Colors.black,
 
         appBarTheme: const AppBarTheme(
           backgroundColor: Colors.black,
@@ -103,7 +105,7 @@ class MyApp extends StatelessWidget {
         ),
       ),
 
-        home: const SplashScreen(),
+      home: const SplashScreen(),
     );
   }
 }
