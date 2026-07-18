@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'notification_service.dart';
 import 'package:flutter/cupertino.dart';
+import 'notification_preferences.dart';
 
 // ---------------------------
 // Home Screen
@@ -803,6 +804,14 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
 
+    // Don't schedule reminders if the user disabled them.
+    final taskRemindersEnabled =
+        await NotificationPreferences.taskRemindersEnabled();
+
+    if (!taskRemindersEnabled) {
+      return;
+    }
+
     // Main reminder.
     await NotificationService.scheduleNotification(
       id: notificationId,
@@ -812,7 +821,9 @@ class _HomeScreenState extends State<HomeScreen> {
     );
 
     // High-priority tasks receive two additional reminders.
-    if (priority == '🔴 High') {
+    final highPriorityEnabled =
+        await NotificationPreferences.highPriorityRemindersEnabled();
+    if (priority == '🔴 High' && highPriorityEnabled) {
       await NotificationService.scheduleNotification(
         id: notificationId + 1,
         title: 'High Priority Task',
