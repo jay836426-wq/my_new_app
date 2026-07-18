@@ -901,9 +901,10 @@ class _HomeScreenState extends State<HomeScreen> {
               title: const Text('Add Task', style: TextStyle(color: Colors.white)),
               content: SizedBox(
                 width: 300,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
                       TextField(
                         controller: taskController,
                         style: const TextStyle(color: Colors.white),
@@ -1075,8 +1076,11 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                 ],
-              )
+              ),
             ),
+          ),
+
+
 
           actions: [
             TextButton(
@@ -1205,7 +1209,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 'Edit Task',
                 style: TextStyle(color: Colors.white),
               ),
-              content: SingleChildScrollView(
+              content: SizedBox(
+              width: 300,
+              child: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -1425,8 +1431,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
               ),
-              actions: [
-
+            ),
+            actionsOverflowDirection: VerticalDirection.down,
+            actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
                   child: const Text(
@@ -1510,6 +1517,44 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
   
+  // Rearranges tasks and saves the updated order
+  Future<void> reorderTasks(int oldIndex, int newIndex) async {
+    if (newIndex > oldIndex) {
+      newIndex -= 1;
+    }
+
+    setState(() {
+      // Reordering while viewing every task
+      if (selectedFilter == 'All') {
+        final movedTask = tasks.removeAt(oldIndex);
+        tasks.insert(newIndex, movedTask);
+        return;
+      }
+
+      // Create a reordered copy of only the currently filtered tasks
+      final filteredTasks = getFilteredTasks();
+      final movedTask = filteredTasks.removeAt(oldIndex);
+      filteredTasks.insert(newIndex, movedTask);
+
+      // Find where filtered tasks appear inside the full task list
+      final filteredIndexes = <int>[];
+
+      for (int index = 0; index < tasks.length; index++) {
+        if (tasks[index]['category'] == selectedFilter) {
+          filteredIndexes.add(index);
+        }
+      }
+
+      // Replace only those positions, preserving hidden categories
+      for (int index = 0; index < filteredIndexes.length; index++) {
+        tasks[filteredIndexes[index]] = filteredTasks[index];
+      }
+    });
+
+    await saveTasks();
+  }
+
+
   @override
   Widget build(BuildContext context) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -1780,7 +1825,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     SizedBox(
                       height: 110,
                       child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: List.generate(7, (index) {
                           final date = DateTime.now().add(Duration(days: index));
                           final dateKey = getDateKey(date);
@@ -1805,23 +1849,27 @@ class _HomeScreenState extends State<HomeScreen> {
                                 builder: (context, countSnapshot) {
                                   final taskCount = countSnapshot.data ?? 0;
 
-                                  return GestureDetector(
-                                    onTap: () async {
-                                      await saveTasks();
+                                  return Expanded(
+                                    child: GestureDetector(
+                                      onTap: () async {
+                                        await saveTasks();
 
-                                      final prefs = await SharedPreferences.getInstance();
+                                        final prefs = await SharedPreferences.getInstance();
 
-                                      setState(() {
-                                        selectedTaskDate = dateKey;
-                                      });
+                                        setState(() {
+                                          selectedTaskDate = dateKey;
+                                        });
 
-                                      await prefs.setString('selectedTaskDate', selectedTaskDate);
+                                        await prefs.setString(
+                                          'selectedTaskDate',
+                                          selectedTaskDate,
+                                        );
 
-                                      await loadTasksForSelectedDate();
-                                    },
-                                    child: Container(
-                                      width: 48,
-                                      decoration: BoxDecoration(
+                                        await loadTasksForSelectedDate();
+                                      },
+                                      child: Container(
+                                        margin: const EdgeInsets.symmetric(horizontal: 2),
+                                        decoration: BoxDecoration(
                                         color: isSelected ? Colors.white12 : Colors.transparent,
                                         borderRadius: BorderRadius.circular(18),
                                         border: isSelected
@@ -1881,6 +1929,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                         ],
                                       ),
                                     ),
+                                    ),
                                   );
                                 },
                               );
@@ -1927,12 +1976,16 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
                     )
-                  : ListView.builder(
+                  : ReorderableListView.builder(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
-                        itemCount: filteredTasks.length,
-                        itemBuilder: (context, index) {
+                      buildDefaultDragHandles: false,
+                      itemCount: filteredTasks.length,
+                      onReorder: reorderTasks,
+                      itemBuilder: (context, index) {
+                        final task = filteredTasks[index];
                           return Card(
+                            key: ObjectKey(task),
                             color: Colors.white10,
                             child: ListTile(
                               leading: GestureDetector(
@@ -2012,13 +2065,16 @@ class _HomeScreenState extends State<HomeScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                  '${filteredTasks[index]['category'] ?? '🏠 Personal'} • ${filteredTasks[index]['title']}',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    decoration: filteredTasks[index]['completed']
-                                        ? TextDecoration.lineThrough
-                                        : TextDecoration.none,
-                                  ),
+                                    '${filteredTasks[index]['category'] ?? '🏠 Personal'} • '
+                                    '${filteredTasks[index]['title']}',
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      decoration: filteredTasks[index]['completed'] == true
+                                          ? TextDecoration.lineThrough
+                                          : TextDecoration.none,
+                                    ),
                                   ),
 
                                   if ((filteredTasks[index]['description'] ?? '').toString().isNotEmpty)
@@ -2055,40 +2111,59 @@ class _HomeScreenState extends State<HomeScreen> {
                               trailing: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
+                                  ReorderableDragStartListener(
+                                    index: index,
+                                    child: const Padding(
+                                      padding: EdgeInsets.symmetric(horizontal: 4),
+                                      child: Icon(
+                                        Icons.drag_handle,
+                                        color: Colors.white54,
+                                        size: 22,
+                                      ),
+                                    ),
+                                  ),
                                   IconButton(
+                                    visualDensity: VisualDensity.compact,
+                                    constraints: const BoxConstraints(
+                                      minWidth: 34,
+                                      minHeight: 34,
+                                    ),
+                                    padding: EdgeInsets.zero,
                                     icon: const Icon(
                                       Icons.edit,
                                       color: Colors.greenAccent,
+                                      size: 20,
                                     ),
                                     onPressed: () {
-                                      // edit task code here
-                                      showEditTaskPopup(filteredTasks[index]);
+                                      showEditTaskPopup(task);
                                     },
                                   ),
                                   IconButton(
+                                    visualDensity: VisualDensity.compact,
+                                    constraints: const BoxConstraints(
+                                      minWidth: 34,
+                                      minHeight: 34,
+                                    ),
+                                    padding: EdgeInsets.zero,
                                     icon: const Icon(
-                                    Icons.delete,
-                                    color: Colors.redAccent,
+                                      Icons.delete,
+                                      color: Colors.redAccent,
+                                      size: 20,
+                                    ),
+                                    onPressed: () async {
+                                      final taskToDelete = filteredTasks[index];
+
+                                      await cancelTaskReminders(taskToDelete);
+
+                                      setState(() {
+                                        tasks.remove(taskToDelete);
+                                      });
+
+                                      await saveTasks();
+                                    },
                                   ),
-                                  onPressed: () async {
-
-                                    // Get the task the user wants to delete
-                                    final taskToDelete = filteredTasks[index];
-
-                                    // Cancel all scheduled reminders connected to this task
-                                    await cancelTaskReminders(taskToDelete);
-
-                                    // Remove the task from the task list
-                                    setState(() {
-                                      tasks.remove(taskToDelete);
-                                    });
-
-                                    // Save the updated task list
-                                    await saveTasks();
-                                  },
-                                ),
                                 ],
-                            ),
+                              ),
                             ),
                           );
                         },
