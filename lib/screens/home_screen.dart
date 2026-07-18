@@ -1849,14 +1849,20 @@ class _HomeScreenState extends State<HomeScreen> {
                       height: 110,
                       child: Row(
                         children: List.generate(7, (index) {
-                          final date = DateTime.now().add(Duration(days: index));
+                          final now = DateTime.now();
+                          // Find the most recent Sunday
+                          final startOfWeek = now.subtract(
+                            Duration(days: now.weekday % 7),
+                          );
+
+                          final date = startOfWeek.add(Duration(days: index));
                           final dateKey = getDateKey(date);
                           final todayKey = getDateKey(DateTime.now());
 
                           final isSelected = selectedTaskDate == dateKey;
                           final isToday = dateKey == todayKey;
 
-                          final dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+                          final dayNames = ['Sun', 'Mon', 'Tues', 'Wed', 'Thurs', 'Fri', 'Sat'];
 
                           return FutureBuilder<double>(
                             future: getProgressForDate(date),
@@ -1903,9 +1909,14 @@ class _HomeScreenState extends State<HomeScreen> {
                                         children: [
                                           Text(
                                             dayNames[date.weekday - 1],
-                                            style: const TextStyle(
-                                              color: Colors.white70,
+                                            style: TextStyle(
+                                              color: isSelected
+                                                  ? Colors.white
+                                                  : Colors.white70,
                                               fontSize: 12,
+                                              fontWeight: isSelected
+                                                  ? FontWeight.w600
+                                                  : FontWeight.normal,
                                             ),
                                           ),
 
@@ -1933,8 +1944,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                                 color: ringColor,
                                               ),
                                               child: SizedBox(
-                                                width: 42,
-                                                height: 42,
+                                                width: isSelected ? 46 : 42,
+                                                height: isSelected ? 46 : 42,
                                               child: Center(
                                                 child: Text(
                                                   '${date.day}',
@@ -1944,8 +1955,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                                         : isToday
                                                             ? Colors.white
                                                             : Colors.white70,
-                                                    fontWeight: FontWeight.bold,
-                                                    fontSize: 16,
+                                                    fontWeight: isSelected
+                                                        ? FontWeight.w700
+                                                        : FontWeight.w600,
+                                                    fontSize: isSelected ? 18 : 16,
                                                   ),
                                                 ),
                                               ),
@@ -1954,13 +1967,18 @@ class _HomeScreenState extends State<HomeScreen> {
                                           ),
 
                                           const SizedBox(height: 6),
-
-                                          Text(
-                                            taskCount == 1 ? '1 task' : '$taskCount tasks',
-                                            style: const TextStyle(
-                                              color: Colors.white54,
-                                              fontSize: 10,
-                                              fontWeight: FontWeight.w500,
+                                          SizedBox(
+                                            width: 50,
+                                            child: Text(
+                                              taskCount == 1 ? '1 task' : '$taskCount tasks',
+                                              textAlign: TextAlign.center,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.visible,
+                                              style: const TextStyle(
+                                                color: Colors.white54,
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.w500,
+                                              ),
                                             ),
                                           ),
                                         ],
