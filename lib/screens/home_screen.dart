@@ -1908,7 +1908,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                         mainAxisAlignment: MainAxisAlignment.center,
                                         children: [
                                           Text(
-                                            dayNames[date.weekday - 1],
+                                            dayNames[date.weekday % 7],
                                             style: TextStyle(
                                               color: isSelected
                                                   ? Colors.white
