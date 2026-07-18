@@ -1890,17 +1890,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
                                         await loadTasksForSelectedDate();
                                       },
-                                      child: Container(
-                                        margin: const EdgeInsets.symmetric(horizontal: 2),
+                                      child: AnimatedContainer(
+                                        duration: const Duration(milliseconds: 200),
+                                        curve: Curves.easeOut,
+                                        margin: const EdgeInsets.symmetric(horizontal: 4),
                                         decoration: BoxDecoration(
-                                        color: isSelected ? Colors.white12 : Colors.transparent,
-                                        borderRadius: BorderRadius.circular(18),
-                                        border: isSelected
-                                            ? Border.all(color: ringColor, width: 1.5)
-                                            : isToday
-                                                ? Border.all(color: Colors.white54, width: 1)
-                                                : null,
-                                      ),
+                                          color: Colors.transparent,
+                                          borderRadius: BorderRadius.circular(18),
+                                        ),
                                       child: Column(
                                         mainAxisAlignment: MainAxisAlignment.center,
                                         children: [
@@ -1914,14 +1911,30 @@ class _HomeScreenState extends State<HomeScreen> {
 
                                           const SizedBox(height: 8),
 
-                                          CustomPaint(
-                                            painter: DayProgressPainter(
-                                              progress: dayProgress,
-                                              color: ringColor,
+                                          AnimatedContainer(
+                                            duration: const Duration(milliseconds: 200),
+                                            curve: Curves.easeOut,
+                                            padding: EdgeInsets.all(isSelected ? 3 : 0),
+                                            decoration: BoxDecoration(
+                                              shape: BoxShape.circle,
+                                              color: isSelected
+                                                  ? ringColor.withOpacity(0.10)
+                                                  : Colors.transparent,
+                                              border: isSelected
+                                                  ? Border.all(
+                                                      color: ringColor,
+                                                      width: 1.5,
+                                                    )
+                                                  : null,
                                             ),
-                                            child: SizedBox(
-                                              width: 42,
-                                              height: 42,
+                                            child: CustomPaint(
+                                              painter: DayProgressPainter(
+                                                progress: dayProgress,
+                                                color: ringColor,
+                                              ),
+                                              child: SizedBox(
+                                                width: 42,
+                                                height: 42,
                                               child: Center(
                                                 child: Text(
                                                   '${date.day}',
@@ -1936,6 +1949,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                                   ),
                                                 ),
                                               ),
+                                            ),
                                             ),
                                           ),
 
