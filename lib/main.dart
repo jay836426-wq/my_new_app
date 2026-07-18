@@ -23,17 +23,6 @@ Future<void> main() async {
   await NotificationService.init();
   await NotificationService.requestPermissions();
 
-  Future.delayed(
-    const Duration(seconds: 5),
-    () async { 
-      await NotificationService.showNotification(
-        id: 1,
-        title: 'TrakOn',
-        body: 'Notifications are working!',
-      );
-    },
-  );
-
   // Show a notification
   
 

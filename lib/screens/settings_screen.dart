@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:TrakOn/main.dart';
+import 'notification_settings_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -528,44 +529,7 @@ class AccountSettingsScreen extends StatelessWidget {
   }
 }
 
-class NotificationSettingsScreen extends StatelessWidget {
-  const NotificationSettingsScreen({super.key});
 
-  @override
-  Widget build(BuildContext context) {
-    return const SettingsInformationPage(
-      title: '🔔 Notifications',
-      icon: Icons.notifications_outlined,
-      children: [
-        InformationHeading('Task Reminders'),
-
-        InformationParagraph(
-          'TrakOn reminders are designed to help you remember important tasks '
-          'at the times you select.',
-        ),
-
-        SizedBox(height: 24),
-
-        InformationHeading('Smart Reminder System'),
-
-        InformationParagraph(
-          'The Smart Reminder System is currently being completed for Version '
-          '1.0. Notification controls will be added to this page once the '
-          'system is fully connected and tested.',
-        ),
-
-        SizedBox(height: 24),
-
-        InformationHeading('Coming Next'),
-
-        InformationParagraph(
-          'Future controls may include reminder preferences, repeated alerts '
-          'for high-priority tasks, and notification permission management.',
-        ),
-      ],
-    );
-  }
-}
 
 class SupportScreen extends StatelessWidget {
   const SupportScreen({super.key});
