@@ -21,13 +21,15 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await NotificationService.init();
+  await NotificationService.requestPermissions();
 
   Future.delayed(
     const Duration(seconds: 5),
     () async { 
       await NotificationService.showNotification(
-      title: 'TrakOn', 
-      body: 'Notifications are working!',
+        id: 1,
+        title: 'TrakOn',
+        body: 'Notifications are working!',
       );
     },
   );
