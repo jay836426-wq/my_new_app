@@ -759,6 +759,135 @@ class _HomeScreenState extends State<HomeScreen> {
 }
 
 
+  // Creates a stable base notification ID for a task.
+  int createNotificationId() {
+    return DateTime.now().microsecondsSinceEpoch.remainder(1000000000);
+  }
+
+  // Converts the saved selected date and reminder time into one DateTime.
+  DateTime buildReminderDateTime({
+    required String dateKey,
+    required TimeOfDay reminderTime,
+  }) {
+    final selectedDate = DateTime.parse(dateKey);
+
+    return DateTime(
+      selectedDate.year,
+      selectedDate.month,
+      selectedDate.day,
+      reminderTime.hour,
+      reminderTime.minute,
+    );
+  }
+
+  // Schedules the main reminder and priority-based follow-up reminders.
+  Future<void> scheduleSmartReminders({
+    required int notificationId,
+    required String taskTitle,
+    required String? priority,
+    required DateTime reminderDateTime,
+  }) async {
+    if (reminderDateTime.isBefore(DateTime.now())) {
+      return;
+    }
+
+    // Main reminder.
+    await NotificationService.scheduleNotification(
+      id: notificationId,
+      title: 'Task Reminder',
+      body: taskTitle,
+      scheduledTime: reminderDateTime,
+    );
+
+    // High-priority tasks receive two additional reminders.
+    if (priority == '🔴 High') {
+      await NotificationService.scheduleNotification(
+        id: notificationId + 1,
+        title: 'High Priority Task',
+        body: '$taskTitle is still waiting.',
+        scheduledTime: reminderDateTime.add(
+          const Duration(minutes: 30),
+        ),
+      );
+
+      await NotificationService.scheduleNotification(
+        id: notificationId + 2,
+        title: 'High Priority Task',
+        body: 'Do not forget to complete: $taskTitle',
+        scheduledTime: reminderDateTime.add(
+          const Duration(minutes: 60),
+        ),
+      );
+    }
+
+    // Medium-priority tasks receive one follow-up.
+    if (priority == '🟡 Medium') {
+      await NotificationService.scheduleNotification(
+        id: notificationId + 1,
+        title: 'Task Follow-Up',
+        body: 'Remember to complete: $taskTitle',
+        scheduledTime: reminderDateTime.add(
+          const Duration(minutes: 60),
+        ),
+      );
+    }
+  }
+
+  // Cancels every notification that may belong to a task.
+  Future<void> cancelTaskReminders(Map<String, dynamic> task) async {
+    final notificationId = task['notificationId'];
+
+    if (notificationId is! int) return;
+
+    await NotificationService.cancelNotification(notificationId);
+    await NotificationService.cancelNotification(notificationId + 1);
+    await NotificationService.cancelNotification(notificationId + 2);
+  }
+
+  // Converts a saved reminder time (ex: "2:30 PM") back into a TimeOfDay object
+  TimeOfDay? parseReminderTime(String? reminderText) {
+
+    // If no reminder exists, return nothing
+    if (reminderText == null || reminderText.trim().isEmpty) {
+      return null;
+    }
+
+    // Extract the hour, minute, and AM/PM using a regular expression
+    final match = RegExp(
+      r'^(\d{1,2}):(\d{2})\s*(AM|PM)$',
+      caseSensitive: false,
+    ).firstMatch(reminderText.trim());
+
+    // If the reminder format is invalid, return nothing
+    if (match == null) {
+      return null;
+    }
+
+    // Read the hour and minute from the saved reminder
+    int hour = int.parse(match.group(1)!);
+    final minute = int.parse(match.group(2)!);
+
+    // Store whether the reminder is AM or PM
+    final period = match.group(3)!.toUpperCase();
+
+    // Convert PM time into 24-hour format (except for 12 PM)
+    if (period == 'PM' && hour != 12) {
+      hour += 12;
+    }
+
+    // Convert 12 AM into midnight (0:00)
+    if (period == 'AM' && hour == 12) {
+      hour = 0;
+    }
+
+    // Return the converted reminder time
+    return TimeOfDay(
+      hour: hour,
+      minute: minute,
+    );
+  }
+
+
   void showAddTaskPopup() {
 
     
@@ -960,54 +1089,57 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             ElevatedButton(
               onPressed: () async {
-                final newTask = taskController.text.trim();
+                final newTaskTitle = taskController.text.trim();
 
-                if (newTask.isNotEmpty) {
-                  final TimeOfDay? reminderToSchedule = selectedReminderTime;
-                  setState(() {
-                    tasks.add({
-                      'title': taskController.text,
-                      'description': descriptionController.text.trim(),
-                      'completed': false,
-                      'category': selectedCategory,
-                      'priority': selectedPriority,
-                      'reminderTime': selectedReminderTime?.format(context),
-                      'date': selectedTaskDate,
-                    }); // SAVE TASK
-
-                    selectedPriority = null;
-                    selectedReminderTime = null;
-                  });
-                  if(reminderToSchedule != null) {
-
-                    final selectedDate = DateTime.parse(selectedTaskDate);
-
-                        DateTime reminderDateTime = DateTime(
-                          selectedDate.year,
-                          selectedDate.month,
-                          selectedDate.day,
-                          reminderToSchedule.hour,
-                          reminderToSchedule.minute,
-                    );
-                    if(reminderDateTime.isBefore(DateTime.now())) {
-                      reminderDateTime = reminderDateTime.add(
-                        const Duration(days: 1),
-                      );
-                    }
-
-                    await NotificationService.scheduleNotification(
-                      id: tasks.length,
-                      title: 'Task Reminder',
-                      body: newTask,
-                      scheduledTime: reminderDateTime,
-                    );
-                  }
-                  await saveTasks();
+                if (newTaskTitle.isEmpty) {
+                  return;
                 }
 
+                final reminderToSchedule = selectedReminderTime;
+                final notificationId = createNotificationId();
+
+                final newTask = <String, dynamic>{
+                  'title': newTaskTitle,
+                  'description': descriptionController.text.trim(),
+                  'completed': false,
+                  'category': selectedCategory,
+                  'priority': selectedPriority,
+                  'reminderTime': selectedReminderTime?.format(context),
+                  'notificationId': notificationId,
+                  'date': selectedTaskDate,
+                };
+
+                setState(() {
+                  tasks.add(newTask);
+                });
+
+                if (reminderToSchedule != null) {
+                  final reminderDateTime = buildReminderDateTime(
+                    dateKey: selectedTaskDate,
+                    reminderTime: reminderToSchedule,
+                  );
+
+                  await scheduleSmartReminders(
+                    notificationId: notificationId,
+                    taskTitle: newTaskTitle,
+                    priority: selectedPriority,
+                    reminderDateTime: reminderDateTime,
+                  );
+                }
+
+                await saveTasks();
+
+                if (!mounted) return;
+
                 Navigator.pop(context);
+
                 taskController.clear();
                 descriptionController.clear();
+
+                setState(() {
+                  selectedPriority = null;
+                  selectedReminderTime = null;
+                });
               },
               child: const Text('Add'),
             ),
@@ -1304,21 +1436,69 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
 
                 ElevatedButton(
-                  onPressed: () {
+                  onPressed: () async {
+
+                    // Get the updated task name and remove extra spaces
                     final updatedTitle = editController.text.trim();
 
-                    if (updatedTitle.isNotEmpty) {
-                      setState(() {
-                        task['title'] = updatedTitle;
-                        task['description'] = editDescriptionController.text.trim();
-                        task['category'] = editCategory;
-                        task['priority'] = editPriority;
-                        task['reminderTime'] = editReminderTime;
-                      });
-
-                      saveTasks();
-                      Navigator.pop(context);
+                    // Do not save if the task name is empty
+                    if (updatedTitle.isEmpty) {
+                      return;
                     }
+
+                    // Cancel all notifications connected to the task's old reminder settings
+                    await cancelTaskReminders(task);
+
+                    // Reuse the task's existing notification ID if it already has one
+                    final existingNotificationId = task['notificationId'];
+
+                    // Create a notification ID for older tasks that do not have one yet
+                    final int notificationId = existingNotificationId is int
+                        ? existingNotificationId
+                        : createNotificationId();
+
+                    // Update the task information
+                    setState(() {
+                      task['title'] = updatedTitle;
+                      task['description'] =
+                          editDescriptionController.text.trim();
+                      task['category'] = editCategory;
+                      task['priority'] = editPriority;
+                      task['reminderTime'] = editReminderTime;
+                      task['notificationId'] = notificationId;
+                    });
+
+                    // Convert the saved reminder text back into a TimeOfDay object
+                    final editedTime = parseReminderTime(editReminderTime);
+
+                    // Only schedule new reminders if:
+                    // 1. A reminder time exists
+                    // 2. The task is not already completed
+                    if (editedTime != null && task['completed'] != true) {
+
+                      // Build the full date and time for the edited reminder
+                      final reminderDateTime = buildReminderDateTime(
+                        dateKey: task['date'] ?? selectedTaskDate,
+                        reminderTime: editedTime,
+                      );
+
+                      // Schedule the updated smart reminders
+                      await scheduleSmartReminders(
+                        notificationId: notificationId,
+                        taskTitle: updatedTitle,
+                        priority: editPriority,
+                        reminderDateTime: reminderDateTime,
+                      );
+                    }
+
+                    // Save the updated task list to local storage
+                    await saveTasks();
+
+                    // Stop if the screen was closed while awaiting
+                    if (!mounted) return;
+
+                    // Close the Edit Task popup
+                    Navigator.pop(context);
                   },
                   child: const Text('Save'),
                 ),
@@ -1756,13 +1936,58 @@ class _HomeScreenState extends State<HomeScreen> {
                             color: Colors.white10,
                             child: ListTile(
                               leading: GestureDetector(
-                                onTap: () {
+                                onTap: () async {
+
+                                  // Get the task that the user tapped
+                                  final task = filteredTasks[index];
+
+                                  // Determine the task's new completion status
+                                  final bool isNowCompleted = task['completed'] != true;
+
+                                  // Update the task's completed value
                                   setState(() {
-                                    filteredTasks[index]['completed'] =
-                                        !(filteredTasks[index]['completed'] == true);
+                                    task['completed'] = isNowCompleted;
                                   });
 
-                                  saveTasks();
+                                  // If the task was just completed, cancel all remaining reminders
+                                  if (isNowCompleted) {
+                                    await cancelTaskReminders(task);
+                                  } else {
+
+                                    // If the task was marked incomplete again,
+                                    // try to restore its reminders
+                                    final reminderTime = parseReminderTime(
+                                      task['reminderTime'],
+                                    );
+
+                                    // Only continue if the task has a reminder time
+                                    if (reminderTime != null) {
+
+                                      // Get the task's saved notification ID
+                                      final notificationId = task['notificationId'];
+
+                                      // Only reschedule if the notification ID is valid
+                                      if (notificationId is int) {
+
+                                        // Build the task's full reminder date and time
+                                        final reminderDateTime = buildReminderDateTime(
+                                          dateKey: task['date'] ?? selectedTaskDate,
+                                          reminderTime: reminderTime,
+                                        );
+
+                                        // Schedule the reminders again based on priority
+                                        await scheduleSmartReminders(
+                                          notificationId: notificationId,
+                                          taskTitle: task['title'].toString(),
+                                          priority: task['priority']?.toString(),
+                                          reminderDateTime: reminderDateTime,
+                                        );
+                                      }
+                                    }
+                                  }
+
+                                  // Save the updated task list
+                                  await saveTasks();
                                 },
                                 child: CustomPaint(
                                   painter: DayProgressPainter(
@@ -1845,11 +2070,21 @@ class _HomeScreenState extends State<HomeScreen> {
                                     Icons.delete,
                                     color: Colors.redAccent,
                                   ),
-                                  onPressed: () {
+                                  onPressed: () async {
+
+                                    // Get the task the user wants to delete
+                                    final taskToDelete = filteredTasks[index];
+
+                                    // Cancel all scheduled reminders connected to this task
+                                    await cancelTaskReminders(taskToDelete);
+
+                                    // Remove the task from the task list
                                     setState(() {
-                                      tasks.remove(filteredTasks[index]);
+                                      tasks.remove(taskToDelete);
                                     });
-                                    saveTasks();
+
+                                    // Save the updated task list
+                                    await saveTasks();
                                   },
                                 ),
                                 ],
