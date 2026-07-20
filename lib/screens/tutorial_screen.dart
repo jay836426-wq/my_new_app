@@ -44,6 +44,8 @@ class _TutorialScreenState extends State<TutorialScreen> {
     await prefs.setBool('hasSeenOnBoarding', true);
     await prefs.setBool('isLoggedIn', true);
 
+    if (!mounted) return;
+    
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
         builder: (context) => const MainNavigationScreen(),

@@ -15,7 +15,7 @@ class SplashScreen extends StatefulWidget {
 
 class _SplashScreenState extends State<SplashScreen> {
   String displayedText = '';
-  final String fullText = 'Welcome to TrakOn!';
+  final String fullText = 'Welcome To TrakOn!';
 
   String mottoText = '';
 

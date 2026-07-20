@@ -1,8 +1,11 @@
-import 'package:flutter/material.dart';
-import 'notification_preferences.dart';
+import 'dart:convert';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 import 'notification_preferences.dart';
+import 'notification_service.dart';
 
 class NotificationSettingsScreen extends StatefulWidget {
   const NotificationSettingsScreen({super.key});
@@ -36,20 +39,16 @@ class _NotificationSettingsScreenState
   }
 
   Future<void> loadNotificationSettings() async {
-    notificationsEnabled =
-        await NotificationPreferences.notificationsEnabled();
+    notificationsEnabled = await NotificationPreferences.notificationsEnabled();
 
-    taskRemindersEnabled =
-        await NotificationPreferences.taskRemindersEnabled();
+    taskRemindersEnabled = await NotificationPreferences.taskRemindersEnabled();
 
     highPriorityRemindersEnabled =
         await NotificationPreferences.highPriorityRemindersEnabled();
 
-    dailySummaryEnabled =
-        await NotificationPreferences.dailySummaryEnabled();
+    dailySummaryEnabled = await NotificationPreferences.dailySummaryEnabled();
 
-    endOfDayEnabled =
-        await NotificationPreferences.endOfDayEnabled();
+    endOfDayEnabled = await NotificationPreferences.endOfDayEnabled();
 
     dailyMotivationEnabled =
         await NotificationPreferences.dailyMotivationEnabled();
@@ -60,36 +59,24 @@ class _NotificationSettingsScreenState
     streakNotificationsEnabled =
         await NotificationPreferences.streakNotificationsEnabled();
 
-    final summaryHour =
-        await NotificationPreferences.dailySummaryHour();
+    final summaryHour = await NotificationPreferences.dailySummaryHour();
 
-    final summaryMinute =
-        await NotificationPreferences.dailySummaryMinute();
+    final summaryMinute = await NotificationPreferences.dailySummaryMinute();
 
-    final endHour =
-        await NotificationPreferences.endOfDayHour();
+    final endHour = await NotificationPreferences.endOfDayHour();
 
-    final endMinute =
-        await NotificationPreferences.endOfDayMinute();
+    final endMinute = await NotificationPreferences.endOfDayMinute();
 
-    final motivationHour =
-        await NotificationPreferences.motivationHour();
+    final motivationHour = await NotificationPreferences.motivationHour();
 
-    final motivationMinute =
-        await NotificationPreferences.motivationMinute();
+    final motivationMinute = await NotificationPreferences.motivationMinute();
 
     if (!mounted) return;
 
     setState(() {
-      dailySummaryTime = TimeOfDay(
-        hour: summaryHour,
-        minute: summaryMinute,
-      );
+      dailySummaryTime = TimeOfDay(hour: summaryHour, minute: summaryMinute);
 
-      endOfDayTime = TimeOfDay(
-        hour: endHour,
-        minute: endMinute,
-      );
+      endOfDayTime = TimeOfDay(hour: endHour, minute: endMinute);
 
       motivationTime = TimeOfDay(
         hour: motivationHour,
@@ -100,90 +87,159 @@ class _NotificationSettingsScreenState
     });
   }
 
-  Future<void> updateSetting({
-    required String key,
-    required bool value,
-  }) async {
-    await NotificationPreferences.setBool(
-      key: key,
-      value: value,
+  Future<void> updateSetting({required String key, required bool value}) async {
+    await NotificationPreferences.setBool(key: key, value: value);
+  }
+
+  Future<int> getRemainingTaskCount() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedTasks = prefs.getString('tasks');
+
+    if (savedTasks == null) {
+      return 0;
+    }
+
+    try {
+      final List<dynamic> decodedTasks = jsonDecode(savedTasks);
+
+      return decodedTasks.where((task) {
+        return task is Map && task['completed'] != true;
+      }).length;
+    } catch (error) {
+      debugPrint('Could not read tasks for notifications: $error');
+      return 0;
+    }
+  }
+
+  DateTime getNextNotificationTime(TimeOfDay time) {
+    final now = DateTime.now();
+
+    DateTime scheduledTime = DateTime(
+      now.year,
+      now.month,
+      now.day,
+      time.hour,
+      time.minute,
+    );
+
+    if (!scheduledTime.isAfter(now)) {
+      scheduledTime = scheduledTime.add(const Duration(days: 1));
+    }
+
+    return scheduledTime;
+  }
+
+  Future<void> scheduleDailySummary() async {
+    final remainingTaskCount = await getRemainingTaskCount();
+
+    await NotificationService.scheduleDailyTaskSummary(
+      scheduledTime: getNextNotificationTime(dailySummaryTime),
+      remainingTaskCount: remainingTaskCount,
     );
   }
 
-  Future<TimeOfDay?> showAppleTimePicker({
-  required TimeOfDay initialTime,
-}) async {
-  DateTime selectedDateTime = DateTime(
-    2026,
-    1,
-    1,
-    initialTime.hour,
-    initialTime.minute,
-  );
+  Future<void> scheduleEndOfDayReminder() async {
+    final remainingTaskCount = await getRemainingTaskCount();
 
-  final bool? confirmed = await showCupertinoModalPopup<bool>(
-    context: context,
-    builder: (popupContext) {
-      return Container(
-        height: 330,
-        color: CupertinoColors.systemBackground.resolveFrom(context),
-        child: SafeArea(
-          top: false,
-          child: Column(
-            children: [
-              SizedBox(
-                height: 55,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    CupertinoButton(
-                      onPressed: () {
-                        Navigator.pop(popupContext, false);
-                      },
-                      child: const Text('Cancel'),
-                    ),
-                    const Text(
-                      'Select Time',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    CupertinoButton(
-                      onPressed: () {
-                        Navigator.pop(popupContext, true);
-                      },
-                      child: const Text('Done'),
-                    ),
-                  ],
-                ),
-              ),
-              const Divider(height: 1),
-              Expanded(
-                child: CupertinoDatePicker(
-                  mode: CupertinoDatePickerMode.time,
-                  use24hFormat: false,
-                  initialDateTime: selectedDateTime,
-                  onDateTimeChanged: (newDateTime) {
-                    selectedDateTime = newDateTime;
-                  },
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    },
-  );
-
-  if (confirmed != true) {
-    return null;
+    await NotificationService.scheduleEndOfDayNotification(
+      scheduledTime: getNextNotificationTime(endOfDayTime),
+      remainingTaskCount: remainingTaskCount,
+    );
   }
 
-  return TimeOfDay(
-    hour: selectedDateTime.hour,
-    minute: selectedDateTime.minute,
-  );
-}
+  Future<void> scheduleEnabledDailyNotifications() async {
+    if (!notificationsEnabled) {
+      return;
+    }
+
+    if (dailyMotivationEnabled) {
+      await NotificationService.scheduleDailyMotivationalNotification(
+        hour: motivationTime.hour,
+        minute: motivationTime.minute,
+      );
+    }
+
+    if (dailySummaryEnabled) {
+      await scheduleDailySummary();
+    }
+
+    if (endOfDayEnabled) {
+      await scheduleEndOfDayReminder();
+    }
+  }
+
+  Future<TimeOfDay?> showAppleTimePicker({
+    required TimeOfDay initialTime,
+  }) async {
+    DateTime selectedDateTime = DateTime(
+      2026,
+      1,
+      1,
+      initialTime.hour,
+      initialTime.minute,
+    );
+
+    final bool? confirmed = await showCupertinoModalPopup<bool>(
+      context: context,
+      builder: (popupContext) {
+        return Container(
+          height: 330,
+          color: CupertinoColors.systemBackground.resolveFrom(context),
+          child: SafeArea(
+            top: false,
+            child: Column(
+              children: [
+                SizedBox(
+                  height: 55,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      CupertinoButton(
+                        onPressed: () {
+                          Navigator.pop(popupContext, false);
+                        },
+                        child: const Text('Cancel'),
+                      ),
+                      const Text(
+                        'Select Time',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      CupertinoButton(
+                        onPressed: () {
+                          Navigator.pop(popupContext, true);
+                        },
+                        child: const Text('Done'),
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1),
+                Expanded(
+                  child: CupertinoDatePicker(
+                    mode: CupertinoDatePickerMode.time,
+                    use24hFormat: false,
+                    initialDateTime: selectedDateTime,
+                    onDateTimeChanged: (newDateTime) {
+                      selectedDateTime = newDateTime;
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    if (confirmed != true) {
+      return null;
+    }
+
+    return TimeOfDay(
+      hour: selectedDateTime.hour,
+      minute: selectedDateTime.minute,
+    );
+  }
 
   Future<void> chooseDailySummaryTime() async {
     final selectedTime = await showAppleTimePicker(
@@ -202,12 +258,14 @@ class _NotificationSettingsScreenState
     setState(() {
       dailySummaryTime = selectedTime;
     });
+
+    if (notificationsEnabled && dailySummaryEnabled) {
+      await scheduleDailySummary();
+    }
   }
 
   Future<void> chooseEndOfDayTime() async {
-    final selectedTime = await showAppleTimePicker(
-      initialTime: endOfDayTime,
-    );
+    final selectedTime = await showAppleTimePicker(initialTime: endOfDayTime);
 
     if (selectedTime == null) return;
 
@@ -221,12 +279,14 @@ class _NotificationSettingsScreenState
     setState(() {
       endOfDayTime = selectedTime;
     });
+
+    if (notificationsEnabled && endOfDayEnabled) {
+      await scheduleEndOfDayReminder();
+    }
   }
 
   Future<void> chooseMotivationTime() async {
-    final selectedTime = await showAppleTimePicker(
-      initialTime: motivationTime,
-    );
+    final selectedTime = await showAppleTimePicker(initialTime: motivationTime);
 
     if (selectedTime == null) return;
 
@@ -240,6 +300,13 @@ class _NotificationSettingsScreenState
     setState(() {
       motivationTime = selectedTime;
     });
+
+    if (notificationsEnabled && dailyMotivationEnabled) {
+      await NotificationService.scheduleDailyMotivationalNotification(
+        hour: selectedTime.hour,
+        minute: selectedTime.minute,
+      );
+    }
   }
 
   Widget buildNotificationSwitch({
@@ -251,13 +318,10 @@ class _NotificationSettingsScreenState
   }) {
     return SwitchListTile(
       value: value,
-      activeColor: Colors.greenAccent,
+      activeThumbColor: Colors.greenAccent,
       secondary: icon == null
           ? null
-          : Icon(
-              icon,
-              color: value ? Colors.greenAccent : Colors.white54,
-            ),
+          : Icon(icon, color: value ? Colors.greenAccent : Colors.white54),
       title: Text(
         title,
         style: const TextStyle(
@@ -265,12 +329,7 @@ class _NotificationSettingsScreenState
           fontWeight: FontWeight.w600,
         ),
       ),
-      subtitle: Text(
-        subtitle,
-        style: const TextStyle(
-          color: Colors.white60,
-        ),
-      ),
+      subtitle: Text(subtitle, style: const TextStyle(color: Colors.white60)),
       onChanged: notificationsEnabled ? onChanged : null,
     );
   }
@@ -283,10 +342,7 @@ class _NotificationSettingsScreenState
   }) {
     return ListTile(
       enabled: notificationsEnabled && enabled,
-      leading: const Icon(
-        Icons.schedule,
-        color: Colors.white70,
-      ),
+      leading: const Icon(Icons.schedule, color: Colors.white70),
       title: Text(
         title,
         style: TextStyle(
@@ -319,9 +375,7 @@ class _NotificationSettingsScreenState
       ),
       body: isLoading
           ? const Center(
-              child: CircularProgressIndicator(
-                color: Colors.greenAccent,
-              ),
+              child: CircularProgressIndicator(color: Colors.greenAccent),
             )
           : ListView(
               padding: const EdgeInsets.all(16),
@@ -333,7 +387,7 @@ class _NotificationSettingsScreenState
                   ),
                   child: SwitchListTile(
                     value: notificationsEnabled,
-                    activeColor: Colors.greenAccent,
+                    activeThumbColor: Colors.greenAccent,
                     secondary: const Icon(
                       Icons.notifications_active,
                       color: Colors.greenAccent,
@@ -355,10 +409,16 @@ class _NotificationSettingsScreenState
                       });
 
                       await updateSetting(
-                        key: NotificationPreferences
-                            .notificationsEnabledKey,
+                        key: NotificationPreferences.notificationsEnabledKey,
                         value: value,
                       );
+
+                      if (!value) {
+                        await NotificationService.cancelAllNotifications();
+                      } else {
+                        await NotificationService.requestPermissions();
+                        await scheduleEnabledDailyNotifications();
+                      }
                     },
                   ),
                 ),
@@ -385,8 +445,7 @@ class _NotificationSettingsScreenState
                     });
 
                     await updateSetting(
-                      key: NotificationPreferences
-                          .taskRemindersEnabledKey,
+                      key: NotificationPreferences.taskRemindersEnabledKey,
                       value: value,
                     );
                   },
@@ -452,10 +511,18 @@ class _NotificationSettingsScreenState
                     });
 
                     await updateSetting(
-                      key: NotificationPreferences
-                          .dailyMotivationEnabledKey,
+                      key: NotificationPreferences.dailyMotivationEnabledKey,
                       value: value,
                     );
+
+                    if (value && notificationsEnabled) {
+                      await NotificationService.scheduleDailyMotivationalNotification(
+                        hour: motivationTime.hour,
+                        minute: motivationTime.minute,
+                      );
+                    } else {
+                      await NotificationService.cancelDailyMotivationalNotification();
+                    }
                   },
                 ),
 
@@ -478,10 +545,17 @@ class _NotificationSettingsScreenState
                     });
 
                     await updateSetting(
-                      key: NotificationPreferences
-                          .dailySummaryEnabledKey,
+                      key: NotificationPreferences.dailySummaryEnabledKey,
                       value: value,
                     );
+
+                    if (value && notificationsEnabled) {
+                      await scheduleDailySummary();
+                    } else {
+                      await NotificationService.cancelNotification(
+                        NotificationService.dailySummaryNotificationId,
+                      );
+                    }
                   },
                 ),
 
@@ -494,8 +568,7 @@ class _NotificationSettingsScreenState
 
                 buildNotificationSwitch(
                   title: 'End-of-Day Reminder',
-                  subtitle:
-                      'Receive a final reminder for unfinished tasks.',
+                  subtitle: 'Receive a final reminder for unfinished tasks.',
                   value: endOfDayEnabled,
                   icon: Icons.nightlight_round,
                   onChanged: (value) async {
@@ -504,10 +577,17 @@ class _NotificationSettingsScreenState
                     });
 
                     await updateSetting(
-                      key: NotificationPreferences
-                          .endOfDayEnabledKey,
+                      key: NotificationPreferences.endOfDayEnabledKey,
                       value: value,
                     );
+
+                    if (value && notificationsEnabled) {
+                      await scheduleEndOfDayReminder();
+                    } else {
+                      await NotificationService.cancelNotification(
+                        NotificationService.endOfDayNotificationId,
+                      );
+                    }
                   },
                 ),
 
@@ -520,8 +600,7 @@ class _NotificationSettingsScreenState
 
                 buildNotificationSwitch(
                   title: 'Streak Notifications',
-                  subtitle:
-                      'Celebrate streaks and completed days.',
+                  subtitle: 'Celebrate streaks and completed days.',
                   value: streakNotificationsEnabled,
                   icon: Icons.local_fire_department,
                   onChanged: (value) async {
@@ -530,8 +609,8 @@ class _NotificationSettingsScreenState
                     });
 
                     await updateSetting(
-                      key: NotificationPreferences
-                          .streakNotificationsEnabledKey,
+                      key:
+                          NotificationPreferences.streakNotificationsEnabledKey,
                       value: value,
                     );
                   },

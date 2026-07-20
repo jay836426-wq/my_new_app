@@ -298,6 +298,21 @@ class _HomeScreenState extends State<HomeScreen> {
     await prefs.setInt('streakCounter', streakCounter);
     await prefs.setString('lastCompletedDate', lastCompletedDate);
 
+    final notificationsEnabled =
+    await NotificationPreferences.notificationsEnabled();
+
+    final streakNotificationsEnabled =
+        await NotificationPreferences.streakNotificationsEnabled();
+
+    if (notificationsEnabled && streakNotificationsEnabled) {
+      await NotificationService.showDayCompletedNotification();
+
+      await NotificationService.showStreakNotification(
+        streakCount: streakCounter,
+      );
+    }
+
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Day completed! Streak updated 🔥'),
@@ -330,6 +345,7 @@ class _HomeScreenState extends State<HomeScreen> {
     await prefs.setInt('streakCounter', streakCounter);
     await prefs.setString('lastCompletedDate', lastCompletedDate);
 
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Day status updated.'),
@@ -473,6 +489,10 @@ class _HomeScreenState extends State<HomeScreen> {
     await prefs.setString('lastCompletedDate', lastCompletedDate);
     await prefs.setString('lastActiveDate', lastActiveDate);
     await prefs.setString('selectedTaskDate', selectedTaskDate);
+
+    if (isViewingToday()) {
+      await refreshDailyTaskNotifications();
+    }
   }
 
   // Loads today's/current task storage and app settings
@@ -636,6 +656,18 @@ class _HomeScreenState extends State<HomeScreen> {
     });
 
     await saveTasks();
+
+    final notificationsEnabled =
+    await NotificationPreferences.notificationsEnabled();
+
+    final carryOverNotificationsEnabled =
+        await NotificationPreferences.carryOverNotificationsEnabled();
+
+    if (notificationsEnabled && carryOverNotificationsEnabled) {
+      await NotificationService.showCarryOverNotification(
+        carriedTaskCount: incompleteTasks.length,
+      );
+    }
   }
 
   // Resets the streak if the user missed a day
@@ -780,6 +812,97 @@ class _HomeScreenState extends State<HomeScreen> {
 }
 
 
+  DateTime getNextDailyNotificationTime({
+  required int hour,
+  required int minute,
+}) {
+  final now = DateTime.now();
+
+  DateTime scheduledTime = DateTime(
+    now.year,
+    now.month,
+    now.day,
+    hour,
+    minute,
+  );
+
+  if (!scheduledTime.isAfter(now)) {
+    scheduledTime = scheduledTime.add(
+      const Duration(days: 1),
+    );
+  }
+
+  return scheduledTime;
+}
+
+Future<void> refreshDailyTaskNotifications() async {
+  if (!isViewingToday()) return;
+
+  final notificationsEnabled =
+      await NotificationPreferences.notificationsEnabled();
+
+  if (!notificationsEnabled) {
+    await NotificationService.cancelNotification(
+      NotificationService.dailySummaryNotificationId,
+    );
+
+    await NotificationService.cancelNotification(
+      NotificationService.endOfDayNotificationId,
+    );
+
+    return;
+  }
+
+  final remainingTaskCount = tasks.where((task) {
+    return task['completed'] != true;
+  }).length;
+
+  final dailySummaryEnabled =
+      await NotificationPreferences.dailySummaryEnabled();
+
+  if (dailySummaryEnabled) {
+    final summaryHour =
+        await NotificationPreferences.dailySummaryHour();
+
+    final summaryMinute =
+        await NotificationPreferences.dailySummaryMinute();
+
+    await NotificationService.scheduleDailyTaskSummary(
+      scheduledTime: getNextDailyNotificationTime(
+        hour: summaryHour,
+        minute: summaryMinute,
+      ),
+      remainingTaskCount: remainingTaskCount,
+    );
+  } else {
+    await NotificationService.cancelNotification(
+      NotificationService.dailySummaryNotificationId,
+    );
+  }
+
+  final endOfDayEnabled =
+      await NotificationPreferences.endOfDayEnabled();
+
+  if (endOfDayEnabled) {
+    final endHour =
+        await NotificationPreferences.endOfDayHour();
+
+    final endMinute =
+        await NotificationPreferences.endOfDayMinute();
+
+    await NotificationService.scheduleEndOfDayNotification(
+      scheduledTime: getNextDailyNotificationTime(
+        hour: endHour,
+        minute: endMinute,
+      ),
+      remainingTaskCount: remainingTaskCount,
+    );
+  } else {
+    await NotificationService.cancelNotification(
+      NotificationService.endOfDayNotificationId,
+    );
+  }
+}
   // Creates a stable base notification ID for a task.
   int createNotificationId() {
     return DateTime.now().microsecondsSinceEpoch.remainder(1000000000);
@@ -821,6 +944,13 @@ class _HomeScreenState extends State<HomeScreen> {
     required DateTime reminderDateTime,
   }) async {
     if (reminderDateTime.isBefore(DateTime.now())) {
+      return;
+    }
+
+    final notificationsEnabled =
+      await NotificationPreferences.notificationsEnabled();
+
+    if (!notificationsEnabled) {
       return;
     }
 
@@ -1176,7 +1306,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
                 await saveTasks();
 
-                if (!mounted) return;
+                if (!context.mounted) return;
 
                 Navigator.pop(context);
 
@@ -1545,7 +1675,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     await saveTasks();
 
                     // Stop if the screen was closed while awaiting
-                    if (!mounted) return;
+                    if (!context.mounted) return;
 
                     // Close the Edit Task popup
                     Navigator.pop(context);
@@ -2005,7 +2135,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                             decoration: BoxDecoration(
                                               shape: BoxShape.circle,
                                               color: isSelected
-                                                  ? ringColor.withOpacity(0.10)
+                                                  ? ringColor.withValues(alpha: 0.10)
                                                   : Colors.transparent,
                                               border: isSelected
                                                   ? Border.all(

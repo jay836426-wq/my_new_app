@@ -3,18 +3,18 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+//import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:TrakOn/screens/main_navigation_screen.dart';
 //import 'package:TrakOn/screens/main_navigation_screen.dart';
 
-import 'screens/Mfa_screen.dart';
+import 'screens/mfa_screen.dart';
 //import 'screens/tutorial_screen.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'screens/notification_service.dart';
 
-import 'screens/SplashScreen.dart';
+import 'screens/splash_screen.dart';
 
 // Entry point of the app
 Future<void> main() async {
@@ -37,8 +37,8 @@ Future<void> main() async {
   final bool isLoggedIn = 
        prefs.getBool('isLoggedIn') ?? false;
   
-  print('isLoggedIn: $isLoggedIn');
-  print('hasSeenOnboarding: $hasSeenOnboarding');
+  debugPrint('isLoggedIn: $isLoggedIn');
+  debugPrint('hasSeenOnboarding: $hasSeenOnboarding');
 
   runApp(
     MyApp(
@@ -67,7 +67,9 @@ class MyApp extends StatelessWidget {
 
         scaffoldBackgroundColor: Colors.black,
         canvasColor: Colors.black,
-        dialogBackgroundColor: Colors.black,
+        dialogTheme: const DialogThemeData(
+          backgroundColor: Colors.black,
+        ),
 
         appBarTheme: const AppBarTheme(
           backgroundColor: Colors.black,
@@ -276,7 +278,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                             final prefs = await SharedPreferences.getInstance();
                             bool isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
 
-                            if(!mounted) return;
+                            if(!context.mounted) return;
                             
                             if (isLoggedIn) {
                               Navigator.of(context).pushReplacement(
@@ -453,6 +455,7 @@ Future<void> submitForm() async {
     await prefs.setString('password', passwordController.text);
     await prefs.setBool('isLoggedIn', true);
 
+    if (!mounted) return;
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
         builder: (context) => MfaScreen(
@@ -795,6 +798,7 @@ class _LoginScreenState extends State<LoginScreen> {
     if (loginMatches && passwordInput == savedPassword) {
       await prefs.setBool('rememberMe', rememberMe);
 
+      if (!mounted) return;
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
           builder: (context) => MfaScreen(
@@ -804,6 +808,7 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       );
     } else {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Incorrect username/contact or password.'),

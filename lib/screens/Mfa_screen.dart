@@ -31,7 +31,7 @@ class _MfaScreenState extends State<MfaScreen> {
   void initState() {
     super.initState();
     generateNewCode();
-    print("MFA CODE: $generatedCode"); 
+    debugPrint("MFA CODE: $generatedCode"); 
     startCountdown();
   }
   final TextEditingController codeController = TextEditingController();
@@ -95,9 +95,10 @@ class _MfaScreenState extends State<MfaScreen> {
       await prefs.setBool('isLoggedIn', rememberMe);
       await prefs.setBool('hasSeenOnboarding', true);
 
-      print('MFA saved login: ${prefs.getBool('isLoggedIn')}');
-      print('MFA saved onboarding: ${prefs.getBool('hasSeenOnboarding')}');
-
+      if (!mounted) return;
+      
+      debugPrint('MFA saved login: ${prefs.getBool('isLoggedIn')}');
+      debugPrint('MFA saved onboarding: ${prefs.getBool('hasSeenOnboarding')}');
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
           builder: (context) => widget.isNewUser
