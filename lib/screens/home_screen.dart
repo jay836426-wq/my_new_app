@@ -247,6 +247,9 @@ class _HomeScreenState extends State<HomeScreen> {
   // Stores the previous day's task
   String selectedTaskDate = '';
 
+  // Controls which week is displayed in the weekly calendar preview
+  DateTime displayedWeekStart = DateTime.now();
+
   // Calculates how much of today's tasks are completed
   double getProgress() {
     // If there are no tasks, progress is 0%
@@ -338,6 +341,13 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+
+      final now = DateTime.now();
+
+    // Starts the weekly preview on the most recent Sunday
+    displayedWeekStart = now.subtract(
+      Duration(days: now.weekday % 7),
+    );
     initializeHomeScreen();
     loadUserName();
   }
@@ -465,47 +475,46 @@ class _HomeScreenState extends State<HomeScreen> {
     await prefs.setString('selectedTaskDate', selectedTaskDate);
   }
 
-  // Loads saved tasks from local phone storage
+  // Loads today's/current task storage and app settings
   Future<void> loadTasks() async {
     final prefs = await SharedPreferences.getInstance();
 
-    final DateTime today = DateTime.now();
+    final todayKey = getDateKey(DateTime.now());
 
-    final String todayKey = '${today.year}-${today.month}-${today.day}';
+    // Always begin the Home screen on today's date.
+    // Do not restore a previously viewed past or future date here.
+    selectedTaskDate = todayKey;
 
-    // Load selected date, defaulting to today
-    selectedTaskDate = prefs.getString('selectedTaskDate') ?? todayKey;
+    // The main "tasks" key contains the active day's tasks.
+    final String? savedTasks = prefs.getString('tasks');
 
-    final String taskKey =
-        (selectedTaskDate.isEmpty || selectedTaskDate == todayKey)
-            ? 'tasks'
-            : 'tasks_$selectedTaskDate';
-
-    final String? savedTasks = prefs.getString(taskKey);
+    final loadedTasks = <Map<String, dynamic>>[];
 
     if (savedTasks != null) {
       final List decodedTasks = jsonDecode(savedTasks);
 
-      setState(() {
-        tasks = decodedTasks.map((task) {
+      loadedTasks.addAll(
+        decodedTasks.map((task) {
           return Map<String, dynamic>.from(task);
-        }).toList();
-
-        final String completedKey = 'dayCompleted_$todayKey';
-        dayCompleted = prefs.getBool(completedKey) ?? false;
-        streakCounter = prefs.getInt('streakCounter') ?? 0;
-        lastCompletedDate = prefs.getString('lastCompletedDate') ?? '';
-        lastActiveDate = prefs.getString('lastActiveDate') ?? '';
-      });
-    } else{
-      setState(() {
-        final String completedKey = 'dayCompleted_$todayKey';
-        dayCompleted = prefs.getBool(completedKey) ?? false;
-        streakCounter = prefs.getInt('streakCounter') ?? 0;
-        lastCompletedDate = prefs.getString('lastCompletedDate') ?? '';
-        lastActiveDate = prefs.getString('lastActiveDate') ?? '';
-      });
+        }),
+      );
     }
+
+    if (!mounted) return;
+
+    setState(() {
+      tasks = loadedTasks;
+      dayCompleted =
+          prefs.getBool('dayCompleted_$todayKey') ?? false;
+      streakCounter = prefs.getInt('streakCounter') ?? 0;
+      lastCompletedDate =
+          prefs.getString('lastCompletedDate') ?? '';
+      lastActiveDate =
+          prefs.getString('lastActiveDate') ?? '';
+      selectedFilter = 'All';
+    });
+
+    await prefs.setString('selectedTaskDate', todayKey);
   }
 
   Future<void> checkForNewDay() async {
@@ -523,10 +532,21 @@ class _HomeScreenState extends State<HomeScreen> {
 
     if (lastActiveDate == todayString) return;
 
-    // Preserve the previous day's tasks in its history
-    final previousDayTasks = tasks
-        .map((task) => Map<String, dynamic>.from(task))
-        .toList();
+    // Read the active day's tasks directly from storage.
+    // Do not rely on whichever calendar date happens to be displayed.
+    final savedPreviousTasks = prefs.getString('tasks');
+
+    final previousDayTasks = <Map<String, dynamic>>[];
+
+    if (savedPreviousTasks != null) {
+      final List decodedTasks = jsonDecode(savedPreviousTasks);
+
+      previousDayTasks.addAll(
+        decodedTasks.map((task) {
+          return Map<String, dynamic>.from(task);
+        }),
+      );
+    }
 
     if (previousDayTasks.isNotEmpty) {
       await prefs.setString(
@@ -1834,28 +1854,84 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      getMonthYearLabel(DateTime.now()),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                      ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          getMonthYearLabel(displayedWeekStart),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        Text(
+                          '$completedTasks out of ${tasks.length} completed',
+                          style: const TextStyle(
+                            color: Colors.greenAccent,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
                     ),
 
                     const SizedBox(height: 14),
+
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        IconButton(
+                          onPressed: () {
+                            setState(() {
+                              displayedWeekStart = displayedWeekStart.subtract(
+                                const Duration(days: 7),
+                              );
+                            });
+                          },
+                          icon: const Icon(
+                            Icons.chevron_left,
+                            color: Colors.white,
+                          ),
+                        ),
+
+                        Text(
+                          '${displayedWeekStart.month}/${displayedWeekStart.day}'
+                          ' - '
+                          '${displayedWeekStart.add(const Duration(days: 6)).month}/'
+                          '${displayedWeekStart.add(const Duration(days: 6)).day}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+
+                        IconButton(
+                          onPressed: () {
+                            setState(() {
+                              displayedWeekStart = displayedWeekStart.add(
+                                const Duration(days: 7),
+                              );
+                            });
+                          },
+                          icon: const Icon(
+                            Icons.chevron_right,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 8),
 
                     SizedBox(
                       height: 110,
                       child: Row(
                         children: List.generate(7, (index) {
-                          final now = DateTime.now();
-                          // Find the most recent Sunday
-                          final startOfWeek = now.subtract(
-                            Duration(days: now.weekday % 7),
+                          final date = displayedWeekStart.add(
+                            Duration(days: index),
                           );
-
-                          final date = startOfWeek.add(Duration(days: index));
                           final dateKey = getDateKey(date);
                           final todayKey = getDateKey(DateTime.now());
 

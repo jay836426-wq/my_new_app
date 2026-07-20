@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'notification_preferences.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
+import 'notification_preferences.dart';
 
 class NotificationSettingsScreen extends StatefulWidget {
   const NotificationSettingsScreen({super.key});
@@ -107,9 +110,83 @@ class _NotificationSettingsScreenState
     );
   }
 
+  Future<TimeOfDay?> showAppleTimePicker({
+  required TimeOfDay initialTime,
+}) async {
+  DateTime selectedDateTime = DateTime(
+    2026,
+    1,
+    1,
+    initialTime.hour,
+    initialTime.minute,
+  );
+
+  final bool? confirmed = await showCupertinoModalPopup<bool>(
+    context: context,
+    builder: (popupContext) {
+      return Container(
+        height: 330,
+        color: CupertinoColors.systemBackground.resolveFrom(context),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            children: [
+              SizedBox(
+                height: 55,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    CupertinoButton(
+                      onPressed: () {
+                        Navigator.pop(popupContext, false);
+                      },
+                      child: const Text('Cancel'),
+                    ),
+                    const Text(
+                      'Select Time',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    CupertinoButton(
+                      onPressed: () {
+                        Navigator.pop(popupContext, true);
+                      },
+                      child: const Text('Done'),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              Expanded(
+                child: CupertinoDatePicker(
+                  mode: CupertinoDatePickerMode.time,
+                  use24hFormat: false,
+                  initialDateTime: selectedDateTime,
+                  onDateTimeChanged: (newDateTime) {
+                    selectedDateTime = newDateTime;
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+
+  if (confirmed != true) {
+    return null;
+  }
+
+  return TimeOfDay(
+    hour: selectedDateTime.hour,
+    minute: selectedDateTime.minute,
+  );
+}
+
   Future<void> chooseDailySummaryTime() async {
-    final selectedTime = await showTimePicker(
-      context: context,
+    final selectedTime = await showAppleTimePicker(
       initialTime: dailySummaryTime,
     );
 
@@ -128,8 +205,7 @@ class _NotificationSettingsScreenState
   }
 
   Future<void> chooseEndOfDayTime() async {
-    final selectedTime = await showTimePicker(
-      context: context,
+    final selectedTime = await showAppleTimePicker(
       initialTime: endOfDayTime,
     );
 
@@ -148,8 +224,7 @@ class _NotificationSettingsScreenState
   }
 
   Future<void> chooseMotivationTime() async {
-    final selectedTime = await showTimePicker(
-      context: context,
+    final selectedTime = await showAppleTimePicker(
       initialTime: motivationTime,
     );
 
