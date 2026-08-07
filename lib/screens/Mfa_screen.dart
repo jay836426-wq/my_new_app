@@ -1,12 +1,10 @@
 import 'dart:async';
-//import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import 'main_navigation_screen.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'tutorial_screen.dart';
-
 
 // ---------------------------
 // MFA Screen
@@ -26,79 +24,239 @@ class MfaScreen extends StatefulWidget {
 }
 
 class _MfaScreenState extends State<MfaScreen> {
-  // TEMP: print code to console instead of showing it
+  final phoneController = TextEditingController();
+  final codeController = TextEditingController();
+
+  String? verificationId;
+
+  bool emailVerified = false;
+  bool codeSent = false;
+  bool loading = false;
+
+  Timer? emailCheckTimer;
+
   @override
   void initState() {
     super.initState();
-    generateNewCode();
-    debugPrint("MFA CODE: $generatedCode"); 
-    startCountdown();
-  }
-  final TextEditingController codeController = TextEditingController();
 
-  late String generatedCode;
-  Timer? countdownTimer;
-  int secondsRemaining = 60;
-  bool codeExpired = false;
-  bool showCode = false;
+    final user = FirebaseAuth.instance.currentUser;
+    emailVerified = user?.emailVerified ?? false;
+
+    if (!emailVerified) {
+      _sendVerificationEmail();
+      _startEmailVerificationCheck();
+    }
+  }
 
   @override
   void dispose() {
-    countdownTimer?.cancel();
+    emailCheckTimer?.cancel();
+    phoneController.dispose();
     codeController.dispose();
     super.dispose();
   }
 
-  void generateNewCode() {
-    //final random = Random();
-    // Temp code for testing purposes
-    generatedCode = '123456';
+  Future<void> _sendVerificationEmail() async {
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) return;
+
+    try {
+      await user.sendEmailVerification();
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Verification email sent to ${user.email}.',
+          ),
+        ),
+      );
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            e.message ?? 'Could not send verification email.',
+          ),
+        ),
+      );
+    }
   }
 
-  void startCountdown() {
-    countdownTimer?.cancel();
+  void _startEmailVerificationCheck() {
+    emailCheckTimer?.cancel();
 
-    setState(() {
-      secondsRemaining = 60;
-      codeExpired = false;
-    });
+    emailCheckTimer =
+        Timer.periodic(const Duration(seconds: 3), (_) async {
+      final user = FirebaseAuth.instance.currentUser;
 
-    countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (secondsRemaining > 1) {
+      if (user == null) return;
+
+      await user.reload();
+
+      final refreshedUser = FirebaseAuth.instance.currentUser;
+
+      if (refreshedUser?.emailVerified == true) {
+        emailCheckTimer?.cancel();
+
+        if (!mounted) return;
+
         setState(() {
-          secondsRemaining--;
-        });
-      } else {
-        timer.cancel();
-        setState(() {
-          secondsRemaining = 0;
-          codeExpired = true;
+          emailVerified = true;
         });
       }
     });
   }
 
-  Future<void> verifyCode() async {
-    final enteredCode = codeController.text.trim();
+  Future<void> sendSmsCode() async {
+    final user = FirebaseAuth.instance.currentUser;
 
-    if (codeExpired) {
+    if (user == null) return;
+
+    await user.reload();
+
+    final refreshedUser = FirebaseAuth.instance.currentUser;
+
+    if (refreshedUser == null || !refreshedUser.emailVerified) {
+      if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Code expired!')),
+        const SnackBar(
+          content: Text(
+            'Verify your email before setting up SMS MFA.',
+          ),
+        ),
       );
+
       return;
     }
 
-    if (enteredCode == generatedCode) {
-      final prefs = await SharedPreferences.getInstance();
-      final rememberMe = prefs.getBool('rememberMe') ?? true;
-      
-      await prefs.setBool('isLoggedIn', rememberMe);
-      await prefs.setBool('hasSeenOnboarding', true);
+    final phoneNumber = phoneController.text.trim();
+
+    if (phoneNumber.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Enter your phone number.'),
+        ),
+      );
+
+      return;
+    }
+
+    setState(() {
+      loading = true;
+    });
+
+    try {
+      final multiFactorSession =
+          await refreshedUser.multiFactor.getSession();
+
+      await FirebaseAuth.instance.verifyPhoneNumber(
+        multiFactorSession: multiFactorSession,
+        phoneNumber: phoneNumber,
+
+        verificationCompleted: (_) {},
+
+        verificationFailed: (FirebaseAuthException e) {
+          if (!mounted) return;
+
+          setState(() {
+            loading = false;
+          });
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                e.message ?? 'Phone verification failed.',
+              ),
+            ),
+          );
+        },
+
+        codeSent: (
+          String verificationIdValue,
+          int? resendToken,
+        ) {
+          if (!mounted) return;
+
+          setState(() {
+            verificationId = verificationIdValue;
+            codeSent = true;
+            loading = false;
+          });
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('SMS verification code sent.'),
+            ),
+          );
+        },
+
+        codeAutoRetrievalTimeout: (
+          String verificationIdValue,
+        ) {
+          verificationId = verificationIdValue;
+        },
+      );
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        loading = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            e.message ?? 'Unable to send SMS code.',
+          ),
+        ),
+      );
+    }
+  }
+
+  Future<void> verifySmsCode() async {
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user == null || verificationId == null) return;
+
+    final smsCode = codeController.text.trim();
+
+    if (smsCode.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Enter the SMS code.'),
+        ),
+      );
+
+      return;
+    }
+
+    setState(() {
+      loading = true;
+    });
+
+    try {
+      final credential = PhoneAuthProvider.credential(
+        verificationId: verificationId!,
+        smsCode: smsCode,
+      );
+
+      final assertion =
+          PhoneMultiFactorGenerator.getAssertion(
+        credential,
+      );
+
+      await user.multiFactor.enroll(
+        assertion,
+        displayName: 'Primary Phone',
+      );
 
       if (!mounted) return;
-      
-      debugPrint('MFA saved login: ${prefs.getBool('isLoggedIn')}');
-      debugPrint('MFA saved onboarding: ${prefs.getBool('hasSeenOnboarding')}');
+
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
           builder: (context) => widget.isNewUser
@@ -106,66 +264,160 @@ class _MfaScreenState extends State<MfaScreen> {
               : const MainNavigationScreen(),
         ),
       );
-    } else {
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        loading = false;
+      });
+
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Incorrect code. Please try again.')),
+        SnackBar(
+          content: Text(
+            e.message ?? 'Invalid verification code.',
+          ),
+        ),
       );
     }
-  }
-
-  void resendCode() {
-    generateNewCode();
-    codeController.clear();
-    startCountdown();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
+
       appBar: AppBar(
-        title: const Text('Verify'),
+        title: const Text('Secure Your Account'),
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
       ),
+
       body: Padding(
         padding: const EdgeInsets.all(24),
+
         child: Column(
           children: [
             const SizedBox(height: 20),
 
-            TextField(
-              controller: codeController,
-              obscureText: !showCode,
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                labelText: 'Enter code',
-                labelStyle: const TextStyle(color: Colors.white),
-                suffixIcon: IconButton(
-                  icon: Icon(
-                    showCode ? Icons.visibility : Icons.visibility_off,
-                    color: Colors.white,
-                  ),
-                  onPressed: () {
-                    setState(() {
-                      showCode = !showCode;
-                    });
-                  },
+            if (!emailVerified) ...[
+              const Icon(
+                Icons.email_outlined,
+                color: Colors.white,
+                size: 60,
+              ),
+
+              const SizedBox(height: 20),
+
+              const Text(
+                'Verify your email',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
-            ),
 
-            const SizedBox(height: 20),
+              const SizedBox(height: 12),
 
-            ElevatedButton(
-              onPressed: verifyCode,
-              child: const Text('Verify'),
-            ),
+              Text(
+                'We sent a verification link to ${widget.contactInfo}.',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.white70,
+                ),
+              ),
 
-            ElevatedButton(
-              onPressed: resendCode,
-              child: const Text('Resend'),
-            ),
+              const SizedBox(height: 24),
+
+              ElevatedButton(
+                onPressed: _sendVerificationEmail,
+                child: const Text(
+                  'Resend Verification Email',
+                ),
+              ),
+            ],
+
+            if (emailVerified && !codeSent) ...[
+              const Text(
+                'Set up SMS verification',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              TextField(
+                controller: phoneController,
+                keyboardType: TextInputType.phone,
+                style: const TextStyle(
+                  color: Colors.white,
+                ),
+                decoration: const InputDecoration(
+                  labelText: 'Phone Number',
+                  hintText: '+1 555 555 5555',
+                  labelStyle: TextStyle(
+                    color: Colors.white,
+                  ),
+                  hintStyle: TextStyle(
+                    color: Colors.white38,
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 20),
+
+              ElevatedButton(
+                onPressed:
+                    loading ? null : sendSmsCode,
+                child: Text(
+                  loading
+                      ? 'Sending...'
+                      : 'Send SMS Code',
+                ),
+              ),
+            ],
+
+            if (codeSent) ...[
+              const Text(
+                'Enter verification code',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              TextField(
+                controller: codeController,
+                keyboardType: TextInputType.number,
+                style: const TextStyle(
+                  color: Colors.white,
+                ),
+                decoration: const InputDecoration(
+                  labelText: '6-digit code',
+                  labelStyle: TextStyle(
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 20),
+
+              ElevatedButton(
+                onPressed:
+                    loading ? null : verifySmsCode,
+                child: Text(
+                  loading
+                      ? 'Verifying...'
+                      : 'Verify',
+                ),
+              ),
+            ],
           ],
         ),
       ),

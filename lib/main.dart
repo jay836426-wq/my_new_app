@@ -16,9 +16,24 @@ import 'screens/notification_service.dart';
 
 import 'screens/splash_screen.dart';
 
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
+
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'firebase_options.dart';
+
+import 'screens/email_verification_screen.dart';
+import 'screens/phone_verification_screen.dart';
+
 // Entry point of the app
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  await Firebase.initializeApp(
+  options: DefaultFirebaseOptions.currentPlatform,
+);
 
   await NotificationService.init();
   await NotificationService.requestPermissions();
@@ -426,6 +441,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
   final usernameController = TextEditingController();
   final dobController = TextEditingController();
   final emailController = TextEditingController();
+  final phoneController = TextEditingController();
   final passwordController = TextEditingController();
 
   @override
@@ -436,37 +452,119 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     dobController.dispose();
     emailController.dispose();
     passwordController.dispose();
+    phoneController.dispose();
     super.dispose();
   }
 
 Future<void> submitForm() async {
-  if (_formKey.currentState!.validate()) {
-    
-    final prefs = await SharedPreferences.getInstance();
+  if (!_formKey.currentState!.validate()) return;
+
+  if (useEmail) {
+    await createEmailAccount();
+  } else {
+    await startPhoneAccount();
+  }
+}
+
+Future<void> startPhoneAccount() async {
+  String phoneNumber = phoneController.text.trim();
+
+  // Remove common formatting characters
+  phoneNumber = phoneNumber.replaceAll(
+    RegExp(r'[\s\-\(\)]'),
+    '',
+  );
+
+  // Automatically format a 10-digit US number
+  if (RegExp(r'^\d{10}$').hasMatch(phoneNumber)) {
+    phoneNumber = '+1$phoneNumber';
+  }
+
+  // If user typed 1 + 10 digits, add the +
+  if (RegExp(r'^1\d{10}$').hasMatch(phoneNumber)) {
+    phoneNumber = '+$phoneNumber';
+  }
+
+  if (!phoneNumber.startsWith('+')) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Please enter a valid phone number.',
+        ),
+      ),
+    );
+    return;
+  }
+
+  Navigator.of(context).push(
+    MaterialPageRoute(
+      builder: (context) => PhoneVerificationScreen(
+        phoneNumber: phoneNumber,
+      ),
+    ),
+  );
+}
+
+Future<void> createEmailAccount() async {
+  try {
+    final email = emailController.text.trim();
+    final password = passwordController.text;
+
+    final credential =
+        await FirebaseAuth.instance.createUserWithEmailAndPassword(
+      email: email,
+      password: password,
+    );
+
+    final user = credential.user;
+
+    if (user == null) {
+      throw Exception('Account could not be created.');
+    }
 
     final fullName =
-    '${firstNameController.text.trim()} ${lastNameController.text.trim()}';
+        '${firstNameController.text.trim()} ${lastNameController.text.trim()}';
 
-    await prefs.setString('firstName', firstNameController.text.trim());
-    await prefs.setString('lastName', lastNameController.text.trim());
-    await prefs.setString('fullName', fullName.trim());
-    await prefs.setString('username', usernameController.text.trim());
-    await prefs.setString('contactInfo', emailController.text.trim());
-    await prefs.setString('password', passwordController.text);
-    await prefs.setBool('isLoggedIn', true);
+    await user.updateDisplayName(fullName);
+
+    await user.sendEmailVerification();
 
     if (!mounted) return;
+
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
-        builder: (context) => MfaScreen(
-          contactInfo: emailController.text,
-          isNewUser: true,
+        builder: (context) => EmailVerificationScreen(
+          email: email,
         ),
+      ),
+    );
+  } on FirebaseAuthException catch (e) {
+    String message = 'Unable to create account.';
+
+    if (e.code == 'email-already-in-use') {
+      message = 'An account already exists with this email.';
+    } else if (e.code == 'invalid-email') {
+      message = 'Please enter a valid email address.';
+    } else if (e.code == 'weak-password') {
+      message = 'Please choose a stronger password.';
+    }
+
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  } catch (e) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Something went wrong. Please try again.'),
       ),
     );
   }
 }
- 
+  bool useEmail = true;
   bool obscurePassword = true;
 
   // Check if password has special character
@@ -689,27 +787,148 @@ Future<void> submitForm() async {
 
               const SizedBox(height: 16),
 
-              // EMAIL FIELD
-              TextFormField(
-                controller: emailController,
-                style: const TextStyle(color: Colors.white),
-                decoration: const InputDecoration(
-                  labelText: 'Email or Phone',
-                  labelStyle: TextStyle(color: Colors.white),
-                  enabledBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: Colors.white),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Sign up with',
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
-                  focusedBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: Colors.white),
+
+                  const SizedBox(height: 8),
+
+                  Container(
+                    height: 42,
+                    padding: const EdgeInsets.all(3),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade900,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: Colors.white24,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              useEmail = true;
+                            });
+                          },
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 180),
+                            width: 90,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: useEmail
+                                  ? Colors.white
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(7),
+                            ),
+                            child: Text(
+                              'Email',
+                              style: TextStyle(
+                                color: useEmail
+                                    ? Colors.black
+                                    : Colors.white70,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              useEmail = false;
+                            });
+                          },
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 180),
+                            width: 90,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: !useEmail
+                                  ? Colors.white
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(7),
+                            ),
+                            child: Text(
+                              'Phone',
+                              style: TextStyle(
+                                color: !useEmail
+                                    ? Colors.black
+                                    : Colors.white70,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Enter email or phone';
-                  }
-                  return null;
-                },
+                ],
               ),
+
+              const SizedBox(height: 16),
+
+
+              // EMAIL or Phone FIELD
+              if (useEmail)
+                TextFormField(
+                  controller: emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: const InputDecoration(
+                    labelText: 'Email',
+                    hintText: 'example@email.com',
+                    labelStyle: TextStyle(color: Colors.white),
+                    hintStyle: TextStyle(color: Colors.white38),
+                    enabledBorder: OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.white),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.white),
+                    ),
+                  ),
+                  validator: (value) {
+                    if (useEmail && (value == null || value.trim().isEmpty)) {
+                      return 'Enter your email';
+                    }
+                    return null;
+                  },
+                )
+              else
+                TextFormField(
+                  controller: phoneController,
+                  keyboardType: TextInputType.phone,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: const InputDecoration(
+                    labelText: 'Phone Number',
+                    hintText: '+1 555 555 5555',
+                    labelStyle: TextStyle(color: Colors.white),
+                    hintStyle: TextStyle(color: Colors.white38),
+                    enabledBorder: OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.white),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.white),
+                    ),
+                  ),
+                  validator: (value) {
+                    if (!useEmail && (value == null || value.trim().isEmpty)) {
+                      return 'Enter your phone number';
+                    }
+                    return null;
+                  },
+                ),
 
               const SizedBox(height: 16),
 

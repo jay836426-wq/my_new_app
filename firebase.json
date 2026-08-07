@@ -1,0 +1,58 @@
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "trakon-65927",
+          "appId": "1:1089345643848:android:7ad630a2ac09927c34ff7d",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "ios": {
+        "default": {
+          "projectId": "trakon-65927",
+          "appId": "1:1089345643848:ios:c64e686b0852dbcd34ff7d",
+          "uploadDebugSymbols": false,
+          "fileOutput": "ios/Runner/GoogleService-Info.plist"
+        }
+      },
+      "macos": {
+        "default": {
+          "projectId": "trakon-65927",
+          "appId": "1:1089345643848:ios:c64e686b0852dbcd34ff7d",
+          "uploadDebugSymbols": false,
+          "fileOutput": "macos/Runner/GoogleService-Info.plist"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "trakon-65927",
+          "configurations": {
+            "android": "1:1089345643848:android:7ad630a2ac09927c34ff7d",
+            "ios": "1:1089345643848:ios:c64e686b0852dbcd34ff7d",
+            "macos": "1:1089345643848:ios:c64e686b0852dbcd34ff7d",
+            "web": "1:1089345643848:web:f1cabf9a9305754634ff7d",
+            "windows": "1:1089345643848:web:c146eabb5f2e311634ff7d"
+          }
+        }
+      }
+    }
+  },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "disallowLegacyRuntimeConfig": true,
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "*.local"
+      ],
+      "predeploy": [
+        "npm --prefix \"$RESOURCE_DIR\" run lint"
+      ]
+    }
+  ]
+}

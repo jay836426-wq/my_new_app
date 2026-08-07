@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1089345643848",
+    "project_id": "trakon-65927",
+    "storage_bucket": "trakon-65927.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1089345643848:android:7ad630a2ac09927c34ff7d",
+        "android_client_info": {
+          "package_name": "com.example.my_new_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBIJO6eP54Kvk4yygYxvzqfQT88KD6H_hg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
