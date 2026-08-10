@@ -26,6 +26,8 @@ import 'firebase_options.dart';
 
 import 'screens/email_verification_screen.dart';
 import 'screens/phone_verification_screen.dart';
+import 'package:cloud_functions/cloud_functions.dart';
+import 'screens/email_otp_screen.dart';
 
 // Entry point of the app
 Future<void> main() async {
@@ -527,13 +529,18 @@ Future<void> createEmailAccount() async {
 
     await user.updateDisplayName(fullName);
 
-    await user.sendEmailVerification();
+    final callable =
+    FirebaseFunctions.instance.httpsCallable('sendEmailOtp');
+
+    await callable.call({
+      'email': email,
+    });
 
     if (!mounted) return;
 
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
-        builder: (context) => EmailVerificationScreen(
+        builder: (context) => EmailOtpScreen(
           email: email,
         ),
       ),
@@ -554,15 +561,31 @@ Future<void> createEmailAccount() async {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message)),
     );
-  } catch (e) {
-    if (!mounted) return;
+  } on FirebaseFunctionsException catch (e) {
+      if (!mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Something went wrong. Please try again.'),
-      ),
-    );
-  }
+      debugPrint('FUNCTION ERROR CODE: ${e.code}');
+      debugPrint('FUNCTION ERROR MESSAGE: ${e.message}');
+      debugPrint('FUNCTION ERROR DETAILS: ${e.details}');
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Function error: ${e.message ?? e.code}',
+          ),
+        ),
+      );
+    } catch (e) {
+      debugPrint('GENERAL ERROR: $e');
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: $e'),
+        ),
+      );
+    }
 }
   bool useEmail = true;
   bool obscurePassword = true;
