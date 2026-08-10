@@ -1,14 +1,26 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 
 import 'tutorial_screen.dart';
 
 class PhoneVerificationScreen extends StatefulWidget {
   final String phoneNumber;
+  final String password;
+  final String firstName;
+  final String lastName;
+  final String username;
+  final String dateOfBirth;
 
   const PhoneVerificationScreen({
     super.key,
     required this.phoneNumber,
+    required this.password,
+    required this.firstName,
+    required this.lastName,
+    required this.username,
+    required this.dateOfBirth,
   });
 
   @override
@@ -21,6 +33,7 @@ class _PhoneVerificationScreenState
   final codeController = TextEditingController();
 
   ConfirmationResult? confirmationResult;
+  String? verificationId;
 
   bool sendingCode = false;
   bool codeSent = false;
@@ -36,10 +49,20 @@ class _PhoneVerificationScreenState
   }
 
   Future<void> sendCode() async {
+    if (!mounted) return;
+
     setState(() {
       sendingCode = true;
     });
 
+    if (kIsWeb) {
+      await _sendCodeWeb();
+    } else {
+      await _sendCodeNative();
+    }
+  }
+
+  Future<void> _sendCodeWeb() async {
     try {
       final result =
           await FirebaseAuth.instance.signInWithPhoneNumber(
@@ -54,56 +77,115 @@ class _PhoneVerificationScreenState
         sendingCode = false;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Verification code sent.'),
-        ),
-      );
+      _showMessage('Verification code sent.');
     } on FirebaseAuthException catch (e) {
-      if (!mounted) return;
-
-      setState(() {
-        sendingCode = false;
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            e.message ?? 'Could not send verification code.',
-          ),
-        ),
-      );
+      _handleSendError(e);
     }
+  }
+
+  Future<void> _sendCodeNative() async {
+    await FirebaseAuth.instance.verifyPhoneNumber(
+      phoneNumber: widget.phoneNumber,
+
+      verificationCompleted:
+          (PhoneAuthCredential credential) async {
+        try {
+          final userCredential =
+              await FirebaseAuth.instance
+                  .signInWithCredential(credential);
+
+          await _completePhoneSignup(userCredential);
+          } on FirebaseAuthException catch (e) {
+            _showMessage(
+              e.message ?? 'Automatic verification failed.',
+            );
+          } on FirebaseFunctionsException catch (e) {
+            _showMessage(
+              e.message ?? 'Unable to complete phone signup.',
+            );
+          } catch (e) {
+            _showMessage(
+              'Something went wrong. Please try again.',
+            );
+          }
+      },
+
+      verificationFailed: (FirebaseAuthException e) {
+        _handleSendError(e);
+      },
+
+      codeSent: (
+        String verificationIdValue,
+        int? resendToken,
+      ) {
+        if (!mounted) return;
+
+        setState(() {
+          verificationId = verificationIdValue;
+          codeSent = true;
+          sendingCode = false;
+        });
+
+        _showMessage('Verification code sent.');
+      },
+
+      codeAutoRetrievalTimeout: (
+        String verificationIdValue,
+      ) {
+        verificationId = verificationIdValue;
+      },
+    );
   }
 
   Future<void> verifyCode() async {
     final code = codeController.text.trim();
 
     if (code.length != 6) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Enter the 6-digit verification code.'),
-        ),
+      _showMessage(
+        'Enter the 6-digit verification code.',
       );
       return;
     }
-
-    if (confirmationResult == null) return;
 
     setState(() {
       verifying = true;
     });
 
     try {
-      await confirmationResult!.confirm(code);
+      UserCredential userCredential;
 
-      if (!mounted) return;
+      if (kIsWeb) {
+        if (confirmationResult == null) {
+          throw FirebaseAuthException(
+            code: 'missing-verification',
+            message:
+                'Verification session missing. Resend the code.',
+          );
+        }
 
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (context) => const TutorialScreen(),
-        ),
-      );
+        userCredential =
+            await confirmationResult!.confirm(code);
+      } else {
+        if (verificationId == null) {
+          throw FirebaseAuthException(
+            code: 'missing-verification',
+            message:
+                'Verification session missing. Resend the code.',
+          );
+        }
+
+        final credential =
+            PhoneAuthProvider.credential(
+          verificationId: verificationId!,
+          smsCode: code,
+        );
+
+        userCredential =
+            await FirebaseAuth.instance
+                .signInWithCredential(credential);
+      }
+
+      await _completePhoneSignup(userCredential);
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
 
@@ -111,14 +193,105 @@ class _PhoneVerificationScreenState
         verifying = false;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            e.message ?? 'Incorrect verification code.',
-          ),
-        ),
+      String message =
+          e.message ?? 'Unable to verify code.';
+
+      if (e.code == 'invalid-verification-code') {
+        message = 'Incorrect verification code.';
+      } else if (e.code == 'session-expired') {
+        message =
+            'This code expired. Please resend it.';
+      }
+
+      _showMessage(message);
+    } on FirebaseFunctionsException catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        verifying = false;
+      });
+
+      _showMessage(
+        e.message ?? 'Unable to complete signup.',
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        verifying = false;
+      });
+
+      _showMessage(
+        'Something went wrong. Please try again.',
       );
     }
+  }
+
+  Future<void> _completePhoneSignup(
+    UserCredential userCredential,
+  ) async {
+    if (userCredential.user == null) {
+      throw FirebaseAuthException(
+        code: 'missing-user',
+        message: 'Phone account could not be created.',
+      );
+    }
+
+    final completeSignup =
+        FirebaseFunctions.instance
+            .httpsCallable('completePhoneSignup');
+
+    await completeSignup.call({
+      'password': widget.password,
+      'firstName': widget.firstName,
+      'lastName': widget.lastName,
+      'username': widget.username,
+      'dateOfBirth': widget.dateOfBirth,
+    });
+
+    if (!mounted) return;
+
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (context) =>
+            const TutorialScreen(),
+      ),
+    );
+  }
+
+  void _handleSendError(
+    FirebaseAuthException e,
+  ) {
+    if (!mounted) return;
+
+    setState(() {
+      sendingCode = false;
+    });
+
+    String message =
+        e.message ?? 'Could not send verification code.';
+
+    if (e.code == 'invalid-phone-number') {
+      message = 'Please enter a valid phone number.';
+    } else if (e.code == 'too-many-requests') {
+      message =
+          'Too many attempts. Please try again later.';
+    } else if (e.code == 'quota-exceeded') {
+      message =
+          'SMS verification limit reached.';
+    }
+
+    _showMessage(message);
+  }
+
+  void _showMessage(String message) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+      ),
+    );
   }
 
   @override
@@ -145,7 +318,8 @@ class _PhoneVerificationScreenState
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+              crossAxisAlignment:
+                  CrossAxisAlignment.stretch,
               children: [
                 const Icon(
                   Icons.sms_outlined,
@@ -169,7 +343,7 @@ class _PhoneVerificationScreenState
 
                 Text(
                   codeSent
-                      ? 'Enter the verification code sent to\n${widget.phoneNumber}'
+                      ? 'Enter the 6-digit code sent to\n${widget.phoneNumber}'
                       : 'Sending a verification code to\n${widget.phoneNumber}',
                   textAlign: TextAlign.center,
                   style: const TextStyle(
@@ -183,7 +357,8 @@ class _PhoneVerificationScreenState
                 if (codeSent)
                   TextField(
                     controller: codeController,
-                    keyboardType: TextInputType.number,
+                    keyboardType:
+                        TextInputType.number,
                     maxLength: 6,
                     textAlign: TextAlign.center,
                     style: const TextStyle(
@@ -191,19 +366,25 @@ class _PhoneVerificationScreenState
                       fontSize: 22,
                       letterSpacing: 8,
                     ),
-                    decoration: const InputDecoration(
-                      labelText: 'Verification Code',
+                    decoration:
+                        const InputDecoration(
+                      labelText:
+                          'Verification Code',
                       labelStyle: TextStyle(
                         color: Colors.white70,
                       ),
                       counterText: '',
-                      enabledBorder: OutlineInputBorder(
-                        borderSide: BorderSide(
+                      enabledBorder:
+                          OutlineInputBorder(
+                        borderSide:
+                            BorderSide(
                           color: Colors.white38,
                         ),
                       ),
-                      focusedBorder: OutlineInputBorder(
-                        borderSide: BorderSide(
+                      focusedBorder:
+                          OutlineInputBorder(
+                        borderSide:
+                            BorderSide(
                           color: Colors.white,
                         ),
                       ),
@@ -216,7 +397,9 @@ class _PhoneVerificationScreenState
                 if (codeSent)
                   ElevatedButton(
                     onPressed:
-                        verifying ? null : verifyCode,
+                        verifying
+                            ? null
+                            : verifyCode,
                     child: Text(
                       verifying
                           ? 'Verifying...'
@@ -227,10 +410,14 @@ class _PhoneVerificationScreenState
                 if (codeSent)
                   TextButton(
                     onPressed:
-                        sendingCode ? null : sendCode,
-                    child: const Text(
-                      'Resend Code',
-                      style: TextStyle(
+                        sendingCode
+                            ? null
+                            : sendCode,
+                    child: Text(
+                      sendingCode
+                          ? 'Sending...'
+                          : 'Resend Code',
+                      style: const TextStyle(
                         color: Colors.white70,
                       ),
                     ),
@@ -238,7 +425,8 @@ class _PhoneVerificationScreenState
 
                 if (!codeSent && sendingCode)
                   const Center(
-                    child: CircularProgressIndicator(),
+                    child:
+                        CircularProgressIndicator(),
                   ),
               ],
             ),

@@ -5,10 +5,18 @@ import 'tutorial_screen.dart';
 
 class EmailOtpScreen extends StatefulWidget {
   final String email;
+  final String firstName;
+  final String lastName;
+  final String username;
+  final String dateOfBirth;
 
   const EmailOtpScreen({
     super.key,
     required this.email,
+    required this.firstName,
+    required this.lastName,
+    required this.username,
+    required this.dateOfBirth,
   });
 
   @override
@@ -47,6 +55,23 @@ class _EmailOtpScreenState extends State<EmailOtpScreen> {
       });
 
       if (result.data['success'] == true) {
+        final fullName =
+            '${widget.firstName} ${widget.lastName}'.trim();
+
+        final saveProfile =
+            FirebaseFunctions.instance.httpsCallable('saveUserProfile');
+
+        await saveProfile.call({
+          'firstName': widget.firstName,
+          'lastName': widget.lastName,
+          'fullName': fullName,
+          'username': widget.username,
+          'dateOfBirth': widget.dateOfBirth,
+          'email': widget.email,
+          'phoneNumber': null,
+          'authMethod': 'email',
+        });
+
         if (!mounted) return;
 
         Navigator.of(context).pushReplacement(
