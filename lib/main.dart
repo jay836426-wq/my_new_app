@@ -119,7 +119,7 @@ class MyApp extends StatelessWidget {
 }
 
 // ---------------------------
-// Welcome Screen (Animation + Button)
+// Welcome Screen (Logo + Animation + Button)
 // ---------------------------
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
@@ -128,7 +128,9 @@ class WelcomeScreen extends StatefulWidget {
   State<WelcomeScreen> createState() => _WelcomeScreenState();
 }
 
-class _WelcomeScreenState extends State<WelcomeScreen> {
+class _WelcomeScreenState extends State<WelcomeScreen>
+    with SingleTickerProviderStateMixin {
+
   String displayedText = '';
 
   bool showTrack = false;
@@ -136,28 +138,70 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   bool showAchieve = false;
   bool showButton = false;
 
-  final String welcomeText = 'Welcome to TrakOn';
+  final String welcomeText = 'Welcome To TrakOn';
+
+  late AnimationController _logoController;
+  late Animation<double> _logoOpacity;
+  late Animation<double> _logoScale;
 
   @override
   void initState() {
     super.initState();
 
-    // Start animation when screen loads
+    // Controls the TrakOn logo animation
+    _logoController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    );
+
+    // Logo smoothly fades in
+    _logoOpacity = CurvedAnimation(
+      parent: _logoController,
+      curve: Curves.easeInOut,
+    );
+
+    // Logo gently grows into place
+    _logoScale = Tween<double>(
+      begin: 0.80,
+      end: 1.0,
+    ).animate(
+      CurvedAnimation(
+        parent: _logoController,
+        curve: Curves.easeOutBack,
+      ),
+    );
+
+    startIntroAnimation();
+  }
+
+  Future<void> startIntroAnimation() async {
+    // Show the logo first
+    await _logoController.forward();
+
+    // Small pause after logo finishes
+    await Future.delayed(const Duration(milliseconds: 600));
+
+    if (!mounted) return;
+
+    // Then begin Welcome To TrakOn
     startTypewriterAnimation();
   }
 
   void startTypewriterAnimation() {
     int currentIndex = 0;
 
+    // Same typing speed you already had
     Timer.periodic(const Duration(milliseconds: 70), (timer) {
       if (currentIndex < welcomeText.length) {
-        if(!mounted) {
+        if (!mounted) {
           timer.cancel();
           return;
         }
+
         setState(() {
           displayedText += welcomeText[currentIndex];
         });
+
         currentIndex++;
       } else {
         timer.cancel();
@@ -165,36 +209,46 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
         // Track appears after 1 second
         Future.delayed(const Duration(seconds: 1), () {
           if (!mounted) return;
-            setState(() {
-              showTrack = true;
-            });
+
+          setState(() {
+            showTrack = true;
           });
+        });
 
         // Focus appears after 3 seconds
         Future.delayed(const Duration(seconds: 3), () {
           if (!mounted) return;
-            setState(() {
-              showFocus = true;
-            });
+
+          setState(() {
+            showFocus = true;
           });
+        });
 
         // Achieve appears after 5 seconds
         Future.delayed(const Duration(seconds: 5), () {
           if (!mounted) return;
+
           setState(() {
-              showAchieve = true;
-            });
+            showAchieve = true;
           });
+        });
 
         // Button appears after 7 seconds
         Future.delayed(const Duration(seconds: 7), () {
           if (!mounted) return;
-            setState(() {
-              showButton = true;
-            });
+
+          setState(() {
+            showButton = true;
           });
+        });
       }
     });
+  }
+
+  @override
+  void dispose() {
+    _logoController.dispose();
+    super.dispose();
   }
 
   @override
@@ -203,18 +257,25 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       backgroundColor: Colors.black,
 
       body: SafeArea(
-        child: Padding( 
+        child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24),
 
-          // Column = vertical layout
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // App icon
-              const Icon(
-                Icons.track_changes,
-                size: 90,
-                color: Colors.white,
+
+              // TrakOn Logo
+              FadeTransition(
+                opacity: _logoOpacity,
+                child: ScaleTransition(
+                  scale: _logoScale,
+                  child: Image.asset(
+                    'assets/trakon_logo.png',
+                    width: 150,
+                    height: 150,
+                    fit: BoxFit.contain,
+                  ),
+                ),
               ),
 
               const SizedBox(height: 30),
@@ -232,14 +293,17 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
               ),
 
               const SizedBox(height: 16),
-              
+
               // Animated Motto
               AnimatedOpacity(
-                opacity: showTrack || showFocus || showAchieve ? 1.0 : 0.0,
+                opacity:
+                    showTrack || showFocus || showAchieve ? 1.0 : 0.0,
                 duration: const Duration(milliseconds: 500),
+
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
+
                     if (showTrack)
                       const Text(
                         'Track.',
@@ -282,35 +346,44 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
               AnimatedOpacity(
                 opacity: showButton ? 1.0 : 0.0,
                 duration: const Duration(milliseconds: 500),
+
                 child: showButton
                     ? SizedBox(
                         width: double.infinity,
                         height: 55,
+
                         child: ElevatedButton(
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.white,
                             foregroundColor: Colors.black,
                           ),
-                          onPressed: () async {
-                            final prefs = await SharedPreferences.getInstance();
-                            bool isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
 
-                            if(!context.mounted) return;
-                            
+                          onPressed: () async {
+                            final prefs =
+                                await SharedPreferences.getInstance();
+
+                            bool isLoggedIn =
+                                prefs.getBool('isLoggedIn') ?? false;
+
+                            if (!context.mounted) return;
+
                             if (isLoggedIn) {
                               Navigator.of(context).pushReplacement(
                                 MaterialPageRoute(
-                                  builder: (context) => const MainNavigationScreen(),
+                                  builder: (context) =>
+                                      const MainNavigationScreen(),
                                 ),
                               );
                             } else {
                               Navigator.of(context).pushReplacement(
                                 MaterialPageRoute(
-                                  builder: (context) => const AuthChoiceScreen(),
+                                  builder: (context) =>
+                                      const AuthChoiceScreen(),
                                 ),
                               );
                             }
                           },
+
                           child: const Text(
                             "Let's get you Started!",
                             style: TextStyle(
