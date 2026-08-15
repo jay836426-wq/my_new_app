@@ -57,6 +57,144 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }  
 
+  // Loads the recurring task templates saved by HomeScreen.
+  Future<List<Map<String, dynamic>>> loadRecurringTasks() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    final savedRecurringTasks =
+        prefs.getString('recurringTasks');
+
+    if (savedRecurringTasks == null) {
+      return [];
+    }
+
+    final List decodedTasks =
+        jsonDecode(savedRecurringTasks);
+
+    return decodedTasks.map((task) {
+      return Map<String, dynamic>.from(task);
+    }).toList();
+  }
+
+
+    // Checks whether a recurring task belongs on a specific date.
+    bool recurringTaskRunsOnDate(
+      Map<String, dynamic> task,
+      DateTime date,
+    ) {
+      final repeat = task['repeat'] ?? 'Never';
+
+      final startDateText =
+          task['startDate'] ?? task['date'];
+
+      if (startDateText == null) {
+        return false;
+      }
+
+      final startDate =
+          parseDateKey(startDateText);
+
+      final selectedDateOnly = DateTime(
+        date.year,
+        date.month,
+        date.day,
+      );
+
+      final startDateOnly = DateTime(
+        startDate.year,
+        startDate.month,
+        startDate.day,
+      );
+
+      // Don't show recurrence before its original start date.
+      if (selectedDateOnly.isBefore(startDateOnly)) {
+        return false;
+      }
+
+      switch (repeat) {
+        case 'Daily':
+          return true;
+
+        case 'Weekdays':
+          return date.weekday >= DateTime.monday &&
+              date.weekday <= DateTime.friday;
+
+        case 'Weekly':
+          return date.weekday == startDate.weekday;
+
+        case 'Specific Days':
+          final repeatDays =
+              List<int>.from(
+                task['repeatDays'] ?? [],
+              );
+
+          return repeatDays.contains(date.weekday);
+
+        default:
+          return false;
+      }
+    }
+
+  // Returns normal tasks + recurring tasks for any date.
+  Future<List<Map<String, dynamic>>> getTasksForDate(
+    DateTime date,
+  ) async {
+    final prefs = await SharedPreferences.getInstance();
+
+    final dateKey = getDateKey(date);
+    final taskKey = getTaskStorageKey(dateKey);
+
+    final savedTasks = prefs.getString(taskKey);
+
+    final dayTasks = <Map<String, dynamic>>[];
+
+    // Load tasks already saved specifically for this day.
+    if (savedTasks != null) {
+      final List decodedTasks =
+          jsonDecode(savedTasks);
+
+      dayTasks.addAll(
+        decodedTasks.map((task) {
+          return Map<String, dynamic>.from(task);
+        }),
+      );
+    }
+
+    // Add recurring tasks that belong on this day.
+    final recurringTasks =
+        await loadRecurringTasks();
+
+    for (final recurringTask in recurringTasks) {
+      if (!recurringTaskRunsOnDate(
+        recurringTask,
+        date,
+      )) {
+        continue;
+      }
+
+      final recurringId =
+          recurringTask['recurringId'];
+
+      // Prevent a recurring task from appearing twice.
+      final alreadyExists = dayTasks.any((task) {
+        return task['recurringId'] == recurringId;
+      });
+
+      if (alreadyExists) {
+        continue;
+      }
+
+      final recurringCopy =
+          Map<String, dynamic>.from(recurringTask);
+
+      recurringCopy['date'] = dateKey;
+      recurringCopy['completed'] = false;
+
+      dayTasks.add(recurringCopy);
+    }
+
+    return dayTasks;
+  }
 
   Future<void> loadSelectedDateAndTasks() async {
   final prefs = await SharedPreferences.getInstance();
@@ -76,25 +214,16 @@ class _CalendarScreenState extends State<CalendarScreen> {
 }
 
   Future<void> loadTasksForSelectedDate() async {
-    final prefs = await SharedPreferences.getInstance();
+    final loadedTasks =
+        await getTasksForDate(selectedDate);
 
-    final selectedDateKey = getDateKey(selectedDate);
-    final taskKey = getTaskStorageKey(selectedDateKey);
-
-    final savedTasks = prefs.getString(taskKey);
+    if (!mounted) return;
 
     setState(() {
-      if (savedTasks != null) {
-        final List decodedTasks = jsonDecode(savedTasks);
-
-        tasks = decodedTasks.map((task) {
-          return Map<String, dynamic>.from(task);
-        }).toList();
-      } else {
-        tasks = [];
-      }
+      tasks = loadedTasks;
     });
   }
+
   @override
   Widget build(BuildContext context) {
 
@@ -204,7 +333,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
                             '${selectedDate.year}-${selectedDate.month}-${selectedDate.day}';
                         await prefs.setString('selectedTaskDate', selectedDateKey);
 
-                        loadTasksForSelectedDate();
+                        // Wait for the selected day's tasks to finish loading.
+                        await loadTasksForSelectedDate();
                       },
                       child: Container(
                         margin: const EdgeInsets.all(4),
@@ -240,15 +370,30 @@ class _CalendarScreenState extends State<CalendarScreen> {
                               ),
                             ),
                             const SizedBox(height: 4),
-                            Container(
-                              width: 6,
-                              height: 6,
-                              decoration: BoxDecoration(
-                                color: dayNumber % 3 == 0
-                                    ? Colors.greenAccent
-                                    : Colors.transparent,
-                                shape: BoxShape.circle,
+                            FutureBuilder<List<Map<String, dynamic>>>(
+                              future: getTasksForDate(
+                                DateTime(
+                                  currentMonth.year,
+                                  currentMonth.month,
+                                  dayNumber,
+                                ),
                               ),
+                              builder: (context, snapshot) {
+                                final taskCount =
+                                    snapshot.data?.length ?? 0;
+
+                                return Container(
+                                  width: 6,
+                                  height: 6,
+                                  decoration: BoxDecoration(
+                                    // Green dot only when this date really has tasks.
+                                    color: taskCount > 0
+                                        ? Colors.greenAccent
+                                        : Colors.transparent,
+                                    shape: BoxShape.circle,
+                                  ),
+                                );
+                              },
                             ),
                           ],
                         ),

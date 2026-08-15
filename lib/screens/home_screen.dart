@@ -32,6 +32,12 @@ class _HomeScreenState extends State<HomeScreen> {
   // Store the priority level is currently selected
   String? selectedPriority;
 
+  // Stores the selected repeat option for a task
+  String selectedRepeat = 'Never';
+
+  // Stores selected weekdays for "Specific Days"
+  Set<int> selectedRepeatDays = {};
+
   // Stores which category filter is currently selected
   String selectedFilter = 'All';
 
@@ -462,6 +468,120 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
+  // Loads all saved recurring-task templates.
+Future<List<Map<String, dynamic>>> loadRecurringTasks() async {
+  final prefs = await SharedPreferences.getInstance();
+
+  final savedRecurringTasks =
+      prefs.getString('recurringTasks');
+
+  if (savedRecurringTasks == null) {
+    return [];
+  }
+
+  final List decodedTasks =
+      jsonDecode(savedRecurringTasks);
+
+  return decodedTasks.map((task) {
+    return Map<String, dynamic>.from(task);
+  }).toList();
+}
+
+
+// Saves the recurring-task template list.
+Future<void> saveRecurringTasks(
+  List<Map<String, dynamic>> recurringTasks,
+) async {
+  final prefs = await SharedPreferences.getInstance();
+
+  await prefs.setString(
+    'recurringTasks',
+    jsonEncode(recurringTasks),
+  );
+}
+
+
+// Saves a newly created recurring task as a reusable template.
+Future<void> addRecurringTaskTemplate(
+  Map<String, dynamic> task,
+) async {
+  // "Never" tasks do not need a recurring template.
+  if (task['repeat'] == null ||
+      task['repeat'] == 'Never') {
+    return;
+  }
+
+  final recurringTasks =
+      await loadRecurringTasks();
+
+  // Give the recurring series its own stable ID.
+  final recurringId =
+      DateTime.now().microsecondsSinceEpoch.toString();
+
+  final recurringTask =
+      Map<String, dynamic>.from(task);
+
+  recurringTask['recurringId'] = recurringId;
+
+  // A template should not stay marked completed.
+  recurringTask['completed'] = false;
+
+  recurringTasks.add(recurringTask);
+
+  await saveRecurringTasks(recurringTasks);
+
+  // Also attach the recurring ID to today's copy.
+  task['recurringId'] = recurringId;
+}
+
+  // Updates, creates, or removes the recurring template
+  // when a task's repeat settings are edited.
+  Future<void> updateRecurringTaskTemplate(
+    Map<String, dynamic> task,
+  ) async {
+    final recurringTasks = await loadRecurringTasks();
+    final recurringId = task['recurringId'];
+    final repeat = task['repeat'] ?? 'Never';
+
+    // If recurrence was turned off, remove the old template.
+    if (repeat == 'Never') {
+      if (recurringId != null) {
+        recurringTasks.removeWhere(
+          (item) => item['recurringId'] == recurringId,
+        );
+
+        await saveRecurringTasks(recurringTasks);
+
+        task.remove('recurringId');
+      }
+
+      return;
+    }
+
+    // If this used to be a normal task but is now recurring,
+    // create a new recurring template for it.
+    if (recurringId == null) {
+      await addRecurringTaskTemplate(task);
+      return;
+    }
+
+    // Update the existing recurring template.
+    final index = recurringTasks.indexWhere(
+      (item) => item['recurringId'] == recurringId,
+    );
+
+    if (index != -1) {
+      final updatedTemplate =
+          Map<String, dynamic>.from(task);
+
+      updatedTemplate['completed'] = false;
+
+      recurringTasks[index] = updatedTemplate;
+
+      await saveRecurringTasks(recurringTasks);
+    }
+  }
+
   // Saves the task list to local phone storage
   Future<void> saveTasks() async {
     final prefs = await SharedPreferences.getInstance();
@@ -708,6 +828,77 @@ class _HomeScreenState extends State<HomeScreen> {
     return '${date.year}-${date.month}-${date.day}';
   }
 
+  // Converts a stored TrakOn date key back into DateTime.
+  DateTime parseDateKey(String dateKey) {
+    final parts = dateKey.split('-');
+
+    return DateTime(
+      int.parse(parts[0]),
+      int.parse(parts[1]),
+      int.parse(parts[2]),
+    );
+  }
+
+  // Checks whether a recurring task belongs on a specific date.
+bool recurringTaskRunsOnDate(
+  Map<String, dynamic> task,
+  DateTime date,
+) {
+  final repeat = task['repeat'] ?? 'Never';
+
+  final startDateText =
+      task['startDate'] ?? task['date'];
+
+  if (startDateText == null) {
+    return false;
+  }
+
+  final startDate =
+      parseDateKey(startDateText);
+
+  final selectedDateOnly = DateTime(
+    date.year,
+    date.month,
+    date.day,
+  );
+
+  final startDateOnly = DateTime(
+    startDate.year,
+    startDate.month,
+    startDate.day,
+  );
+
+  // Recurring tasks should never appear before
+  // the date on which the series began.
+  if (selectedDateOnly.isBefore(startDateOnly)) {
+    return false;
+  }
+
+  switch (repeat) {
+    case 'Daily':
+      return true;
+
+    case 'Weekdays':
+      return date.weekday >= DateTime.monday &&
+          date.weekday <= DateTime.friday;
+
+    case 'Weekly':
+      // Repeat on the same weekday as the original task.
+      return date.weekday == startDate.weekday;
+
+    case 'Specific Days':
+      final repeatDays =
+          List<int>.from(
+            task['repeatDays'] ?? [],
+          );
+
+      return repeatDays.contains(date.weekday);
+
+    default:
+      return false;
+  }
+}
+
   // Returns the full month and year (e.g. July 2026)
   String getMonthYearLabel(DateTime date) {
     const months = [
@@ -736,26 +927,109 @@ class _HomeScreenState extends State<HomeScreen> {
     return dateKey == todayKey ? 'tasks' : 'tasks_$dateKey';
   }
 
-  // Loads tasks for the selected date from local storage
+  // Loads the selected day's normal tasks and rebuilds
+  // recurring occurrences from the latest recurring templates.
   Future<void> loadTasksForSelectedDate() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs =
+        await SharedPreferences.getInstance();
 
-    final taskKey = getTaskStorageKey(selectedTaskDate);
-    final savedTasks = prefs.getString(taskKey);
+    final taskKey =
+        getTaskStorageKey(selectedTaskDate);
 
-    setState(() {
-      if (savedTasks != null) {
-        final List decodedTasks = jsonDecode(savedTasks);
-        tasks = decodedTasks.map((task) {
+    final savedTasksText =
+        prefs.getString(taskKey);
+
+    final savedTasks =
+        <Map<String, dynamic>>[];
+
+    if (savedTasksText != null) {
+      final List decoded =
+          jsonDecode(savedTasksText);
+
+      savedTasks.addAll(
+        decoded.map((task) {
           return Map<String, dynamic>.from(task);
-        }).toList();
-      } else {
-        tasks = [];
+        }),
+      );
+    }
+
+    final selectedDate =
+        parseDateKey(selectedTaskDate);
+
+    final recurringTemplates =
+        await loadRecurringTasks();
+
+    // Keep normal, non-recurring tasks exactly as they are.
+    final rebuiltTasks = savedTasks.where((task) {
+      return task['recurringId'] == null;
+    }).map((task) {
+      return Map<String, dynamic>.from(task);
+    }).toList();
+
+    for (final template in recurringTemplates) {
+      // Only generate the task if its CURRENT repeat
+      // rules say it belongs on this date.
+      if (!recurringTaskRunsOnDate(
+        template,
+        selectedDate,
+      )) {
+        continue;
       }
 
-      dayCompleted = prefs.getBool('dayCompleted_$selectedTaskDate') ?? false;
+      final recurringId =
+          template['recurringId'];
+
+      // Look for a previously saved occurrence so we can
+      // preserve things such as completion status.
+      Map<String, dynamic>? existingOccurrence;
+
+      for (final savedTask in savedTasks) {
+        if (savedTask['recurringId'] ==
+            recurringId) {
+          existingOccurrence = savedTask;
+          break;
+        }
+      }
+
+      // Start with the newest series/template information.
+      final occurrence =
+          Map<String, dynamic>.from(template);
+
+      occurrence['date'] =
+          selectedTaskDate;
+
+      // Preserve completion status for this specific day.
+      occurrence['completed'] =
+          existingOccurrence?['completed'] ??
+          false;
+
+      // Preserve an existing notification ID when available.
+      occurrence['notificationId'] =
+          existingOccurrence?['notificationId'] ??
+          createNotificationId();
+
+      rebuiltTasks.add(occurrence);
+    }
+
+    if (!mounted) return;
+
+    setState(() {
+      tasks = rebuiltTasks;
+
+      dayCompleted =
+          prefs.getBool(
+            'dayCompleted_$selectedTaskDate',
+          ) ??
+          false;
+
       selectedFilter = 'All';
     });
+
+    // Replace this day's saved list with the corrected version.
+    await prefs.setString(
+      taskKey,
+      jsonEncode(rebuiltTasks),
+    );
   }
 
   // Loads the selected date shared between Home and Calendar
@@ -775,41 +1049,109 @@ class _HomeScreenState extends State<HomeScreen> {
 
 
 
-  // Calculates completion progress for a specific day
+  // Calculates progress for a date while also
+  // accounting for recurring tasks.
   Future<double> getProgressForDate(DateTime date) async {
     final prefs = await SharedPreferences.getInstance();
 
     final dateKey = getDateKey(date);
     final taskKey = getTaskStorageKey(dateKey);
+
     final savedTasks = prefs.getString(taskKey);
 
-    if (savedTasks == null) return 0;
+    final dayTasks = <Map<String, dynamic>>[];
 
-    final List decodedTasks = jsonDecode(savedTasks);
+    if (savedTasks != null) {
+      final List decodedTasks = jsonDecode(savedTasks);
 
-    if (decodedTasks.isEmpty) return 0;
+      dayTasks.addAll(
+        decodedTasks.map((task) {
+          return Map<String, dynamic>.from(task);
+        }),
+      );
+    }
 
-    // Count completed tasks for that day
-    final completed = decodedTasks.where((task) {
+    // Add recurring tasks that belong on this date.
+    final recurringTasks = await loadRecurringTasks();
+
+    for (final recurringTask in recurringTasks) {
+      if (!recurringTaskRunsOnDate(recurringTask, date)) {
+        continue;
+      }
+
+      final recurringId = recurringTask['recurringId'];
+
+      final alreadyExists = dayTasks.any((task) {
+        return task['recurringId'] == recurringId;
+      });
+
+      if (!alreadyExists) {
+        final recurringCopy =
+            Map<String, dynamic>.from(recurringTask);
+
+        recurringCopy['completed'] = false;
+
+        dayTasks.add(recurringCopy);
+      }
+    }
+
+    if (dayTasks.isEmpty) {
+      return 0;
+    }
+
+    final completed = dayTasks.where((task) {
       return task['completed'] == true;
     }).length;
 
-    return completed / decodedTasks.length;
+    return completed / dayTasks.length;
   }
 
+  // Returns the correct task count for a date,
+  // including recurring tasks that belong on that day.
   Future<int> getTaskCountForDate(DateTime date) async {
-  final prefs = await SharedPreferences.getInstance();
+    final prefs = await SharedPreferences.getInstance();
 
-  final dateKey = getDateKey(date);
-  final taskKey = getTaskStorageKey(dateKey);
-  final savedTasks = prefs.getString(taskKey);
+    final dateKey = getDateKey(date);
+    final taskKey = getTaskStorageKey(dateKey);
 
-  if (savedTasks == null) return 0;
+    final savedTasks = prefs.getString(taskKey);
 
-  final List decodedTasks = jsonDecode(savedTasks);
+    final dayTasks = <Map<String, dynamic>>[];
 
-  return decodedTasks.length;
-}
+    // Load tasks already saved directly for this date.
+    if (savedTasks != null) {
+      final List decodedTasks = jsonDecode(savedTasks);
+
+      dayTasks.addAll(
+        decodedTasks.map((task) {
+          return Map<String, dynamic>.from(task);
+        }),
+      );
+    }
+
+    // Check every recurring task template.
+    final recurringTasks = await loadRecurringTasks();
+
+    for (final recurringTask in recurringTasks) {
+      if (!recurringTaskRunsOnDate(recurringTask, date)) {
+        continue;
+      }
+
+      final recurringId = recurringTask['recurringId'];
+
+      // Do not count a recurring task twice if an occurrence
+      // has already been saved for this date.
+      final alreadyExists = dayTasks.any((task) {
+        return task['recurringId'] == recurringId;
+      });
+
+      if (!alreadyExists) {
+        dayTasks.add(recurringTask);
+      }
+    }
+
+    return dayTasks.length;
+  }
 
 
   DateTime getNextDailyNotificationTime({
@@ -1144,6 +1486,100 @@ Future<void> refreshDailyTaskNotifications() async {
                           });
                         },
                       ),
+
+                      DropdownButton<String>(
+                        value: selectedRepeat,
+                        dropdownColor: Colors.black,
+                        isExpanded: true,
+                        style: const TextStyle(color: Colors.white),
+
+                        items: const [
+                          DropdownMenuItem(
+                            value: 'Never',
+                            child: Text('Repeat: Never'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'Daily',
+                            child: Text('Repeat: Daily'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'Weekdays',
+                            child: Text('Repeat: Weekdays'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'Weekly',
+                            child: Text('Repeat: Weekly'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'Specific Days',
+                            child: Text('Repeat: Specific Days'),
+                          ),
+                        ],
+
+                        onChanged: (value) {
+                          if (value == null) return;
+
+                          setDialogState(() {
+                            selectedRepeat = value;
+
+                            if (selectedRepeat != 'Specific Days') {
+                              selectedRepeatDays.clear();
+                            }
+                          });
+                        },
+                      ),
+
+                      if (selectedRepeat == 'Specific Days') ...[
+                        const Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            'Choose days',
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 8),
+
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            for (final day in const [
+                              {'label': 'M', 'value': 1},
+                              {'label': 'T', 'value': 2},
+                              {'label': 'W', 'value': 3},
+                              {'label': 'T', 'value': 4},
+                              {'label': 'F', 'value': 5},
+                              {'label': 'S', 'value': 6},
+                              {'label': 'S', 'value': 7},
+                            ])
+                              ChoiceChip(
+                                label: Text(day['label'] as String),
+                                selected:
+                                    selectedRepeatDays.contains(day['value'] as int),
+                                onSelected: (selected) {
+                                  setDialogState(() {
+                                    final value = day['value'] as int;
+
+                                    if (selected) {
+                                      selectedRepeatDays.add(value);
+                                    } else {
+                                      selectedRepeatDays.remove(value);
+                                    }
+                                  });
+                                },
+                              ),
+                          ],
+                        ),
+
+                        const SizedBox(height: 12),
+                      ],
+
+                      const SizedBox(height: 12),
+
                       const SizedBox(height: 16),
 
                       ListTile(
@@ -1283,12 +1719,39 @@ Future<void> refreshDailyTaskNotifications() async {
                   'priority': selectedPriority,
                   'reminderTime': selectedReminderTime?.format(context),
                   'notificationId': notificationId,
+
+                  // Date for this specific task occurrence.
                   'date': selectedTaskDate,
+
+                  // Original date the recurring series begins.
+                  'startDate': selectedTaskDate,
+
+                  // Repeat settings.
+                  'repeat': selectedRepeat,
+                  'repeatDays': selectedRepeatDays.toList(),
                 };
 
                 setState(() {
                   tasks.add(newTask);
                 });
+
+                // Close the popup immediately after the task is added.
+                Navigator.of(context).pop();
+
+                taskController.clear();
+                descriptionController.clear();
+
+                // Reset the Add Task fields for next time.
+                setState(() {
+                  selectedPriority = null;
+                  selectedReminderTime = null;
+                  selectedRepeat = 'Never';
+                  selectedRepeatDays.clear();
+                });
+
+                // If this task repeats, save a reusable recurring template
+                // for future matching dates.
+                await addRecurringTaskTemplate(newTask);
 
                 if (reminderToSchedule != null) {
                   final reminderDateTime = buildReminderDateTime(
@@ -1299,24 +1762,12 @@ Future<void> refreshDailyTaskNotifications() async {
                   await scheduleSmartReminders(
                     notificationId: notificationId,
                     taskTitle: newTaskTitle,
-                    priority: selectedPriority,
+                    priority: newTask['priority'],
                     reminderDateTime: reminderDateTime,
                   );
                 }
 
                 await saveTasks();
-
-                if (!context.mounted) return;
-
-                Navigator.pop(context);
-
-                taskController.clear();
-                descriptionController.clear();
-
-                setState(() {
-                  selectedPriority = null;
-                  selectedReminderTime = null;
-                });
               },
               child: const Text('Add'),
             ),
@@ -1368,6 +1819,12 @@ Future<void> refreshDailyTaskNotifications() async {
     String editCategory = task['category'] ?? selectedCategory;
     String? editPriority = task['priority'];
     String? editReminderTime = task['reminderTime'];
+
+    // Load the task's existing repeat settings.
+    String editRepeat = task['repeat'] ?? 'Never';
+
+    Set<int> editRepeatDays =
+      Set<int>.from(task['repeatDays'] ?? []);
 
 
 
@@ -1469,6 +1926,87 @@ Future<void> refreshDailyTaskNotifications() async {
                       ),
                     ),
 
+                    const SizedBox(height: 16),
+
+                    DropdownButton<String>(
+                      value: editRepeat,
+                      dropdownColor: Colors.black,
+                      isExpanded: true,
+                      style: const TextStyle(color: Colors.white),
+
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'Never',
+                          child: Text('Repeat: Never'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'Daily',
+                          child: Text('Repeat: Daily'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'Weekdays',
+                          child: Text('Repeat: Weekdays'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'Weekly',
+                          child: Text('Repeat: Weekly'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'Specific Days',
+                          child: Text('Repeat: Specific Days'),
+                        ),
+                      ],
+
+                      onChanged: (value) {
+                        if (value == null) return;
+
+                        setDialogState(() {
+                          editRepeat = value;
+
+                          // Clear selected days if Specific Days is no longer used.
+                          if (editRepeat != 'Specific Days') {
+                            editRepeatDays.clear();
+                          }
+                        });
+                      },
+                    ),
+
+                    // Show weekday choices only for Specific Days.
+                    if (editRepeat == 'Specific Days') ...[
+                      const SizedBox(height: 8),
+
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          for (final day in const [
+                            {'label': 'M', 'value': 1},
+                            {'label': 'T', 'value': 2},
+                            {'label': 'W', 'value': 3},
+                            {'label': 'T', 'value': 4},
+                            {'label': 'F', 'value': 5},
+                            {'label': 'S', 'value': 6},
+                            {'label': 'S', 'value': 7},
+                          ])
+                            ChoiceChip(
+                              label: Text(day['label'] as String),
+                              selected:
+                                  editRepeatDays.contains(day['value'] as int),
+                              onSelected: (selected) {
+                                setDialogState(() {
+                                  final value = day['value'] as int;
+
+                                  if (selected) {
+                                    editRepeatDays.add(value);
+                                  } else {
+                                    editRepeatDays.remove(value);
+                                  }
+                                });
+                              },
+                            ),
+                        ],
+                      ),
+                    ],
                     const SizedBox(height: 16),
 
                     ListTile(
@@ -1607,82 +2145,77 @@ Future<void> refreshDailyTaskNotifications() async {
             ),
             actionsOverflowDirection: VerticalDirection.down,
             actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text(
-                    'Cancel',
-                    style: TextStyle(color: Colors.white70),
-                  ),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text(
+                  'Cancel',
+                  style: TextStyle(color: Colors.white70),
                 ),
+              ),
 
-                ElevatedButton(
-                  onPressed: () async {
+              ElevatedButton(
+                onPressed: () async {
+                  final updatedTitle = editController.text.trim();
 
-                    // Get the updated task name and remove extra spaces
-                    final updatedTitle = editController.text.trim();
+                  if (updatedTitle.isEmpty) {
+                    return;
+                  }
 
-                    // Do not save if the task name is empty
-                    if (updatedTitle.isEmpty) {
-                      return;
-                    }
+                  // Keep the existing notification ID when possible.
+                  final existingNotificationId = task['notificationId'];
 
-                    // Cancel all notifications connected to the task's old reminder settings
-                    await cancelTaskReminders(task);
+                  final int notificationId =
+                      existingNotificationId is int
+                          ? existingNotificationId
+                          : createNotificationId();
 
-                    // Reuse the task's existing notification ID if it already has one
-                    final existingNotificationId = task['notificationId'];
+                  final editedTime =
+                      parseReminderTime(editReminderTime);
 
-                    // Create a notification ID for older tasks that do not have one yet
-                    final int notificationId = existingNotificationId is int
-                        ? existingNotificationId
-                        : createNotificationId();
+                  // Update the task immediately.
+                  setState(() {
+                    task['title'] = updatedTitle;
+                    task['description'] =
+                        editDescriptionController.text.trim();
+                    task['category'] = editCategory;
+                    task['priority'] = editPriority;
+                    task['reminderTime'] = editReminderTime;
+                    task['notificationId'] = notificationId;
 
-                    // Update the task information
-                    setState(() {
-                      task['title'] = updatedTitle;
-                      task['description'] =
-                          editDescriptionController.text.trim();
-                      task['category'] = editCategory;
-                      task['priority'] = editPriority;
-                      task['reminderTime'] = editReminderTime;
-                      task['notificationId'] = notificationId;
-                    });
+                    task['repeat'] = editRepeat;
+                    task['repeatDays'] = editRepeatDays.toList();
+                  });
 
-                    // Convert the saved reminder text back into a TimeOfDay object
-                    final editedTime = parseReminderTime(editReminderTime);
+                  // Close the Edit popup immediately.
+                  Navigator.of(context).pop();
 
-                    // Only schedule new reminders if:
-                    // 1. A reminder time exists
-                    // 2. The task is not already completed
-                    if (editedTime != null && task['completed'] != true) {
+                  // Update reminders and recurring-series storage.
+                  await cancelTaskReminders(task);
 
-                      // Build the full date and time for the edited reminder
-                      final reminderDateTime = buildReminderDateTime(
-                        dateKey: task['date'] ?? selectedTaskDate,
-                        reminderTime: editedTime,
-                      );
+                  await updateRecurringTaskTemplate(task);
 
-                      // Schedule the updated smart reminders
-                      await scheduleSmartReminders(
-                        notificationId: notificationId,
-                        taskTitle: updatedTitle,
-                        priority: editPriority,
-                        reminderDateTime: reminderDateTime,
-                      );
-                    }
+                  if (editedTime != null &&
+                      task['completed'] != true) {
+                    final reminderDateTime =
+                        buildReminderDateTime(
+                      dateKey:
+                          task['date'] ?? selectedTaskDate,
+                      reminderTime: editedTime,
+                    );
 
-                    // Save the updated task list to local storage
-                    await saveTasks();
+                    await scheduleSmartReminders(
+                      notificationId: notificationId,
+                      taskTitle: updatedTitle,
+                      priority: editPriority,
+                      reminderDateTime: reminderDateTime,
+                    );
+                  }
 
-                    // Stop if the screen was closed while awaiting
-                    if (!context.mounted) return;
-
-                    // Close the Edit Task popup
-                    Navigator.pop(context);
-                  },
-                  child: const Text('Save'),
-                ),
-              ],
+                  await saveTasks();
+                },
+                child: const Text('Save'),
+              ),
+            ],
             );
           },
         );
@@ -1730,9 +2263,6 @@ Future<void> refreshDailyTaskNotifications() async {
 
   @override
   Widget build(BuildContext context) {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      loadSelectedTaskDateFromPrefs();
-    });
     final int completedTasks = tasks.where((task) => task['completed'] == true).length;
     final double progress = tasks.isEmpty ? 0: completedTasks / tasks.length;
 
@@ -2359,6 +2889,19 @@ Future<void> refreshDailyTaskNotifications() async {
                                         fontSize: 12,
                                       ),
                                   ),
+
+                                  // Show recurrence underneath repeating tasks.
+                                  if ((filteredTasks[index]['repeat'] ?? 'Never') != 'Never')
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 3),
+                                      child: Text(
+                                        '🔁 ${filteredTasks[index]['repeat']}',
+                                        style: const TextStyle(
+                                          color: Colors.white70,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ),
                                   if (filteredTasks[index]['reminderTime'] != null)
                                     Text(
                                       '🔔 ${filteredTasks[index]['reminderTime']}',
