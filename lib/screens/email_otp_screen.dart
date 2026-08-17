@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 
-import 'tutorial_screen.dart';
+import 'terms_acceptance_screen.dart';
 
 class EmailOtpScreen extends StatefulWidget {
   final String email;
@@ -51,27 +51,18 @@ class _EmailOtpScreenState extends State<EmailOtpScreen> {
       final result = await callable.call({'email': widget.email, 'code': code});
 
       if (result.data['success'] == true) {
-        final fullName = '${widget.firstName} ${widget.lastName}'.trim();
-
-        final saveProfile = FirebaseFunctions.instance.httpsCallable(
-          'saveUserProfile',
-        );
-
-        await saveProfile.call({
-          'firstName': widget.firstName,
-          'lastName': widget.lastName,
-          'fullName': fullName,
-          'username': widget.username,
-          'dateOfBirth': widget.dateOfBirth,
-          'email': widget.email,
-          'phoneNumber': null,
-          'authMethod': 'email',
-        });
-
         if (!mounted) return;
 
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const TutorialScreen()),
+          MaterialPageRoute(
+            builder: (context) => TermsAcceptanceScreen(
+              email: widget.email,
+              firstName: widget.firstName,
+              lastName: widget.lastName,
+              username: widget.username,
+              dateOfBirth: widget.dateOfBirth,
+            ),
+          ),
         );
       }
     } on FirebaseFunctionsException catch (e) {

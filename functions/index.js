@@ -78,17 +78,38 @@ exports.sendEmailOtp = onCall(
       secrets: [RESEND_API_KEY],
     },
     async (request) => {
-      const email =
+      // Only a signed-in Firebase user can request an OTP.
+      if (!request.auth) {
+        throw new HttpsError(
+            "unauthenticated",
+            "You must be signed in to request a verification code.",
+        );
+      }
+
+      const authenticatedEmail =
+          request.auth.token.email ?
+            request.auth.token.email.trim().toLowerCase() :
+            null;
+
+      const requestedEmail =
           request.data && request.data.email ?
             request.data.email.trim().toLowerCase() :
             null;
 
-      if (!email) {
+      // The OTP may only be sent to the email on the
+      // currently authenticated Firebase account.
+      if (
+        !authenticatedEmail ||
+        !requestedEmail ||
+        authenticatedEmail !== requestedEmail
+      ) {
         throw new HttpsError(
-            "invalid-argument",
-            "Email is required.",
+            "permission-denied",
+            "You can only verify the email linked to your account.",
         );
       }
+
+      const email = authenticatedEmail;
 
       const code =
           crypto.randomInt(100000, 1000000).toString();
@@ -144,13 +165,12 @@ exports.sendEmailOtp = onCall(
       });
 
       if (result.error) {
-        // Print the actual Resend error in Firebase Functions logs
-        // so we can see exactly why the email was rejected.
         console.error("RESEND EMAIL ERROR:", result.error);
 
         throw new HttpsError(
             "internal",
-            result.error.message || "Unable to send verification email.",
+            result.error.message ||
+              "Unable to send verification email.",
         );
       }
 
@@ -162,20 +182,48 @@ exports.sendEmailOtp = onCall(
 
 exports.verifyEmailOtp = onCall(
     async (request) => {
-      const email =
+      // Only a signed-in Firebase user can verify an OTP.
+      if (!request.auth) {
+        throw new HttpsError(
+            "unauthenticated",
+            "You must be signed in to verify your email.",
+        );
+      }
+
+      const authenticatedEmail =
+          request.auth.token.email ?
+            request.auth.token.email.trim().toLowerCase() :
+            null;
+
+      const requestedEmail =
           request.data && request.data.email ?
             request.data.email.trim().toLowerCase() :
             null;
+
+      // The OTP being verified must belong to the
+      // currently authenticated Firebase account.
+      if (
+        !authenticatedEmail ||
+        !requestedEmail ||
+        authenticatedEmail !== requestedEmail
+      ) {
+        throw new HttpsError(
+            "permission-denied",
+            "This verification request does not belong to your account.",
+        );
+      }
+
+      const email = authenticatedEmail;
 
       const code =
           request.data && request.data.code ?
             request.data.code.trim() :
             null;
 
-      if (!email || !code) {
+      if (!code) {
         throw new HttpsError(
             "invalid-argument",
-            "Email and code are required.",
+            "Verification code is required.",
         );
       }
 
@@ -213,8 +261,7 @@ exports.verifyEmailOtp = onCall(
         );
       }
 
-      const enteredHash =
-          hashCode(code);
+      const enteredHash = hashCode(code);
 
       if (enteredHash !== data.codeHash) {
         await ref.update({
@@ -248,6 +295,13 @@ exports.saveUserProfile = onCall(
       const uid = request.auth.uid;
       const data = request.data || {};
 
+      if (data.termsAccepted !== true) {
+        throw new HttpsError(
+            "failed-precondition",
+            "Terms & Conditions must be accepted.",
+        );
+      }
+
       const normalizedUsername =
           await reserveUsername(
               data.username || "",
@@ -267,6 +321,18 @@ exports.saveUserProfile = onCall(
             email: data.email || null,
             phoneNumber: data.phoneNumber || null,
             authMethod: data.authMethod || "",
+
+            // Save the Terms & Conditions acceptance.
+            termsAccepted: data.termsAccepted === true,
+            termsVersion:
+                data.termsAccepted === true ?
+                  data.termsVersion || "1.0" :
+                  null,
+            termsAcceptedAt:
+                data.termsAccepted === true ?
+                  admin.firestore.FieldValue.serverTimestamp() :
+                  null,
+
             createdAt:
                 admin.firestore.FieldValue.serverTimestamp(),
           });
@@ -382,6 +448,13 @@ exports.completePhoneSignup = onCall(
             phoneNumber,
             email: null,
             authMethod: "phone",
+
+            // Record Terms & Conditions acceptance.
+            termsAccepted: true,
+            termsVersion: data.termsVersion || "1.0",
+            termsAcceptedAt:
+                admin.firestore.FieldValue.serverTimestamp(),
+
             createdAt:
                 admin.firestore.FieldValue.serverTimestamp(),
           });

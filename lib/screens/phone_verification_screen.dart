@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 
-import 'tutorial_screen.dart';
+import 'phone_terms_acceptance_screen.dart';
 
 class PhoneVerificationScreen extends StatefulWidget {
   final String phoneNumber;
@@ -208,22 +208,21 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen> {
       );
     }
 
-    final completeSignup = FirebaseFunctions.instance.httpsCallable(
-      'completePhoneSignup',
-    );
-
-    await completeSignup.call({
-      'password': widget.password,
-      'firstName': widget.firstName,
-      'lastName': widget.lastName,
-      'username': widget.username,
-      'dateOfBirth': widget.dateOfBirth,
-    });
-
     if (!mounted) return;
 
+    // Phone verification succeeded.
+    // Do not finalize the TrakOn account until the user accepts the Terms.
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (context) => const TutorialScreen()),
+      MaterialPageRoute(
+        builder: (context) => PhoneTermsAcceptanceScreen(
+          phoneNumber: widget.phoneNumber,
+          password: widget.password,
+          firstName: widget.firstName,
+          lastName: widget.lastName,
+          username: widget.username,
+          dateOfBirth: widget.dateOfBirth,
+        ),
+      ),
     );
   }
 

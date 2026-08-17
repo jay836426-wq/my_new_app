@@ -30,15 +30,20 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'screens/email_otp_screen.dart';
 
 import 'package:firebase_app_check/firebase_app_check.dart';
+import 'package:flutter/foundation.dart';
 
 // Entry point of the app
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  await FirebaseAppCheck.instance.activate(
-    providerApple: const AppleDebugProvider(),
-  );
+  // App Check is currently configured for the Apple/iOS build.
+  // Skip it on Chrome until TrakOn's web App Check provider is configured.
+  if (!kIsWeb) {
+    await FirebaseAppCheck.instance.activate(
+      providerApple: const AppleDebugProvider(),
+    );
+  }
 
   await NotificationService.init();
   await NotificationService.requestPermissions();
