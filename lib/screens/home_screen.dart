@@ -205,6 +205,28 @@ class _HomeScreenState extends State<HomeScreen> {
   // Store selected Reminder Time
   TimeOfDay? selectedReminderTime;
 
+  // Optional scheduled time window for a task.
+  // These remain null when the user does not want
+  // to assign a specific start or end time.
+  TimeOfDay? selectedStartTime;
+  TimeOfDay? selectedEndTime;
+
+  // Tracks the task's current workflow status.
+  // New tasks begin as "Not Started".
+  String selectedStatus = 'Not Started';
+
+  // ---------------------------------------------------------------------------
+  // TASK STATUS OPTIONS
+  // ---------------------------------------------------------------------------
+
+  // Status options used throughout TrakOn.
+  // Each status has a label and matching visual icon.
+  final List<Map<String, dynamic>> taskStatuses = [
+    {'label': 'Not Started', 'icon': Icons.radio_button_unchecked},
+    {'label': 'In Progress', 'icon': Icons.play_circle_outline},
+    {'label': 'Complete', 'icon': Icons.check_circle_outline},
+  ];
+
   // Loads saved username/full name from local storage
   Future<void> loadUserName() async {
     final prefs = await SharedPreferences.getInstance();
@@ -500,6 +522,10 @@ class _HomeScreenState extends State<HomeScreen> {
     // A template should not stay marked completed.
     recurringTask['completed'] = false;
 
+    // Recurring templates should always begin future
+    // occurrences in the Not Started state.
+    recurringTask['status'] = 'Not Started';
+
     recurringTasks.add(recurringTask);
 
     await saveRecurringTasks(recurringTasks);
@@ -546,6 +572,10 @@ class _HomeScreenState extends State<HomeScreen> {
       final updatedTemplate = Map<String, dynamic>.from(task);
 
       updatedTemplate['completed'] = false;
+
+      // Future recurring occurrences should not inherit
+      // the current occurrence's completed/in-progress state.
+      updatedTemplate['status'] = 'Not Started';
 
       recurringTasks[index] = updatedTemplate;
 
@@ -940,6 +970,10 @@ class _HomeScreenState extends State<HomeScreen> {
       // Preserve completion status for this specific day.
       occurrence['completed'] = existingOccurrence?['completed'] ?? false;
 
+      // Preserve this day's saved workflow status when one exists.
+      // Otherwise, a new recurring occurrence begins as Not Started.
+      occurrence['status'] = existingOccurrence?['status'] ?? 'Not Started';
+
       // Preserve an existing notification ID when available.
       occurrence['notificationId'] =
           existingOccurrence?['notificationId'] ?? createNotificationId();
@@ -1307,6 +1341,112 @@ class _HomeScreenState extends State<HomeScreen> {
     await NotificationService.cancelNotification(notificationId + 2);
 
     await NotificationService.cancelNotification(notificationId + 3);
+
+    await NotificationService.cancelNotification(notificationId + 4);
+  }
+
+  // ---------------------------------------------------------------------------
+  // TASK STATUS NOTIFICATION HANDLER
+  // ---------------------------------------------------------------------------
+
+  // Updates notifications when a task moves between
+  // Not Started, In Progress, and Complete.
+  Future<void> handleTaskStatusNotifications(Map<String, dynamic> task) async {
+    final status = task['status']?.toString() ?? 'Not Started';
+
+    // Always clear the old notification chain first
+    // so outdated status reminders do not keep firing.
+    await cancelTaskReminders(task);
+
+    // Complete tasks should receive no further reminders.
+    if (status == 'Complete') {
+      return;
+    }
+
+    final notificationId = task['notificationId'];
+
+    if (notificationId is! int) {
+      return;
+    }
+
+    final priority = task['priority']?.toString();
+
+    final dateKey = task['date']?.toString() ?? selectedTaskDate;
+
+    // ------------------------------------------------------------
+    // NOT STARTED
+    // ------------------------------------------------------------
+    if (status == 'Not Started') {
+      // Prefer the task's Start Time when one exists.
+      // Otherwise, fall back to the user's normal reminder.
+      final startTime = parseReminderTime(task['startTime']);
+
+      final normalReminder = parseReminderTime(task['reminderTime']);
+
+      final timeToUse = startTime ?? normalReminder;
+
+      if (timeToUse == null) {
+        return;
+      }
+
+      final scheduledTime = buildReminderDateTime(
+        dateKey: dateKey,
+        reminderTime: timeToUse,
+      );
+
+      await scheduleSmartReminders(
+        notificationId: notificationId,
+        taskTitle: task['title'].toString(),
+        priority: priority,
+        reminderDateTime: scheduledTime,
+      );
+
+      return;
+    }
+
+    // ------------------------------------------------------------
+    // IN PROGRESS
+    // ------------------------------------------------------------
+    if (status == 'In Progress') {
+      final endTime = parseReminderTime(task['endTime']);
+
+      // If there is no End Time, there is nothing
+      // additional to schedule for the active task.
+      if (endTime == null) {
+        return;
+      }
+
+      final endDateTime = buildReminderDateTime(
+        dateKey: dateKey,
+        reminderTime: endTime,
+      );
+
+      if (!endDateTime.isAfter(DateTime.now())) {
+        return;
+      }
+
+      String title = 'Task Time Ending';
+
+      String body =
+          '${task['title']} is reaching the end of its scheduled time.';
+
+      // Give higher-priority tasks stronger wording.
+      if (priority == '🔴 High') {
+        title = '🔴 High Priority Task Ending';
+        body =
+            '${task['title']} is reaching the end of its scheduled time. Finish strong.';
+      } else if (priority == '🟡 Medium') {
+        title = '🟡 Task Time Ending';
+      }
+
+      await NotificationService.scheduleNotification(
+        id: notificationId + 4,
+        title: title,
+        body: body,
+        scheduledTime: endDateTime,
+        payload: 'task:$notificationId',
+      );
+    }
   }
 
   // Converts a saved reminder time (ex: "2:30 PM") back into a TimeOfDay object
@@ -1656,11 +1796,32 @@ class _HomeScreenState extends State<HomeScreen> {
                   onPressed: () async {
                     final newTaskTitle = taskController.text.trim();
 
-                    if (newTaskTitle.isEmpty) {
-                      return;
+                    // Validate the optional scheduled time window.
+                    // If both times are set, End Time must be after Start Time.
+                    if (selectedStartTime != null && selectedEndTime != null) {
+                      final startMinutes =
+                          selectedStartTime!.hour * 60 +
+                          selectedStartTime!.minute;
+
+                      final endMinutes =
+                          selectedEndTime!.hour * 60 + selectedEndTime!.minute;
+
+                      if (endMinutes <= startMinutes) {
+                        if (!mounted) return;
+
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'End Time must be later than Start Time.',
+                            ),
+                          ),
+                        );
+
+                        return;
+                      }
                     }
 
-                    final reminderToSchedule = selectedReminderTime;
+                    // Create one stable notification ID for this task.
                     final notificationId = createNotificationId();
 
                     final newTask = <String, dynamic>{
@@ -1668,8 +1829,21 @@ class _HomeScreenState extends State<HomeScreen> {
                       'description': descriptionController.text.trim(),
                       'completed': false,
                       'category': selectedCategory,
+
+                      // Optional priority level.
                       'priority': selectedPriority,
+
+                      // Optional scheduled time window.
+                      'startTime': selectedStartTime?.format(context),
+                      'endTime': selectedEndTime?.format(context),
+
+                      // New tasks begin as Not Started.
+                      'status': selectedStatus,
+
+                      // Optional normal reminder.
                       'reminderTime': selectedReminderTime?.format(context),
+
+                      // Stable notification ID for this task.
                       'notificationId': notificationId,
 
                       // Date for this specific task occurrence.
@@ -1697,6 +1871,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     setState(() {
                       selectedPriority = null;
                       selectedReminderTime = null;
+
+                      selectedStartTime = null;
+                      selectedEndTime = null;
+                      selectedStatus = 'Not Started';
+
                       selectedRepeat = 'Never';
                       selectedRepeatDays.clear();
                     });
@@ -1705,19 +1884,16 @@ class _HomeScreenState extends State<HomeScreen> {
                     // for future matching dates.
                     await addRecurringTaskTemplate(newTask);
 
-                    if (reminderToSchedule != null) {
-                      final reminderDateTime = buildReminderDateTime(
-                        dateKey: selectedTaskDate,
-                        reminderTime: reminderToSchedule,
-                      );
-
-                      await scheduleSmartReminders(
-                        notificationId: notificationId,
-                        taskTitle: newTaskTitle,
-                        priority: newTask['priority'],
-                        reminderDateTime: reminderDateTime,
-                      );
-                    }
+                    // Build the correct notification plan for the new task.
+                    //
+                    // If the task has a Start Time, TrakOn uses that as the
+                    // beginning of the scheduled task window.
+                    //
+                    // If there is no Start Time, the normal Reminder Time
+                    // is used instead.
+                    //
+                    // If neither exists, no notification is scheduled.
+                    await handleTaskStatusNotifications(newTask);
 
                     await saveTasks();
                   },
@@ -1762,6 +1938,15 @@ class _HomeScreenState extends State<HomeScreen> {
     String editCategory = task['category'] ?? selectedCategory;
     String? editPriority = task['priority'];
     String? editReminderTime = task['reminderTime'];
+
+    // Load the task's optional scheduled time window.
+    String? editStartTime = task['startTime'];
+    String? editEndTime = task['endTime'];
+
+    // Load the current workflow status.
+    // Older tasks that do not have a status yet
+    // should behave as Not Started.
+    String editStatus = task['status']?.toString() ?? 'Not Started';
 
     // Load the task's existing repeat settings.
     String editRepeat = task['repeat'] ?? 'Never';
@@ -1950,6 +2135,85 @@ class _HomeScreenState extends State<HomeScreen> {
                       ],
                       const SizedBox(height: 16),
 
+                      // ---------------------------------------------------------------------------
+                      // EDIT OPTIONAL TASK SCHEDULE
+                      // ---------------------------------------------------------------------------
+                      ListTile(
+                        title: Text(
+                          editStartTime == null
+                              ? 'Start Time (Optional)'
+                              : 'Start: $editStartTime',
+                          style: const TextStyle(color: Colors.white),
+                        ),
+                        trailing: const Icon(
+                          Icons.play_arrow,
+                          color: Colors.greenAccent,
+                        ),
+                        onTap: () async {
+                          TimeOfDay initialTime =
+                              parseReminderTime(editStartTime) ??
+                              TimeOfDay.now();
+
+                          final picked = await showTimePicker(
+                            context: context,
+                            initialTime: initialTime,
+                          );
+
+                          if (picked == null) return;
+
+                          setDialogState(() {
+                            editStartTime = picked.format(context);
+                          });
+                        },
+                      ),
+
+                      ListTile(
+                        title: Text(
+                          editEndTime == null
+                              ? 'End Time (Optional)'
+                              : 'End: $editEndTime',
+                          style: const TextStyle(color: Colors.white),
+                        ),
+                        trailing: const Icon(
+                          Icons.stop_circle_outlined,
+                          color: Colors.greenAccent,
+                        ),
+                        onTap: () async {
+                          TimeOfDay initialTime =
+                              parseReminderTime(editEndTime) ??
+                              parseReminderTime(editStartTime) ??
+                              TimeOfDay.now();
+
+                          final picked = await showTimePicker(
+                            context: context,
+                            initialTime: initialTime,
+                          );
+
+                          if (picked == null) return;
+
+                          setDialogState(() {
+                            editEndTime = picked.format(context);
+                          });
+                        },
+                      ),
+
+                      if (editStartTime != null || editEndTime != null)
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: TextButton(
+                            onPressed: () {
+                              setDialogState(() {
+                                editStartTime = null;
+                                editEndTime = null;
+                              });
+                            },
+                            child: const Text(
+                              'Clear Schedule',
+                              style: TextStyle(color: Colors.redAccent),
+                            ),
+                          ),
+                        ),
+
                       ListTile(
                         title: Text(
                           editReminderTime == null
@@ -2104,9 +2368,31 @@ class _HomeScreenState extends State<HomeScreen> {
                 ElevatedButton(
                   onPressed: () async {
                     final updatedTitle = editController.text.trim();
+                    // Validate the edited scheduled time window.
+                    final parsedStartTime = parseReminderTime(editStartTime);
 
-                    if (updatedTitle.isEmpty) {
-                      return;
+                    final parsedEndTime = parseReminderTime(editEndTime);
+
+                    if (parsedStartTime != null && parsedEndTime != null) {
+                      final startMinutes =
+                          parsedStartTime.hour * 60 + parsedStartTime.minute;
+
+                      final endMinutes =
+                          parsedEndTime.hour * 60 + parsedEndTime.minute;
+
+                      if (endMinutes <= startMinutes) {
+                        if (!mounted) return;
+
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'End Time must be later than Start Time.',
+                            ),
+                          ),
+                        );
+
+                        return;
+                      }
                     }
 
                     // Keep the existing notification ID when possible.
@@ -2115,8 +2401,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     final int notificationId = existingNotificationId is int
                         ? existingNotificationId
                         : createNotificationId();
-
-                    final editedTime = parseReminderTime(editReminderTime);
 
                     // Update the task immediately.
                     setState(() {
@@ -2128,6 +2412,12 @@ class _HomeScreenState extends State<HomeScreen> {
                       task['reminderTime'] = editReminderTime;
                       task['notificationId'] = notificationId;
 
+                      // Save the task's optional scheduled window.
+                      task['startTime'] = editStartTime;
+                      task['endTime'] = editEndTime;
+
+                      // Keep the task's existing workflow status.
+                      task['status'] = editStatus;
                       task['repeat'] = editRepeat;
                       task['repeatDays'] = editRepeatDays.toList();
                     });
@@ -2135,25 +2425,15 @@ class _HomeScreenState extends State<HomeScreen> {
                     // Close the Edit popup immediately.
                     Navigator.of(context).pop();
 
-                    // Update reminders and recurring-series storage.
-                    await cancelTaskReminders(task);
-
+                    // Update the recurring-task template so future
+                    // occurrences use the latest task settings.
                     await updateRecurringTaskTemplate(task);
 
-                    if (editedTime != null && task['completed'] != true) {
-                      final reminderDateTime = buildReminderDateTime(
-                        dateKey: task['date'] ?? selectedTaskDate,
-                        reminderTime: editedTime,
-                      );
+                    // Rebuild the task's notification plan based on
+                    // its current status, schedule, reminder, and priority.
+                    await handleTaskStatusNotifications(task);
 
-                      await scheduleSmartReminders(
-                        notificationId: notificationId,
-                        taskTitle: updatedTitle,
-                        priority: editPriority,
-                        reminderDateTime: reminderDateTime,
-                      );
-                    }
-
+                    // Save the edited task.
                     await saveTasks();
                   },
                   child: const Text('Save'),
@@ -2750,57 +3030,28 @@ class _HomeScreenState extends State<HomeScreen> {
                           child: ListTile(
                             leading: GestureDetector(
                               onTap: () async {
-                                // Get the task that the user tapped
+                                // Get the task that the user tapped.
                                 final task = filteredTasks[index];
 
-                                // Determine the task's new completion status
-                                final bool isNowCompleted =
-                                    task['completed'] != true;
+                                final currentStatus =
+                                    task['status']?.toString() ?? 'Not Started';
 
-                                // Update the task's completed value
                                 setState(() {
-                                  task['completed'] = isNowCompleted;
+                                  if (currentStatus == 'Complete') {
+                                    // Reopen a completed task.
+                                    task['status'] = 'Not Started';
+                                    task['completed'] = false;
+                                  } else {
+                                    // Quick-complete any unfinished task.
+                                    task['status'] = 'Complete';
+                                    task['completed'] = true;
+                                  }
                                 });
 
-                                // If the task was just completed, cancel all remaining reminders
-                                if (isNowCompleted) {
-                                  await cancelTaskReminders(task);
-                                } else {
-                                  // If the task was marked incomplete again,
-                                  // try to restore its reminders
-                                  final reminderTime = parseReminderTime(
-                                    task['reminderTime'],
-                                  );
+                                // Rebuild or cancel notifications based on the new status.
+                                await handleTaskStatusNotifications(task);
 
-                                  // Only continue if the task has a reminder time
-                                  if (reminderTime != null) {
-                                    // Get the task's saved notification ID
-                                    final notificationId =
-                                        task['notificationId'];
-
-                                    // Only reschedule if the notification ID is valid
-                                    if (notificationId is int) {
-                                      // Build the task's full reminder date and time
-                                      final reminderDateTime =
-                                          buildReminderDateTime(
-                                            dateKey:
-                                                task['date'] ??
-                                                selectedTaskDate,
-                                            reminderTime: reminderTime,
-                                          );
-
-                                      // Schedule the reminders again based on priority
-                                      await scheduleSmartReminders(
-                                        notificationId: notificationId,
-                                        taskTitle: task['title'].toString(),
-                                        priority: task['priority']?.toString(),
-                                        reminderDateTime: reminderDateTime,
-                                      );
-                                    }
-                                  }
-                                }
-
-                                // Save the updated task list
+                                // Save the updated task state.
                                 await saveTasks();
                               },
                               child: CustomPaint(
@@ -2866,6 +3117,140 @@ class _HomeScreenState extends State<HomeScreen> {
                                     style: const TextStyle(
                                       color: Colors.white70,
                                       fontSize: 12,
+                                    ),
+                                  ),
+
+                                // ---------------------------------------------------------------------------
+                                // TASK STATUS
+                                // ---------------------------------------------------------------------------
+
+                                // Shows the task's current workflow status.
+                                // Tapping the status moves the task through:
+                                // Not Started -> In Progress -> Complete.
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 4),
+                                  child: GestureDetector(
+                                    onTap: () async {
+                                      final task = filteredTasks[index];
+
+                                      final currentStatus =
+                                          task['status']?.toString() ??
+                                          'Not Started';
+
+                                      String nextStatus;
+
+                                      if (currentStatus == 'Not Started') {
+                                        nextStatus = 'In Progress';
+                                      } else if (currentStatus ==
+                                          'In Progress') {
+                                        nextStatus = 'Complete';
+                                      } else {
+                                        nextStatus = 'Not Started';
+                                      }
+
+                                      setState(() {
+                                        // Update the workflow status.
+                                        task['status'] = nextStatus;
+
+                                        // Keep the existing completed field synchronized
+                                        // with the new status system.
+                                        task['completed'] =
+                                            nextStatus == 'Complete';
+                                      });
+
+                                      // Update notifications to match the new status.
+                                      await handleTaskStatusNotifications(task);
+
+                                      // Save the updated task.
+                                      await saveTasks();
+                                    },
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          (filteredTasks[index]['status'] ??
+                                                      'Not Started') ==
+                                                  'Complete'
+                                              ? Icons.check_circle_outline
+                                              : (filteredTasks[index]['status'] ??
+                                                        'Not Started') ==
+                                                    'In Progress'
+                                              ? Icons.play_circle_outline
+                                              : Icons.radio_button_unchecked,
+                                          size: 16,
+                                          color:
+                                              (filteredTasks[index]['status'] ??
+                                                      'Not Started') ==
+                                                  'Complete'
+                                              ? Colors.greenAccent
+                                              : (filteredTasks[index]['status'] ??
+                                                        'Not Started') ==
+                                                    'In Progress'
+                                              ? Colors.amber
+                                              : Colors.white54,
+                                        ),
+                                        const SizedBox(width: 5),
+                                        Text(
+                                          filteredTasks[index]['status']
+                                                  ?.toString() ??
+                                              'Not Started',
+                                          style: TextStyle(
+                                            color:
+                                                (filteredTasks[index]['status'] ??
+                                                        'Not Started') ==
+                                                    'Complete'
+                                                ? Colors.greenAccent
+                                                : (filteredTasks[index]['status'] ??
+                                                          'Not Started') ==
+                                                      'In Progress'
+                                                ? Colors.amber
+                                                : Colors.white60,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+
+                                // ---------------------------------------------------------------------------
+                                // TASK SCHEDULE DISPLAY
+                                // ---------------------------------------------------------------------------
+
+                                // Show the optional scheduled time window when one exists.
+                                if (filteredTasks[index]['startTime'] != null ||
+                                    filteredTasks[index]['endTime'] != null)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 3),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(
+                                          Icons.schedule,
+                                          size: 15,
+                                          color: Colors.white54,
+                                        ),
+
+                                        const SizedBox(width: 5),
+
+                                        Text(
+                                          filteredTasks[index]['startTime'] !=
+                                                      null &&
+                                                  filteredTasks[index]['endTime'] !=
+                                                      null
+                                              ? '${filteredTasks[index]['startTime']} - ${filteredTasks[index]['endTime']}'
+                                              : filteredTasks[index]['startTime'] !=
+                                                    null
+                                              ? 'Starts ${filteredTasks[index]['startTime']}'
+                                              : 'Ends ${filteredTasks[index]['endTime']}',
+                                          style: const TextStyle(
+                                            color: Colors.white70,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
 
