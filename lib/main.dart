@@ -29,11 +29,16 @@ import 'screens/phone_verification_screen.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'screens/email_otp_screen.dart';
 
+import 'package:firebase_app_check/firebase_app_check.dart';
+
 // Entry point of the app
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  await FirebaseAppCheck.instance.activate(
+    providerApple: const AppleDebugProvider(),
+  );
 
   await NotificationService.init();
   await NotificationService.requestPermissions();

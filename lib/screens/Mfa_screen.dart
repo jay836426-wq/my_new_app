@@ -111,11 +111,12 @@ class _MfaScreenState extends State<MfaScreen> {
 
     await user.reload();
 
+    // Make sure the screen still exists after reloading the Firebase user.
+    if (!mounted) return;
+
     final refreshedUser = FirebaseAuth.instance.currentUser;
 
     if (refreshedUser == null || !refreshedUser.emailVerified) {
-      if (!mounted) return;
-
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Verify your email before setting up SMS MFA.'),
@@ -141,6 +142,9 @@ class _MfaScreenState extends State<MfaScreen> {
 
     try {
       final multiFactorSession = await refreshedUser.multiFactor.getSession();
+
+      // Make sure this screen still exists after the async Firebase call.
+      if (!mounted) return;
 
       await FirebaseAuth.instance.verifyPhoneNumber(
         multiFactorSession: multiFactorSession,

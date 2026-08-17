@@ -116,7 +116,7 @@ exports.sendEmailOtp = onCall(
           new Resend(RESEND_API_KEY.value());
 
       const result = await resend.emails.send({
-        from: "TrakOn <onboarding@resend.dev>",
+        from: "TrakOn <verify@gettrakon.com>",
         to: email,
         subject: "Your TrakOn verification code",
         html: `
@@ -144,9 +144,13 @@ exports.sendEmailOtp = onCall(
       });
 
       if (result.error) {
+        // Print the actual Resend error in Firebase Functions logs
+        // so we can see exactly why the email was rejected.
+        console.error("RESEND EMAIL ERROR:", result.error);
+
         throw new HttpsError(
             "internal",
-            "Unable to send verification email.",
+            result.error.message || "Unable to send verification email.",
         );
       }
 
@@ -603,6 +607,82 @@ exports.sendUsernameReminder = onCall(
             "Unable to send username reminder.",
         );
       }
+
+      return {
+        success: true,
+      };
+    },
+);
+
+// Permanently deletes the signed-in TrakOn user's
+// backend profile data and Firebase Authentication account.
+exports.deleteTrakOnAccount = onCall(
+    async (request) => {
+      // Only an authenticated user may delete an account.
+      if (!request.auth) {
+        throw new HttpsError(
+            "unauthenticated",
+            "You must be signed in to delete your account.",
+        );
+      }
+
+      const uid = request.auth.uid;
+
+      const db = admin.firestore();
+
+      const userRef = db
+          .collection("users")
+          .doc(uid);
+
+      const phoneAccountRef = db
+          .collection("phoneAccounts")
+          .doc(uid);
+
+      // Read the profile before deleting it because we may
+      // need the username/email to clean up related records.
+      const userSnapshot = await userRef.get();
+
+      let username = null;
+      let email = null;
+
+      if (userSnapshot.exists) {
+        const userData = userSnapshot.data();
+
+        username = userData.username || null;
+        email = userData.email || null;
+      }
+
+      const batch = db.batch();
+
+      // Delete the main TrakOn profile.
+      batch.delete(userRef);
+
+      // Delete phone-login information if it exists.
+      batch.delete(phoneAccountRef);
+
+      // Remove the username reservation so the username
+      // can be used again after the account is deleted.
+      if (username) {
+        const usernameRef = db
+            .collection("usernames")
+            .doc(username.toLowerCase());
+
+        batch.delete(usernameRef);
+      }
+
+      // Remove any leftover email OTP for this account.
+      if (email) {
+        const emailOtpRef = db
+            .collection("emailOtps")
+            .doc(email.toLowerCase());
+
+        batch.delete(emailOtpRef);
+      }
+
+      await batch.commit();
+
+      // Delete the Firebase Authentication user last.
+      await admin.auth().deleteUser(uid);
 
       return {
         success: true,

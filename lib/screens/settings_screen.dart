@@ -7,6 +7,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:in_app_review/in_app_review.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -36,48 +37,62 @@ class SettingsScreen extends StatelessWidget {
     }
   }
 
-  // Permanently deletes the Firebase account and all locally stored TrakOn data.
+  // Permanently deletes the signed-in TrakOn account,
+  // backend account data, and locally stored TrakOn data.
   Future<void> deleteAccount(BuildContext context) async {
     try {
-      // Get the currently signed-in Firebase user.
+      // Make sure somebody is actually signed in.
       final user = FirebaseAuth.instance.currentUser;
 
       if (user == null) {
         throw Exception('No signed-in user found.');
       }
 
-      // Delete the user's Firebase Authentication account.
-      await user.delete();
+      // Call the secure Cloud Function.
+      // The backend deletes:
+      // - Firebase Authentication account
+      // - Firestore user profile
+      // - username reservation
+      // - phone account information
+      // - leftover email OTP information
+      final callable = FirebaseFunctions.instance.httpsCallable(
+        'deleteTrakOnAccount',
+      );
 
-      // Only clear local TrakOn data after Firebase deletion succeeds.
+      await callable.call();
+
+      // Clear the deleted user's local Firebase session.
+      await FirebaseAuth.instance.signOut();
+
+      // Remove all locally stored TrakOn information.
       final prefs = await SharedPreferences.getInstance();
       await prefs.clear();
 
       if (!context.mounted) return;
 
-      // Return the user to the authentication screen
-      // and remove all previous screens from navigation history.
+      // Send the user back to the authentication screen
+      // and prevent navigating back into the deleted account.
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (context) => const AuthChoiceScreen()),
         (route) => false,
       );
-    } on FirebaseAuthException catch (error) {
+    } on FirebaseFunctionsException catch (error) {
       if (!context.mounted) return;
 
       String message = 'Unable to delete your account.';
 
-      // Firebase may require the user to authenticate again
-      // before allowing a sensitive account change.
-      if (error.code == 'requires-recent-login') {
+      if (error.code == 'unauthenticated') {
         message =
-            'For security, please sign out and sign back in before deleting your account.';
+            'For security, please sign in again before deleting your account.';
       }
 
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(message)));
-    } catch (_) {
+    } catch (error) {
+      debugPrint('DELETE ACCOUNT ERROR: $error');
+
       if (!context.mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -486,7 +501,7 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
 
   String gender = 'Not set';
   String dateOfBirth = 'Not set';
-  String phoneNumber = 'Not available';
+  String phoneNumber = 'Not set';
 
   bool isLoading = true;
 
@@ -558,9 +573,7 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
       dateOfBirth = prefs.getString('dateOfBirth') ?? 'Not set';
 
       phoneNumber =
-          user?.phoneNumber ??
-          prefs.getString('phoneNumber') ??
-          'Not available';
+          user?.phoneNumber ?? prefs.getString('phoneNumber') ?? 'Not set';
       isLoading = false;
     });
   }
@@ -944,7 +957,7 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
 
   Future<void> showEditPhoneDialog() async {
     final phoneController = TextEditingController(
-      text: phoneNumber == 'Not available' ? '' : phoneNumber,
+      text: phoneNumber == 'Not set' ? '' : phoneNumber,
     );
 
     final newPhone = await showDialog<String>(
@@ -1375,7 +1388,7 @@ class SupportScreen extends StatelessWidget {
   }) async {
     final emailUri = Uri(
       scheme: 'mailto',
-      path: 'jamaalbokhari045@gmail.com',
+      path: 'support@gettrakon.com',
       query: encodeQueryParameters({'subject': subject, 'body': body}),
     );
 

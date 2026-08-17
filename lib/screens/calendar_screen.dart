@@ -119,51 +119,75 @@ class _CalendarScreenState extends State<CalendarScreen> {
     }
   }
 
-  // Returns normal tasks + recurring tasks for any date.
+  // Returns the correct tasks for any date.
+  // This preserves saved completion/status for recurring task occurrences.
   Future<List<Map<String, dynamic>>> getTasksForDate(DateTime date) async {
     final prefs = await SharedPreferences.getInstance();
 
     final dateKey = getDateKey(date);
     final taskKey = getTaskStorageKey(dateKey);
 
-    final savedTasks = prefs.getString(taskKey);
+    final savedTasksText = prefs.getString(taskKey);
 
-    final dayTasks = <Map<String, dynamic>>[];
+    final savedTasks = <Map<String, dynamic>>[];
 
-    // Load tasks already saved specifically for this day.
-    if (savedTasks != null) {
-      final List decodedTasks = jsonDecode(savedTasks);
+    // Load anything already saved specifically for this date.
+    if (savedTasksText != null) {
+      final List decodedTasks = jsonDecode(savedTasksText);
 
-      dayTasks.addAll(
+      savedTasks.addAll(
         decodedTasks.map((task) {
           return Map<String, dynamic>.from(task);
         }),
       );
     }
 
-    // Add recurring tasks that belong on this day.
+    // Start with normal, non-recurring tasks.
+    final dayTasks = savedTasks
+        .where((task) => task['recurringId'] == null)
+        .map((task) {
+          return Map<String, dynamic>.from(task);
+        })
+        .toList();
+
+    // Load the latest recurring-task templates.
     final recurringTasks = await loadRecurringTasks();
 
     for (final recurringTask in recurringTasks) {
+      // Skip this recurring task if it does not belong on this date.
       if (!recurringTaskRunsOnDate(recurringTask, date)) {
         continue;
       }
 
       final recurringId = recurringTask['recurringId'];
 
-      // Prevent a recurring task from appearing twice.
-      final alreadyExists = dayTasks.any((task) {
-        return task['recurringId'] == recurringId;
-      });
+      // Look for an already-saved occurrence on this specific date.
+      // This lets us preserve completion/status for that day.
+      Map<String, dynamic>? existingOccurrence;
 
-      if (alreadyExists) {
-        continue;
+      for (final savedTask in savedTasks) {
+        if (savedTask['recurringId'] == recurringId) {
+          existingOccurrence = savedTask;
+          break;
+        }
       }
 
+      // Start with the latest recurring template information.
       final recurringCopy = Map<String, dynamic>.from(recurringTask);
 
+      // Make this copy belong specifically to the requested date.
       recurringCopy['date'] = dateKey;
-      recurringCopy['completed'] = false;
+
+      // Preserve this date's saved completion state.
+      recurringCopy['completed'] = existingOccurrence?['completed'] ?? false;
+
+      // Preserve the workflow status for this date.
+      recurringCopy['status'] = existingOccurrence?['status'] ?? 'Not Started';
+
+      // Preserve this occurrence's notification ID if one already exists.
+      if (existingOccurrence?['notificationId'] != null) {
+        recurringCopy['notificationId'] = existingOccurrence!['notificationId'];
+      }
 
       dayTasks.add(recurringCopy);
     }
