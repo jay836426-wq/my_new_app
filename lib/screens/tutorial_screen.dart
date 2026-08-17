@@ -5,7 +5,7 @@ import 'package:TrakOn/screens/main_navigation_screen.dart';
 
 // import 'mfa_screen.dart';
 
-import  'package:shared_preferences/shared_preferences.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 //import 'package:TrakOn/main.dart';
 
@@ -23,33 +23,52 @@ class _TutorialScreenState extends State<TutorialScreen> {
   final List<Map<String, dynamic>> slides = [
     {
       'icon': Icons.check_circle_outline,
-      'title': 'Track your day',
-      'subtitle': 'Add tasks, check them off, and keep your day organized.',
+      'title': 'Plan Your Day',
+      'subtitle':
+          'Create tasks, add details, organize them by category, and use priority levels to focus on what matters most.',
+    },
+    {
+      'icon': Icons.notifications_active_outlined,
+      'title': 'Smart Notifications',
+      'subtitle':
+          'Set task reminders and choose how TrakOn keeps you on track. Priority-based reminders, daily motivation, summaries, and end-of-day reminders can all be managed in Settings.',
+    },
+    {
+      'icon': Icons.repeat,
+      'title': 'Repeat What Matters',
+      'subtitle':
+          'Create recurring tasks that repeat daily, on weekdays, weekly, or on specific days you choose.',
+    },
+    {
+      'icon': Icons.calendar_month_outlined,
+      'title': 'Plan Ahead',
+      'subtitle':
+          'Use the calendar and weekly preview to see upcoming tasks, plan future days, and stay ahead of your schedule.',
     },
     {
       'icon': Icons.local_fire_department_outlined,
-      'title': 'Build consistency',
-      'subtitle': 'Complete tasks daily and grow your streak over time.',
+      'title': 'Stay Consistent',
+      'subtitle':
+          'Complete your tasks, carry unfinished work forward when needed, track daily progress, and build your streak over time.',
     },
     {
-      'icon': Icons.trending_up,
-      'title': 'See your progress',
-      'subtitle': 'Watch your progress improve as you stay focused.',
+      'icon': Icons.track_changes,
+      'title': 'You’re Ready',
+      'subtitle':
+          'Track what needs to be done. Focus on what matters. Achieve through consistency.\n\nTrack. Focus. Achieve.',
     },
   ];
 
   Future<void> finishTutorial() async {
     final prefs = await SharedPreferences.getInstance();
 
-    await prefs.setBool('hasSeenOnBoarding', true);
+    await prefs.setBool('hasSeenOnboarding', true);
     await prefs.setBool('isLoggedIn', true);
 
     if (!mounted) return;
-    
+
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
-        builder: (context) => const MainNavigationScreen(),
-      ),
+      MaterialPageRoute(builder: (context) => const MainNavigationScreen()),
     );
   }
 
@@ -85,7 +104,10 @@ class _TutorialScreenState extends State<TutorialScreen> {
                 alignment: Alignment.centerRight,
                 child: TextButton(
                   onPressed: finishTutorial,
-                  child: const Text('Skip'),
+                  child: const Text(
+                    'Skip',
+                    style: TextStyle(color: Colors.white70, fontSize: 15),
+                  ),
                 ),
               ),
 
@@ -159,8 +181,21 @@ class _TutorialScreenState extends State<TutorialScreen> {
                 width: double.infinity,
                 height: 55,
                 child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.greenAccent,
+                    foregroundColor: Colors.black,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
                   onPressed: nextPage,
-                  child: Text(isLastPage ? 'Get Started' : 'Next'),
+                  child: Text(
+                    isLastPage ? 'Get Started' : 'Next',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
               ),
             ],

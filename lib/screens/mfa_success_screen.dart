@@ -17,38 +17,38 @@ class MfaSuccessScreen extends StatelessWidget {
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
       ),
-    body: Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Text(
-            'You are verified!',
-            style: TextStyle(color: Colors.white, fontSize: 24),
-          ),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text(
+              'You are verified!',
+              style: TextStyle(color: Colors.white, fontSize: 24),
+            ),
 
-          const SizedBox(height: 24),
+            const SizedBox(height: 24),
 
-          ElevatedButton(
-            onPressed: () async {
-              final prefs = await SharedPreferences.getInstance();
+            ElevatedButton(
+              onPressed: () async {
+                final prefs = await SharedPreferences.getInstance();
 
-              await prefs.setBool('isLoggedIn', true);
-              await prefs.setBool('hasSeenOnboarding', true);
+                await prefs.setBool('isLoggedIn', true);
+                await prefs.setBool('hasSeenOnboarding', true);
 
-              if (!context.mounted) return;
+                if (!context.mounted) return;
 
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const MainNavigationScreen(),
-                ),
-              );
-            },
-            child: const Text('Continue to TrakOn'),
-          ),
-        ],
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const MainNavigationScreen(),
+                  ),
+                );
+              },
+              child: const Text('Continue to TrakOn'),
+            ),
+          ],
+        ),
       ),
-    ),
     );
   }
 }

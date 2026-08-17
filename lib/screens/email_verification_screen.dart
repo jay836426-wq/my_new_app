@@ -8,18 +8,14 @@ import 'tutorial_screen.dart';
 class EmailVerificationScreen extends StatefulWidget {
   final String email;
 
-  const EmailVerificationScreen({
-    super.key,
-    required this.email,
-  });
+  const EmailVerificationScreen({super.key, required this.email});
 
   @override
   State<EmailVerificationScreen> createState() =>
       _EmailVerificationScreenState();
 }
 
-class _EmailVerificationScreenState
-    extends State<EmailVerificationScreen> {
+class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
   Timer? timer;
 
   @override
@@ -29,31 +25,25 @@ class _EmailVerificationScreenState
   }
 
   void _startVerificationCheck() {
-    timer = Timer.periodic(
-      const Duration(seconds: 3),
-      (_) async {
-        final user = FirebaseAuth.instance.currentUser;
+    timer = Timer.periodic(const Duration(seconds: 3), (_) async {
+      final user = FirebaseAuth.instance.currentUser;
 
-        if (user == null) return;
+      if (user == null) return;
 
-        await user.reload();
+      await user.reload();
 
-        final refreshedUser =
-            FirebaseAuth.instance.currentUser;
+      final refreshedUser = FirebaseAuth.instance.currentUser;
 
-        if (refreshedUser?.emailVerified == true) {
-          timer?.cancel();
+      if (refreshedUser?.emailVerified == true) {
+        timer?.cancel();
 
-          if (!mounted) return;
+        if (!mounted) return;
 
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(
-              builder: (context) => const TutorialScreen(),
-            ),
-          );
-        }
-      },
-    );
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => const TutorialScreen()),
+        );
+      }
+    });
   }
 
   Future<void> resendEmail() async {
@@ -66,19 +56,15 @@ class _EmailVerificationScreenState
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Verification email sent.'),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Verification email sent.')));
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            e.message ?? 'Could not send verification email.',
-          ),
+          content: Text(e.message ?? 'Could not send verification email.'),
         ),
       );
     }
@@ -103,9 +89,7 @@ class _EmailVerificationScreenState
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: ConstrainedBox(
-            constraints: const BoxConstraints(
-              maxWidth: 420,
-            ),
+            constraints: const BoxConstraints(maxWidth: 420),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -135,19 +119,14 @@ class _EmailVerificationScreenState
                 Text(
                   'We sent a verification link to\n${widget.email}',
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 16,
-                  ),
+                  style: const TextStyle(color: Colors.white70, fontSize: 16),
                 ),
 
                 const SizedBox(height: 30),
 
                 ElevatedButton(
                   onPressed: resendEmail,
-                  child: const Text(
-                    'Resend Verification Email',
-                  ),
+                  child: const Text('Resend Verification Email'),
                 ),
               ],
             ),

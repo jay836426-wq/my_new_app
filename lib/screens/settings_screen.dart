@@ -5,6 +5,8 @@ import 'notification_settings_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:in_app_review/in_app_review.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -157,6 +159,46 @@ class SettingsScreen extends StatelessWidget {
             },
           ),
 
+          const SettingsDivider(),
+
+          const SettingsSectionTitle(title: 'TRAKON'),
+
+          SettingsTile(
+            icon: Icons.ios_share_outlined,
+            title: '📤 Share TrakOn',
+            onTap: () async {
+              await SharePlus.instance.share(
+                ShareParams(
+                  title: 'TrakOn',
+                  subject: 'Check out TrakOn',
+                  text:
+                      'Check out TrakOn — a simple productivity app for tracking tasks, '
+                      'staying focused, and building consistency.\n\n'
+                      'Track. Focus. Achieve.',
+                ),
+              );
+            },
+          ),
+
+          SettingsTile(
+            icon: Icons.star_outline,
+            title: '⭐ Rate TrakOn',
+            onTap: () async {
+              final InAppReview inAppReview = InAppReview.instance;
+
+              if (await inAppReview.isAvailable()) {
+                await inAppReview.requestReview();
+              } else if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      'Ratings will be available when TrakOn is released on the App Store.',
+                    ),
+                  ),
+                );
+              }
+            },
+          ),
           const SettingsDivider(),
 
           const SettingsSectionTitle(title: 'ACCOUNT ACTIONS'),
@@ -1751,9 +1793,7 @@ class AboutTrakOnScreen extends StatelessWidget {
 
         InformationHeading('Version'),
 
-        InformationParagraph(
-          'TrakOn Version 1.0',
-        ),
+        InformationParagraph('TrakOn Version 1.0'),
 
         SizedBox(height: 8),
 

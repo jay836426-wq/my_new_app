@@ -169,87 +169,87 @@ class _NotificationSettingsScreenState
   }
 
   Future<TimeOfDay?> showAppleTimePicker({
-  required TimeOfDay initialTime,
-}) async {
-  DateTime selectedDateTime = DateTime(
-    2026,
-    1,
-    1,
-    initialTime.hour,
-    initialTime.minute,
-  );
+    required TimeOfDay initialTime,
+  }) async {
+    DateTime selectedDateTime = DateTime(
+      2026,
+      1,
+      1,
+      initialTime.hour,
+      initialTime.minute,
+    );
 
-  final bool? confirmed = await showCupertinoModalPopup<bool>(
-    context: context,
-    builder: (popupContext) {
-      return Container(
-        height: 300,
-        color: Colors.black,
-        child: SafeArea(
-          top: false,
-          child: Column(
-            children: [
-              // Simple Apple-style time wheel
-              Expanded(
-                child: CupertinoTheme(
-                  data: const CupertinoThemeData(
-                    brightness: Brightness.dark,
-                    primaryColor: Colors.greenAccent,
-                    textTheme: CupertinoTextThemeData(
-                      dateTimePickerTextStyle: TextStyle(
-                        color: Colors.white,
-                        fontSize: 22,
+    final bool? confirmed = await showCupertinoModalPopup<bool>(
+      context: context,
+      builder: (popupContext) {
+        return Container(
+          height: 300,
+          color: Colors.black,
+          child: SafeArea(
+            top: false,
+            child: Column(
+              children: [
+                // Simple Apple-style time wheel
+                Expanded(
+                  child: CupertinoTheme(
+                    data: const CupertinoThemeData(
+                      brightness: Brightness.dark,
+                      primaryColor: Colors.greenAccent,
+                      textTheme: CupertinoTextThemeData(
+                        dateTimePickerTextStyle: TextStyle(
+                          color: Colors.white,
+                          fontSize: 22,
+                        ),
+                      ),
+                    ),
+                    child: CupertinoDatePicker(
+                      mode: CupertinoDatePickerMode.time,
+                      use24hFormat: false,
+                      initialDateTime: selectedDateTime,
+                      onDateTimeChanged: (newDateTime) {
+                        selectedDateTime = newDateTime;
+                      },
+                    ),
+                  ),
+                ),
+
+                // Small confirmation button
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: CupertinoButton(
+                    color: Colors.greenAccent,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 28,
+                      vertical: 10,
+                    ),
+                    onPressed: () {
+                      Navigator.pop(popupContext, true);
+                    },
+                    child: const Text(
+                      'Done',
+                      style: TextStyle(
+                        color: Colors.black,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
-                  child: CupertinoDatePicker(
-                    mode: CupertinoDatePickerMode.time,
-                    use24hFormat: false,
-                    initialDateTime: selectedDateTime,
-                    onDateTimeChanged: (newDateTime) {
-                      selectedDateTime = newDateTime;
-                    },
-                  ),
                 ),
-              ),
-
-              // Small confirmation button
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: CupertinoButton(
-                  color: Colors.greenAccent,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 28,
-                    vertical: 10,
-                  ),
-                  onPressed: () {
-                    Navigator.pop(popupContext, true);
-                  },
-                  child: const Text(
-                    'Done',
-                    style: TextStyle(
-                      color: Colors.black,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-      );
-    },
-  );
+        );
+      },
+    );
 
-  if (confirmed != true) {
-    return null;
+    if (confirmed != true) {
+      return null;
+    }
+
+    return TimeOfDay(
+      hour: selectedDateTime.hour,
+      minute: selectedDateTime.minute,
+    );
   }
-
-  return TimeOfDay(
-    hour: selectedDateTime.hour,
-    minute: selectedDateTime.minute,
-  );
-}
 
   Future<void> chooseDailySummaryTime() async {
     final selectedTime = await showAppleTimePicker(
@@ -462,9 +462,9 @@ class _NotificationSettingsScreenState
                 ),
 
                 buildNotificationSwitch(
-                  title: 'High-Priority Reminders',
+                  title: 'Priority-Based Reminders',
                   subtitle:
-                      'Receive additional reminders for high-priority tasks.',
+                      'Adjust follow-up reminders based on task priority.',
                   value: highPriorityRemindersEnabled,
                   icon: Icons.priority_high,
                   onChanged: (value) async {

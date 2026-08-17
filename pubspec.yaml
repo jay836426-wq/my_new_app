@@ -44,6 +44,9 @@ dependencies:
   cloud_firestore: ^6.8.0
   cloud_functions: ^6.3.6
   url_launcher: ^6.3.2
+  share_plus: ^13.3.0
+  in_app_review: ^2.0.12
+  flutter_timezone: ^5.1.0
 
 dev_dependencies:
   flutter_test:

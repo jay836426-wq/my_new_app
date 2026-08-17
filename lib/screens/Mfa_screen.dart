@@ -67,20 +67,14 @@ class _MfaScreenState extends State<MfaScreen> {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Verification email sent to ${user.email}.',
-          ),
-        ),
+        SnackBar(content: Text('Verification email sent to ${user.email}.')),
       );
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            e.message ?? 'Could not send verification email.',
-          ),
+          content: Text(e.message ?? 'Could not send verification email.'),
         ),
       );
     }
@@ -89,8 +83,7 @@ class _MfaScreenState extends State<MfaScreen> {
   void _startEmailVerificationCheck() {
     emailCheckTimer?.cancel();
 
-    emailCheckTimer =
-        Timer.periodic(const Duration(seconds: 3), (_) async {
+    emailCheckTimer = Timer.periodic(const Duration(seconds: 3), (_) async {
       final user = FirebaseAuth.instance.currentUser;
 
       if (user == null) return;
@@ -125,9 +118,7 @@ class _MfaScreenState extends State<MfaScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            'Verify your email before setting up SMS MFA.',
-          ),
+          content: Text('Verify your email before setting up SMS MFA.'),
         ),
       );
 
@@ -137,11 +128,9 @@ class _MfaScreenState extends State<MfaScreen> {
     final phoneNumber = phoneController.text.trim();
 
     if (phoneNumber.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Enter your phone number.'),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Enter your phone number.')));
 
       return;
     }
@@ -151,8 +140,7 @@ class _MfaScreenState extends State<MfaScreen> {
     });
 
     try {
-      final multiFactorSession =
-          await refreshedUser.multiFactor.getSession();
+      final multiFactorSession = await refreshedUser.multiFactor.getSession();
 
       await FirebaseAuth.instance.verifyPhoneNumber(
         multiFactorSession: multiFactorSession,
@@ -168,18 +156,11 @@ class _MfaScreenState extends State<MfaScreen> {
           });
 
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                e.message ?? 'Phone verification failed.',
-              ),
-            ),
+            SnackBar(content: Text(e.message ?? 'Phone verification failed.')),
           );
         },
 
-        codeSent: (
-          String verificationIdValue,
-          int? resendToken,
-        ) {
+        codeSent: (String verificationIdValue, int? resendToken) {
           if (!mounted) return;
 
           setState(() {
@@ -189,15 +170,11 @@ class _MfaScreenState extends State<MfaScreen> {
           });
 
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('SMS verification code sent.'),
-            ),
+            const SnackBar(content: Text('SMS verification code sent.')),
           );
         },
 
-        codeAutoRetrievalTimeout: (
-          String verificationIdValue,
-        ) {
+        codeAutoRetrievalTimeout: (String verificationIdValue) {
           verificationId = verificationIdValue;
         },
       );
@@ -209,11 +186,7 @@ class _MfaScreenState extends State<MfaScreen> {
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            e.message ?? 'Unable to send SMS code.',
-          ),
-        ),
+        SnackBar(content: Text(e.message ?? 'Unable to send SMS code.')),
       );
     }
   }
@@ -226,11 +199,9 @@ class _MfaScreenState extends State<MfaScreen> {
     final smsCode = codeController.text.trim();
 
     if (smsCode.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Enter the SMS code.'),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Enter the SMS code.')));
 
       return;
     }
@@ -245,15 +216,9 @@ class _MfaScreenState extends State<MfaScreen> {
         smsCode: smsCode,
       );
 
-      final assertion =
-          PhoneMultiFactorGenerator.getAssertion(
-        credential,
-      );
+      final assertion = PhoneMultiFactorGenerator.getAssertion(credential);
 
-      await user.multiFactor.enroll(
-        assertion,
-        displayName: 'Primary Phone',
-      );
+      await user.multiFactor.enroll(assertion, displayName: 'Primary Phone');
 
       if (!mounted) return;
 
@@ -272,11 +237,7 @@ class _MfaScreenState extends State<MfaScreen> {
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            e.message ?? 'Invalid verification code.',
-          ),
-        ),
+        SnackBar(content: Text(e.message ?? 'Invalid verification code.')),
       );
     }
   }
@@ -300,11 +261,7 @@ class _MfaScreenState extends State<MfaScreen> {
             const SizedBox(height: 20),
 
             if (!emailVerified) ...[
-              const Icon(
-                Icons.email_outlined,
-                color: Colors.white,
-                size: 60,
-              ),
+              const Icon(Icons.email_outlined, color: Colors.white, size: 60),
 
               const SizedBox(height: 20),
 
@@ -322,18 +279,14 @@ class _MfaScreenState extends State<MfaScreen> {
               Text(
                 'We sent a verification link to ${widget.contactInfo}.',
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Colors.white70,
-                ),
+                style: const TextStyle(color: Colors.white70),
               ),
 
               const SizedBox(height: 24),
 
               ElevatedButton(
                 onPressed: _sendVerificationEmail,
-                child: const Text(
-                  'Resend Verification Email',
-                ),
+                child: const Text('Resend Verification Email'),
               ),
             ],
 
@@ -352,31 +305,20 @@ class _MfaScreenState extends State<MfaScreen> {
               TextField(
                 controller: phoneController,
                 keyboardType: TextInputType.phone,
-                style: const TextStyle(
-                  color: Colors.white,
-                ),
+                style: const TextStyle(color: Colors.white),
                 decoration: const InputDecoration(
                   labelText: 'Phone Number',
                   hintText: '+1 555 555 5555',
-                  labelStyle: TextStyle(
-                    color: Colors.white,
-                  ),
-                  hintStyle: TextStyle(
-                    color: Colors.white38,
-                  ),
+                  labelStyle: TextStyle(color: Colors.white),
+                  hintStyle: TextStyle(color: Colors.white38),
                 ),
               ),
 
               const SizedBox(height: 20),
 
               ElevatedButton(
-                onPressed:
-                    loading ? null : sendSmsCode,
-                child: Text(
-                  loading
-                      ? 'Sending...'
-                      : 'Send SMS Code',
-                ),
+                onPressed: loading ? null : sendSmsCode,
+                child: Text(loading ? 'Sending...' : 'Send SMS Code'),
               ),
             ],
 
@@ -395,27 +337,18 @@ class _MfaScreenState extends State<MfaScreen> {
               TextField(
                 controller: codeController,
                 keyboardType: TextInputType.number,
-                style: const TextStyle(
-                  color: Colors.white,
-                ),
+                style: const TextStyle(color: Colors.white),
                 decoration: const InputDecoration(
                   labelText: '6-digit code',
-                  labelStyle: TextStyle(
-                    color: Colors.white,
-                  ),
+                  labelStyle: TextStyle(color: Colors.white),
                 ),
               ),
 
               const SizedBox(height: 20),
 
               ElevatedButton(
-                onPressed:
-                    loading ? null : verifySmsCode,
-                child: Text(
-                  loading
-                      ? 'Verifying...'
-                      : 'Verify',
-                ),
+                onPressed: loading ? null : verifySmsCode,
+                child: Text(loading ? 'Verifying...' : 'Verify'),
               ),
             ],
           ],

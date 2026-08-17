@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -13,7 +12,7 @@ class CalendarScreen extends StatefulWidget {
 class _CalendarScreenState extends State<CalendarScreen> {
   DateTime selectedDate = DateTime.now();
 
-  List<Map<String, dynamic>> tasks =[];
+  List<Map<String, dynamic>> tasks = [];
 
   DateTime currentMonth = DateTime.now();
 
@@ -29,7 +28,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     'September',
     'October',
     'November',
-    'December'
+    'December',
   ];
 
   @override
@@ -39,7 +38,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   String getDateKey(DateTime date) {
-  return '${date.year}-${date.month}-${date.day}';
+    return '${date.year}-${date.month}-${date.day}';
   }
 
   String getTaskStorageKey(String dateKey) {
@@ -55,90 +54,73 @@ class _CalendarScreenState extends State<CalendarScreen> {
       int.parse(parts[1]),
       int.parse(parts[2]),
     );
-  }  
+  }
 
   // Loads the recurring task templates saved by HomeScreen.
   Future<List<Map<String, dynamic>>> loadRecurringTasks() async {
     final prefs = await SharedPreferences.getInstance();
 
-    final savedRecurringTasks =
-        prefs.getString('recurringTasks');
+    final savedRecurringTasks = prefs.getString('recurringTasks');
 
     if (savedRecurringTasks == null) {
       return [];
     }
 
-    final List decodedTasks =
-        jsonDecode(savedRecurringTasks);
+    final List decodedTasks = jsonDecode(savedRecurringTasks);
 
     return decodedTasks.map((task) {
       return Map<String, dynamic>.from(task);
     }).toList();
   }
 
+  // Checks whether a recurring task belongs on a specific date.
+  bool recurringTaskRunsOnDate(Map<String, dynamic> task, DateTime date) {
+    final repeat = task['repeat'] ?? 'Never';
 
-    // Checks whether a recurring task belongs on a specific date.
-    bool recurringTaskRunsOnDate(
-      Map<String, dynamic> task,
-      DateTime date,
-    ) {
-      final repeat = task['repeat'] ?? 'Never';
+    final startDateText = task['startDate'] ?? task['date'];
 
-      final startDateText =
-          task['startDate'] ?? task['date'];
-
-      if (startDateText == null) {
-        return false;
-      }
-
-      final startDate =
-          parseDateKey(startDateText);
-
-      final selectedDateOnly = DateTime(
-        date.year,
-        date.month,
-        date.day,
-      );
-
-      final startDateOnly = DateTime(
-        startDate.year,
-        startDate.month,
-        startDate.day,
-      );
-
-      // Don't show recurrence before its original start date.
-      if (selectedDateOnly.isBefore(startDateOnly)) {
-        return false;
-      }
-
-      switch (repeat) {
-        case 'Daily':
-          return true;
-
-        case 'Weekdays':
-          return date.weekday >= DateTime.monday &&
-              date.weekday <= DateTime.friday;
-
-        case 'Weekly':
-          return date.weekday == startDate.weekday;
-
-        case 'Specific Days':
-          final repeatDays =
-              List<int>.from(
-                task['repeatDays'] ?? [],
-              );
-
-          return repeatDays.contains(date.weekday);
-
-        default:
-          return false;
-      }
+    if (startDateText == null) {
+      return false;
     }
 
+    final startDate = parseDateKey(startDateText);
+
+    final selectedDateOnly = DateTime(date.year, date.month, date.day);
+
+    final startDateOnly = DateTime(
+      startDate.year,
+      startDate.month,
+      startDate.day,
+    );
+
+    // Don't show recurrence before its original start date.
+    if (selectedDateOnly.isBefore(startDateOnly)) {
+      return false;
+    }
+
+    switch (repeat) {
+      case 'Daily':
+        return true;
+
+      case 'Weekdays':
+        return date.weekday >= DateTime.monday &&
+            date.weekday <= DateTime.friday;
+
+      case 'Weekly':
+        return date.weekday == startDate.weekday;
+
+      case 'Specific Days':
+        final repeatDays = List<int>.from(task['repeatDays'] ?? []);
+
+        return repeatDays.contains(date.weekday);
+
+      default:
+        return false;
+    }
+  }
+
   // Returns normal tasks + recurring tasks for any date.
-  Future<List<Map<String, dynamic>>> getTasksForDate(
-    DateTime date,
-  ) async {
+  Future<List<Map<String, dynamic>>> getTasksForDate(DateTime date) async {
     final prefs = await SharedPreferences.getInstance();
 
     final dateKey = getDateKey(date);
@@ -150,8 +132,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
     // Load tasks already saved specifically for this day.
     if (savedTasks != null) {
-      final List decodedTasks =
-          jsonDecode(savedTasks);
+      final List decodedTasks = jsonDecode(savedTasks);
 
       dayTasks.addAll(
         decodedTasks.map((task) {
@@ -161,19 +142,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
     }
 
     // Add recurring tasks that belong on this day.
-    final recurringTasks =
-        await loadRecurringTasks();
+    final recurringTasks = await loadRecurringTasks();
 
     for (final recurringTask in recurringTasks) {
-      if (!recurringTaskRunsOnDate(
-        recurringTask,
-        date,
-      )) {
+      if (!recurringTaskRunsOnDate(recurringTask, date)) {
         continue;
       }
 
-      final recurringId =
-          recurringTask['recurringId'];
+      final recurringId = recurringTask['recurringId'];
 
       // Prevent a recurring task from appearing twice.
       final alreadyExists = dayTasks.any((task) {
@@ -184,8 +160,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
         continue;
       }
 
-      final recurringCopy =
-          Map<String, dynamic>.from(recurringTask);
+      final recurringCopy = Map<String, dynamic>.from(recurringTask);
 
       recurringCopy['date'] = dateKey;
       recurringCopy['completed'] = false;
@@ -197,25 +172,24 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   Future<void> loadSelectedDateAndTasks() async {
-  final prefs = await SharedPreferences.getInstance();
+    final prefs = await SharedPreferences.getInstance();
 
-  final savedDateKey = prefs.getString('selectedTaskDate');
+    final savedDateKey = prefs.getString('selectedTaskDate');
 
-  if (savedDateKey != null) {
-    final savedDate = parseDateKey(savedDateKey);
+    if (savedDateKey != null) {
+      final savedDate = parseDateKey(savedDateKey);
 
-    setState(() {
-      selectedDate = savedDate;
-      currentMonth = DateTime(savedDate.year, savedDate.month);
-    });
+      setState(() {
+        selectedDate = savedDate;
+        currentMonth = DateTime(savedDate.year, savedDate.month);
+      });
+    }
+
+    await loadTasksForSelectedDate();
   }
 
-  await loadTasksForSelectedDate();
-}
-
   Future<void> loadTasksForSelectedDate() async {
-    final loadedTasks =
-        await getTasksForDate(selectedDate);
+    final loadedTasks = await getTasksForDate(selectedDate);
 
     if (!mounted) return;
 
@@ -226,8 +200,13 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   @override
   Widget build(BuildContext context) {
-
     final selectedTasks = tasks;
+
+    final completedCount = selectedTasks
+        .where((task) => task['completed'] == true)
+        .length;
+
+    final remainingCount = selectedTasks.length - completedCount;
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -236,7 +215,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-
               // Weekday labels
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -272,13 +250,52 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     },
                   ),
 
-                  Text(
-                    '${monthNames[currentMonth.month - 1]} ${currentMonth.year}',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                    ),
+                  Column(
+                    children: [
+                      Text(
+                        '${monthNames[currentMonth.month - 1]} ${currentMonth.year}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+
+                      const SizedBox(height: 2),
+
+                      TextButton(
+                        onPressed: () async {
+                          final now = DateTime.now();
+
+                          setState(() {
+                            currentMonth = DateTime(now.year, now.month);
+
+                            selectedDate = DateTime(
+                              now.year,
+                              now.month,
+                              now.day,
+                            );
+                          });
+
+                          final prefs = await SharedPreferences.getInstance();
+
+                          await prefs.setString(
+                            'selectedTaskDate',
+                            getDateKey(selectedDate),
+                          );
+
+                          await loadTasksForSelectedDate();
+                        },
+                        child: const Text(
+                          'Today',
+                          style: TextStyle(
+                            color: Colors.greenAccent,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
 
                   IconButton(
@@ -302,104 +319,131 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   children: List.generate(
-                    DateTime(currentMonth.year, currentMonth.month +1, 0).day +
-                        DateTime(currentMonth.year, currentMonth.month, 1). weekday % 7,
-                    (index){
-                      final int firstWeekdayOffset = 
-                          DateTime(currentMonth.year, currentMonth.month, 1). weekday % 7;
-
-                          if (index < firstWeekdayOffset) {
-                            return const SizedBox.shrink();
-                          }
-                          final int dayNumber = index - firstWeekdayOffset + 1;
-                    final bool isSelected = (
-                        selectedDate.year == currentMonth.year &&
-                        selectedDate.month == currentMonth.month &&
-                        selectedDate.day == dayNumber
-                    );
-                    return GestureDetector(
-                      onTap: () async {
-                        setState(() {
-                          selectedDate = DateTime(
+                    DateTime(currentMonth.year, currentMonth.month + 1, 0).day +
+                        DateTime(
+                              currentMonth.year,
+                              currentMonth.month,
+                              1,
+                            ).weekday %
+                            7,
+                    (index) {
+                      final int firstWeekdayOffset =
+                          DateTime(
                             currentMonth.year,
                             currentMonth.month,
-                            dayNumber,
+                            1,
+                          ).weekday %
+                          7;
+
+                      if (index < firstWeekdayOffset) {
+                        return const SizedBox.shrink();
+                      }
+                      final int dayNumber = index - firstWeekdayOffset + 1;
+
+                      final bool isSelected =
+                          (selectedDate.year == currentMonth.year &&
+                          selectedDate.month == currentMonth.month &&
+                          selectedDate.day == dayNumber);
+
+                      final now = DateTime.now();
+
+                      final bool isToday =
+                          now.year == currentMonth.year &&
+                          now.month == currentMonth.month &&
+                          now.day == dayNumber;
+
+                      return GestureDetector(
+                        onTap: () async {
+                          setState(() {
+                            selectedDate = DateTime(
+                              currentMonth.year,
+                              currentMonth.month,
+                              dayNumber,
+                            );
+                          });
+
+                          final prefs = await SharedPreferences.getInstance();
+
+                          final String selectedDateKey =
+                              '${selectedDate.year}-${selectedDate.month}-${selectedDate.day}';
+                          await prefs.setString(
+                            'selectedTaskDate',
+                            selectedDateKey,
                           );
-                        });
 
-                        final prefs = await SharedPreferences.getInstance();
-
-                        final String selectedDateKey = 
-                            '${selectedDate.year}-${selectedDate.month}-${selectedDate.day}';
-                        await prefs.setString('selectedTaskDate', selectedDateKey);
-
-                        // Wait for the selected day's tasks to finish loading.
-                        await loadTasksForSelectedDate();
-                      },
-                      child: Container(
-                        margin: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? Colors.white.withValues(alpha: 0.35)
-                              : Colors.white10,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
+                          // Wait for the selected day's tasks to finish loading.
+                          await loadTasksForSelectedDate();
+                        },
+                        child: Container(
+                          margin: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
                             color: isSelected
                                 ? Colors.greenAccent
-                                : Colors.transparent,
-                            width: 2,
-                          ),
-                          boxShadow: isSelected
-                              ? [
-                                  BoxShadow(
-                                    color: Colors.greenAccent.withValues(alpha: 0.85),
-                                    blurRadius: 10,
-                                    spreadRadius: 1,
-                                  ),
-                                ]
-                              : [],
-                        ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              '$dayNumber',
-                              style: TextStyle(
-                                color: isSelected ? Colors.black : Colors.white,
-                                fontWeight: FontWeight.w600,
-                              ),
+                                : Colors.white10,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: isSelected
+                                  ? Colors.greenAccent
+                                  : isToday
+                                  ? Colors.greenAccent.withValues(alpha: 0.65)
+                                  : Colors.transparent,
+                              width: isSelected ? 2 : 1.5,
                             ),
-                            const SizedBox(height: 4),
-                            FutureBuilder<List<Map<String, dynamic>>>(
-                              future: getTasksForDate(
-                                DateTime(
-                                  currentMonth.year,
-                                  currentMonth.month,
-                                  dayNumber,
+                            boxShadow: isSelected
+                                ? [
+                                    BoxShadow(
+                                      color: Colors.greenAccent.withValues(
+                                        alpha: 0.35,
+                                      ),
+                                      blurRadius: 10,
+                                      spreadRadius: 1,
+                                    ),
+                                  ]
+                                : [],
+                          ),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                '$dayNumber',
+                                style: TextStyle(
+                                  color: isSelected
+                                      ? Colors.black
+                                      : Colors.white,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
-                              builder: (context, snapshot) {
-                                final taskCount =
-                                    snapshot.data?.length ?? 0;
-
-                                return Container(
-                                  width: 6,
-                                  height: 6,
-                                  decoration: BoxDecoration(
-                                    // Green dot only when this date really has tasks.
-                                    color: taskCount > 0
-                                        ? Colors.greenAccent
-                                        : Colors.transparent,
-                                    shape: BoxShape.circle,
+                              const SizedBox(height: 4),
+                              FutureBuilder<List<Map<String, dynamic>>>(
+                                future: getTasksForDate(
+                                  DateTime(
+                                    currentMonth.year,
+                                    currentMonth.month,
+                                    dayNumber,
                                   ),
-                                );
-                              },
-                            ),
-                          ],
+                                ),
+                                builder: (context, snapshot) {
+                                  final taskCount = snapshot.data?.length ?? 0;
+
+                                  return Container(
+                                    width: 6,
+                                    height: 6,
+                                    decoration: BoxDecoration(
+                                      // Green dot only when this date really has tasks.
+                                      color: taskCount > 0
+                                          ? Colors.greenAccent
+                                          : Colors.transparent,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  );
+                                },
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                    );
-                  }),
+                      );
+                    },
+                  ),
                 ),
               ),
 
@@ -426,11 +470,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         ),
                       ),
 
-                      if (
-                          selectedDate.day == DateTime.now().day &&
+                      if (selectedDate.day == DateTime.now().day &&
                           selectedDate.month == DateTime.now().month &&
-                          selectedDate.year == DateTime.now().year
-                      )
+                          selectedDate.year == DateTime.now().year)
                         const Padding(
                           padding: EdgeInsets.only(top: 6),
                           child: Text(
@@ -444,47 +486,155 @@ class _CalendarScreenState extends State<CalendarScreen> {
                           ),
                         ),
 
-                        const SizedBox(height: 12),
+                      const SizedBox(height: 12),
 
-                        Text(
-                          selectedDate.day == DateTime.now().day &&
-                                  selectedDate.month == DateTime.now().month &&
-                                  selectedDate.year == DateTime.now().year
-                              ? 'Today\'s productivity'
-                              : 'Selected day summary',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
+                      Text(
+                        selectedDate.day == DateTime.now().day &&
+                                selectedDate.month == DateTime.now().month &&
+                                selectedDate.year == DateTime.now().year
+                            ? 'Today\'s productivity'
+                            : 'Selected day summary',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+
+                      const SizedBox(height: 10),
+
+                      if (selectedTasks.isNotEmpty) ...[
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                  horizontal: 14,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.white10,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Completed',
+                                      style: TextStyle(
+                                        color: Colors.white54,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      '$completedCount',
+                                      style: const TextStyle(
+                                        color: Colors.greenAccent,
+                                        fontSize: 22,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+
+                            const SizedBox(width: 10),
+
+                            Expanded(
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                  horizontal: 14,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.white10,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Remaining',
+                                      style: TextStyle(
+                                        color: Colors.white54,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      '$remainingCount',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 22,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
 
-                        const SizedBox(height: 10),
-
-                        ... [
-                          if (selectedTasks.isEmpty)
-                            const Text(
-                              'No tasks for this day.',
-                              style: TextStyle(
+                        const SizedBox(height: 18),
+                      ],
+                      ...[
+                        if (selectedTasks.isEmpty)
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 24,
+                              horizontal: 16,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white10,
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: const Column(
+                              children: [
+                                Icon(
+                                  Icons.event_available_outlined,
+                                  color: Colors.greenAccent,
+                                  size: 34,
+                                ),
+                                SizedBox(height: 10),
+                                Text(
+                                  'No tasks planned',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                SizedBox(height: 6),
+                                Text(
+                                  'This day is clear.',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: Colors.white60,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ...selectedTasks.map((task) {
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 6),
+                            child: Text(
+                              task['completed']
+                                  ? '✅ ${task['title']}'
+                                  : '⬜ ${task['title']}',
+                              style: const TextStyle(
                                 color: Colors.white70,
                                 fontSize: 14,
                               ),
                             ),
-                            ...selectedTasks.map((task) {
-                                return Padding(
-                                  padding: const EdgeInsets.only(bottom: 6),
-                                  child: Text(
-                                    task['completed']
-                                        ? '✅ ${task['title']}'
-                                        : '⬜ ${task['title']}',
-                                    style: const TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                );
-                              }),
-                          ],
+                          );
+                        }),
+                      ],
                     ],
                   ),
                 ),

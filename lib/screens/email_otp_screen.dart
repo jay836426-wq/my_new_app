@@ -34,9 +34,7 @@ class _EmailOtpScreenState extends State<EmailOtpScreen> {
 
     if (code.length != 6) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Enter the 6-digit verification code.'),
-        ),
+        const SnackBar(content: Text('Enter the 6-digit verification code.')),
       );
       return;
     }
@@ -46,20 +44,18 @@ class _EmailOtpScreenState extends State<EmailOtpScreen> {
     });
 
     try {
-      final callable =
-          FirebaseFunctions.instance.httpsCallable('verifyEmailOtp');
+      final callable = FirebaseFunctions.instance.httpsCallable(
+        'verifyEmailOtp',
+      );
 
-      final result = await callable.call({
-        'email': widget.email,
-        'code': code,
-      });
+      final result = await callable.call({'email': widget.email, 'code': code});
 
       if (result.data['success'] == true) {
-        final fullName =
-            '${widget.firstName} ${widget.lastName}'.trim();
+        final fullName = '${widget.firstName} ${widget.lastName}'.trim();
 
-        final saveProfile =
-            FirebaseFunctions.instance.httpsCallable('saveUserProfile');
+        final saveProfile = FirebaseFunctions.instance.httpsCallable(
+          'saveUserProfile',
+        );
 
         await saveProfile.call({
           'firstName': widget.firstName,
@@ -75,9 +71,7 @@ class _EmailOtpScreenState extends State<EmailOtpScreen> {
         if (!mounted) return;
 
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (context) => const TutorialScreen(),
-          ),
+          MaterialPageRoute(builder: (context) => const TutorialScreen()),
         );
       }
     } on FirebaseFunctionsException catch (e) {
@@ -95,9 +89,9 @@ class _EmailOtpScreenState extends State<EmailOtpScreen> {
         message = 'No verification code was found. Request a new one.';
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
     } catch (e) {
       if (!mounted) return;
 
@@ -121,30 +115,23 @@ class _EmailOtpScreenState extends State<EmailOtpScreen> {
     });
 
     try {
-      final callable =
-          FirebaseFunctions.instance.httpsCallable('sendEmailOtp');
+      final callable = FirebaseFunctions.instance.httpsCallable('sendEmailOtp');
 
-      await callable.call({
-        'email': widget.email,
-      });
+      await callable.call({'email': widget.email});
 
       if (!mounted) return;
 
       codeController.clear();
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('A new verification code was sent.'),
-        ),
+        const SnackBar(content: Text('A new verification code was sent.')),
       );
     } on FirebaseFunctionsException catch (e) {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            e.message ?? 'Unable to resend verification code.',
-          ),
+          content: Text(e.message ?? 'Unable to resend verification code.'),
         ),
       );
     } finally {
@@ -175,9 +162,7 @@ class _EmailOtpScreenState extends State<EmailOtpScreen> {
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: ConstrainedBox(
-            constraints: const BoxConstraints(
-              maxWidth: 420,
-            ),
+            constraints: const BoxConstraints(maxWidth: 420),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -205,10 +190,7 @@ class _EmailOtpScreenState extends State<EmailOtpScreen> {
                 Text(
                   'We sent a 6-digit code to\n${widget.email}',
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 16,
-                  ),
+                  style: const TextStyle(color: Colors.white70, fontSize: 16),
                 ),
 
                 const SizedBox(height: 30),
@@ -225,19 +207,13 @@ class _EmailOtpScreenState extends State<EmailOtpScreen> {
                   ),
                   decoration: const InputDecoration(
                     labelText: 'Verification Code',
-                    labelStyle: TextStyle(
-                      color: Colors.white70,
-                    ),
+                    labelStyle: TextStyle(color: Colors.white70),
                     counterText: '',
                     enabledBorder: OutlineInputBorder(
-                      borderSide: BorderSide(
-                        color: Colors.white38,
-                      ),
+                      borderSide: BorderSide(color: Colors.white38),
                     ),
                     focusedBorder: OutlineInputBorder(
-                      borderSide: BorderSide(
-                        color: Colors.white,
-                      ),
+                      borderSide: BorderSide(color: Colors.white),
                     ),
                   ),
                 ),
@@ -246,18 +222,14 @@ class _EmailOtpScreenState extends State<EmailOtpScreen> {
 
                 ElevatedButton(
                   onPressed: verifying ? null : verifyCode,
-                  child: Text(
-                    verifying ? 'Verifying...' : 'Verify',
-                  ),
+                  child: Text(verifying ? 'Verifying...' : 'Verify'),
                 ),
 
                 TextButton(
                   onPressed: resending ? null : resendCode,
                   child: Text(
                     resending ? 'Sending...' : 'Resend Code',
-                    style: const TextStyle(
-                      color: Colors.white70,
-                    ),
+                    style: const TextStyle(color: Colors.white70),
                   ),
                 ),
               ],

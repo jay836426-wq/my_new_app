@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
+import 'package:flutter_timezone/flutter_timezone.dart';
 
 // Handles all local notifications throughout the TrakOn app.
 class NotificationService {
@@ -24,23 +25,21 @@ class NotificationService {
   static Future<void> init() async {
     if (_isInitialized) return;
 
-    // Loads the time zone database used for scheduled notifications.
     tz.initializeTimeZones();
 
-    // Sets scheduled notifications to Eastern Time.
-    tz.setLocalLocation(
-      tz.getLocation('America/New_York'),
-    );
+    final localTimezone = await FlutterTimezone.getLocalTimezone();
+
+    tz.setLocalLocation(tz.getLocation(localTimezone.identifier));
 
     const AndroidInitializationSettings androidSettings =
         AndroidInitializationSettings('@mipmap/ic_launcher');
 
     const DarwinInitializationSettings iosSettings =
         DarwinInitializationSettings(
-      requestAlertPermission: true,
-      requestBadgePermission: true,
-      requestSoundPermission: true,
-    );
+          requestAlertPermission: true,
+          requestBadgePermission: true,
+          requestSoundPermission: true,
+        );
 
     const InitializationSettings settings = InitializationSettings(
       android: androidSettings,
@@ -49,12 +48,8 @@ class NotificationService {
 
     await notificationsPlugin.initialize(
       settings: settings,
-      onDidReceiveNotificationResponse: (
-        NotificationResponse response,
-      ) {
-        debugPrint(
-          'Notification selected. Payload: ${response.payload}',
-        );
+      onDidReceiveNotificationResponse: (NotificationResponse response) {
+        debugPrint('Notification selected. Payload: ${response.payload}');
       },
     );
 
@@ -65,12 +60,9 @@ class NotificationService {
   static Future<bool> requestPermissions() async {
     final bool? permissionGranted = await notificationsPlugin
         .resolvePlatformSpecificImplementation<
-            IOSFlutterLocalNotificationsPlugin>()
-        ?.requestPermissions(
-          alert: true,
-          badge: true,
-          sound: true,
-        );
+          IOSFlutterLocalNotificationsPlugin
+        >()
+        ?.requestPermissions(alert: true, badge: true, sound: true);
 
     return permissionGranted ?? false;
   }
@@ -79,31 +71,26 @@ class NotificationService {
   static NotificationDetails _notificationDetails({
     String channelId = 'task_channel',
     String channelName = 'Task Notifications',
-    String channelDescription =
-        'Notifications for TrakOn tasks and reminders',
+    String channelDescription = 'Notifications for TrakOn tasks and reminders',
   }) {
     final AndroidNotificationDetails androidDetails =
         AndroidNotificationDetails(
-      channelId,
-      channelName,
-      channelDescription: channelDescription,
-      importance: Importance.max,
-      priority: Priority.high,
-      enableVibration: true,
-      playSound: true,
-    );
+          channelId,
+          channelName,
+          channelDescription: channelDescription,
+          importance: Importance.max,
+          priority: Priority.high,
+          enableVibration: true,
+          playSound: true,
+        );
 
-    const DarwinNotificationDetails iosDetails =
-        DarwinNotificationDetails(
+    const DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
       presentAlert: true,
       presentBadge: true,
       presentSound: true,
     );
 
-    return NotificationDetails(
-      android: androidDetails,
-      iOS: iosDetails,
-    );
+    return NotificationDetails(android: androidDetails, iOS: iosDetails);
   }
 
   // Converts a task ID into a safe group of notification IDs.
@@ -142,9 +129,7 @@ class NotificationService {
     String? payload,
   }) async {
     if (scheduledTime.isBefore(DateTime.now())) {
-      debugPrint(
-        'Notification $id was not scheduled because its time passed.',
-      );
+      debugPrint('Notification $id was not scheduled because its time passed.');
       return;
     }
 
@@ -152,18 +137,13 @@ class NotificationService {
       id: id,
       title: title,
       body: body,
-      scheduledDate: tz.TZDateTime.from(
-        scheduledTime,
-        tz.local,
-      ),
+      scheduledDate: tz.TZDateTime.from(scheduledTime, tz.local),
       notificationDetails: _notificationDetails(),
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       payload: payload,
     );
 
-    debugPrint(
-      'Scheduled notification $id for $scheduledTime.',
-    );
+    debugPrint('Scheduled notification $id for $scheduledTime.');
   }
 
   // ---------------------------------------------------------------------------
@@ -191,9 +171,7 @@ class NotificationService {
     // Schedules the normal reminder selected by the user.
     await scheduleNotification(
       id: baseId,
-      title: isHighPriority
-          ? 'High-Priority Task'
-          : 'Task Reminder',
+      title: isHighPriority ? 'High-Priority Task' : 'Task Reminder',
       body: taskTitle,
       scheduledTime: reminderTime,
       payload: 'task:$taskId',
@@ -201,22 +179,17 @@ class NotificationService {
 
     // High-priority tasks receive additional reminders.
     if (isHighPriority) {
-      final int safeRepeatCount =
-          highPriorityRepeatCount.clamp(0, 10);
+      final int safeRepeatCount = highPriorityRepeatCount.clamp(0, 10);
 
       for (int repeat = 1; repeat <= safeRepeatCount; repeat++) {
         final DateTime repeatTime = reminderTime.add(
-          Duration(
-            minutes:
-                highPriorityRepeatInterval.inMinutes * repeat,
-          ),
+          Duration(minutes: highPriorityRepeatInterval.inMinutes * repeat),
         );
 
         await scheduleNotification(
           id: baseId + repeat,
           title: 'High-Priority Task Still Waiting',
-          body:
-              '$taskTitle is still waiting. Stay focused and finish it.',
+          body: '$taskTitle is still waiting. Stay focused and finish it.',
           scheduledTime: repeatTime,
           payload: 'task:$taskId',
         );
@@ -226,9 +199,7 @@ class NotificationService {
     // This notification remains scheduled unless the task is completed,
     // edited, or deleted before the missed-task time.
     if (scheduleMissedTaskReminder) {
-      final DateTime missedTime = reminderTime.add(
-        missedTaskDelay,
-      );
+      final DateTime missedTime = reminderTime.add(missedTaskDelay);
 
       await scheduleNotification(
         id: baseId + 20,
@@ -249,19 +220,13 @@ class NotificationService {
 
     // Cancels the normal reminder and up to 10 repeated reminders.
     for (int offset = 0; offset <= 10; offset++) {
-      await notificationsPlugin.cancel(
-        id: baseId + offset,
-      );
+      await notificationsPlugin.cancel(id: baseId + offset);
     }
 
     // Cancels the missed-task reminder.
-    await notificationsPlugin.cancel(
-      id: baseId + 20,
-    );
+    await notificationsPlugin.cancel(id: baseId + 20);
 
-    debugPrint(
-      'Cancelled notifications for task $taskId.',
-    );
+    debugPrint('Cancelled notifications for task $taskId.');
   }
 
   // ---------------------------------------------------------------------------
@@ -276,19 +241,14 @@ class NotificationService {
     required DateTime scheduledTime,
     required int remainingTaskCount,
   }) async {
-    await notificationsPlugin.cancel(
-      id: dailySummaryNotificationId,
-    );
+    await notificationsPlugin.cancel(id: dailySummaryNotificationId);
 
     if (remainingTaskCount <= 0) {
-      debugPrint(
-        'Daily summary was not scheduled because no tasks remain.',
-      );
+      debugPrint('Daily summary was not scheduled because no tasks remain.');
       return;
     }
 
-    final String taskWord =
-        remainingTaskCount == 1 ? 'task' : 'tasks';
+    final String taskWord = remainingTaskCount == 1 ? 'task' : 'tasks';
 
     await scheduleNotification(
       id: dailySummaryNotificationId,
@@ -309,9 +269,7 @@ class NotificationService {
     required DateTime scheduledTime,
     required int remainingTaskCount,
   }) async {
-    await notificationsPlugin.cancel(
-      id: endOfDayNotificationId,
-    );
+    await notificationsPlugin.cancel(id: endOfDayNotificationId);
 
     if (remainingTaskCount <= 0) {
       debugPrint(
@@ -320,8 +278,7 @@ class NotificationService {
       return;
     }
 
-    final String taskWord =
-        remainingTaskCount == 1 ? 'task' : 'tasks';
+    final String taskWord = remainingTaskCount == 1 ? 'task' : 'tasks';
 
     await scheduleNotification(
       id: endOfDayNotificationId,
@@ -343,14 +300,12 @@ class NotificationService {
   }) async {
     if (carriedTaskCount <= 0) return;
 
-    final String taskWord =
-        carriedTaskCount == 1 ? 'task was' : 'tasks were';
+    final String taskWord = carriedTaskCount == 1 ? 'task was' : 'tasks were';
 
     await showNotification(
       id: carryOverNotificationId,
       title: 'Tasks Carried Over',
-      body:
-          '$carriedTaskCount unfinished $taskWord moved to today.',
+      body: '$carriedTaskCount unfinished $taskWord moved to today.',
       payload: 'carry_over',
     );
   }
@@ -366,9 +321,7 @@ class NotificationService {
     String message =
         'Small progress is still progress. Stay focused and keep moving.',
   }) async {
-    await notificationsPlugin.cancel(
-      id: motivationalNotificationId,
-    );
+    await notificationsPlugin.cancel(id: motivationalNotificationId);
 
     final tz.TZDateTime now = tz.TZDateTime.now(tz.local);
 
@@ -383,9 +336,7 @@ class NotificationService {
 
     // If today's time passed, begin tomorrow.
     if (nextNotification.isBefore(now)) {
-      nextNotification = nextNotification.add(
-        const Duration(days: 1),
-      );
+      nextNotification = nextNotification.add(const Duration(days: 1));
     }
 
     await notificationsPlugin.zonedSchedule(
@@ -396,8 +347,7 @@ class NotificationService {
       notificationDetails: _notificationDetails(
         channelId: 'motivation_channel',
         channelName: 'Motivational Notifications',
-        channelDescription:
-            'Daily motivation and productivity messages',
+        channelDescription: 'Daily motivation and productivity messages',
       ),
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       matchDateTimeComponents: DateTimeComponents.time,
@@ -411,9 +361,7 @@ class NotificationService {
 
   // Cancels the recurring motivational notification.
   static Future<void> cancelDailyMotivationalNotification() async {
-    await notificationsPlugin.cancel(
-      id: motivationalNotificationId,
-    );
+    await notificationsPlugin.cancel(id: motivationalNotificationId);
   }
 
   // ---------------------------------------------------------------------------
@@ -421,9 +369,7 @@ class NotificationService {
   // ---------------------------------------------------------------------------
 
   // Shows a congratulatory notification when the streak increases.
-  static Future<void> showStreakNotification({
-    required int streakCount,
-  }) async {
+  static Future<void> showStreakNotification({required int streakCount}) async {
     if (streakCount <= 0) return;
 
     final String dayWord = streakCount == 1 ? 'day' : 'days';
@@ -440,19 +386,14 @@ class NotificationService {
   // Shows a notification when every task for the day is complete.
   static Future<void> showDayCompletedNotification() async {
     // An end-of-day reminder is no longer needed.
-    await notificationsPlugin.cancel(
-      id: dailySummaryNotificationId,
-    );
+    await notificationsPlugin.cancel(id: dailySummaryNotificationId);
 
-    await notificationsPlugin.cancel(
-      id: endOfDayNotificationId,
-    );
+    await notificationsPlugin.cancel(id: endOfDayNotificationId);
 
     await showNotification(
       id: dayCompletedNotificationId,
       title: 'Day Complete!',
-      body:
-          'You completed all of today’s tasks. Great work staying on track!',
+      body: 'You completed all of today’s tasks. Great work staying on track!',
       payload: 'day_complete',
     );
   }
@@ -471,69 +412,55 @@ class NotificationService {
       id: 9100001,
       title: 'Task Reminder Test',
       body: 'This is a standard task reminder.',
-      scheduledTime: now.add(
-        const Duration(seconds: 10),
-      ),
+      scheduledTime: now.add(const Duration(seconds: 10)),
     );
 
     await scheduleNotification(
       id: 9100002,
       title: 'High-Priority Test',
       body: 'This task needs your attention.',
-      scheduledTime: now.add(
-        const Duration(seconds: 20),
-      ),
+      scheduledTime: now.add(const Duration(seconds: 20)),
     );
 
     await scheduleNotification(
       id: 9100003,
       title: 'Missed Task Test',
       body: 'This task has not been marked complete.',
-      scheduledTime: now.add(
-        const Duration(seconds: 30),
-      ),
+      scheduledTime: now.add(const Duration(seconds: 30)),
     );
 
     await scheduleNotification(
       id: 9100004,
       title: 'Daily Summary Test',
       body: 'You have 3 tasks remaining today.',
-      scheduledTime: now.add(
-        const Duration(seconds: 40),
-      ),
+      scheduledTime: now.add(const Duration(seconds: 40)),
     );
 
     await scheduleNotification(
       id: 9100005,
       title: 'End-of-Day Test',
       body: 'Finish strong or prepare your remaining tasks for tomorrow.',
-      scheduledTime: now.add(
-        const Duration(seconds: 50),
-      ),
+      scheduledTime: now.add(const Duration(seconds: 50)),
     );
 
     await scheduleNotification(
       id: 9100006,
       title: 'Carry-Over Test',
       body: '2 unfinished tasks were moved to today.',
-      scheduledTime: now.add(
-        const Duration(seconds: 60),
-      ),
+      scheduledTime: now.add(const Duration(seconds: 60)),
     );
 
     await scheduleNotification(
       id: 9100007,
       title: 'Motivation Test',
       body: 'Stay focused. Every completed task moves you forward.',
-      scheduledTime: now.add(
-        const Duration(seconds: 70),
-      ),
+      scheduledTime: now.add(const Duration(seconds: 70)),
     );
   }
 
   // Returns all notifications that are currently waiting to be delivered.
   static Future<List<PendingNotificationRequest>>
-      getPendingNotifications() async {
+  getPendingNotifications() async {
     return notificationsPlugin.pendingNotificationRequests();
   }
 

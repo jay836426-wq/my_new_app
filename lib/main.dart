@@ -33,37 +33,27 @@ import 'screens/email_otp_screen.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await Firebase.initializeApp(
-  options: DefaultFirebaseOptions.currentPlatform,
-);
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   await NotificationService.init();
   await NotificationService.requestPermissions();
 
   // Show a notification
-  
 
   final prefs = await SharedPreferences.getInstance();
 
   // await prefs.setBool('hasSeenOnboarding', false);
 
+  final bool hasSeenOnboarding = prefs.getBool('hasSeenOnboarding') ?? false;
 
-  final bool hasSeenOnboarding =
-      prefs.getBool('hasSeenOnboarding') ?? false;
+  final bool isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
 
-  final bool isLoggedIn = 
-       prefs.getBool('isLoggedIn') ?? false;
-  
   debugPrint('isLoggedIn: $isLoggedIn');
   debugPrint('hasSeenOnboarding: $hasSeenOnboarding');
 
-  runApp(
-    MyApp(
-      hasSeenOnboarding: hasSeenOnboarding,
-      isLoggedIn: isLoggedIn,
-    ),
-  );
+  runApp(MyApp(hasSeenOnboarding: hasSeenOnboarding, isLoggedIn: isLoggedIn));
 }
+
 // Root widget of the app
 class MyApp extends StatelessWidget {
   final bool hasSeenOnboarding;
@@ -84,9 +74,7 @@ class MyApp extends StatelessWidget {
 
         scaffoldBackgroundColor: Colors.black,
         canvasColor: Colors.black,
-        dialogTheme: const DialogThemeData(
-          backgroundColor: Colors.black,
-        ),
+        dialogTheme: const DialogThemeData(backgroundColor: Colors.black),
 
         appBarTheme: const AppBarTheme(
           backgroundColor: Colors.black,
@@ -130,7 +118,6 @@ class WelcomeScreen extends StatefulWidget {
 
 class _WelcomeScreenState extends State<WelcomeScreen>
     with SingleTickerProviderStateMixin {
-
   String displayedText = '';
 
   bool showTrack = false;
@@ -161,14 +148,8 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     );
 
     // Logo gently grows into place
-    _logoScale = Tween<double>(
-      begin: 0.80,
-      end: 1.0,
-    ).animate(
-      CurvedAnimation(
-        parent: _logoController,
-        curve: Curves.easeOutBack,
-      ),
+    _logoScale = Tween<double>(begin: 0.80, end: 1.0).animate(
+      CurvedAnimation(parent: _logoController, curve: Curves.easeOutBack),
     );
 
     startIntroAnimation();
@@ -263,7 +244,6 @@ class _WelcomeScreenState extends State<WelcomeScreen>
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-
               // TrakOn Logo
               FadeTransition(
                 opacity: _logoOpacity,
@@ -296,21 +276,16 @@ class _WelcomeScreenState extends State<WelcomeScreen>
 
               // Animated Motto
               AnimatedOpacity(
-                opacity:
-                    showTrack || showFocus || showAchieve ? 1.0 : 0.0,
+                opacity: showTrack || showFocus || showAchieve ? 1.0 : 0.0,
                 duration: const Duration(milliseconds: 500),
 
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-
                     if (showTrack)
                       const Text(
                         'Track.',
-                        style: TextStyle(
-                          fontSize: 18,
-                          color: Colors.white70,
-                        ),
+                        style: TextStyle(fontSize: 18, color: Colors.white70),
                       ),
 
                     if (showFocus)
@@ -318,10 +293,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                         padding: EdgeInsets.only(left: 6),
                         child: Text(
                           'Focus.',
-                          style: TextStyle(
-                            fontSize: 18,
-                            color: Colors.white70,
-                          ),
+                          style: TextStyle(fontSize: 18, color: Colors.white70),
                         ),
                       ),
 
@@ -330,10 +302,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                         padding: EdgeInsets.only(left: 6),
                         child: Text(
                           'Achieve.',
-                          style: TextStyle(
-                            fontSize: 18,
-                            color: Colors.white70,
-                          ),
+                          style: TextStyle(fontSize: 18, color: Colors.white70),
                         ),
                       ),
                   ],
@@ -359,8 +328,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                           ),
 
                           onPressed: () async {
-                            final prefs =
-                                await SharedPreferences.getInstance();
+                            final prefs = await SharedPreferences.getInstance();
 
                             bool isLoggedIn =
                                 prefs.getBool('isLoggedIn') ?? false;
@@ -429,7 +397,12 @@ class AuthChoiceScreen extends StatelessWidget {
           children: [
             const Text(
               'Lets get you started',
-              style: TextStyle(fontSize: 28, fontWeight: FontWeight.w600, color:Colors.white, letterSpacing: 0.5),
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
+                letterSpacing: 0.5,
+              ),
             ),
 
             const SizedBox(height: 30),
@@ -454,7 +427,7 @@ class AuthChoiceScreen extends StatelessWidget {
                 },
                 child: const Text(
                   'Create Account',
-                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                 ),
               ),
             ),
@@ -531,119 +504,106 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     super.dispose();
   }
 
-Future<void> submitForm() async {
-  if (!_formKey.currentState!.validate()) return;
+  Future<void> submitForm() async {
+    if (!_formKey.currentState!.validate()) return;
 
-  if (useEmail) {
-    await createEmailAccount();
-  } else {
-    await startPhoneAccount();
-  }
-}
-
-Future<void> startPhoneAccount() async {
-  String phoneNumber = phoneController.text.trim();
-
-  // Remove common formatting characters
-  phoneNumber = phoneNumber.replaceAll(
-    RegExp(r'[\s\-\(\)]'),
-    '',
-  );
-
-  // Automatically format a 10-digit US number
-  if (RegExp(r'^\d{10}$').hasMatch(phoneNumber)) {
-    phoneNumber = '+1$phoneNumber';
+    if (useEmail) {
+      await createEmailAccount();
+    } else {
+      await startPhoneAccount();
+    }
   }
 
-  // If user typed 1 + 10 digits, add the +
-  if (RegExp(r'^1\d{10}$').hasMatch(phoneNumber)) {
-    phoneNumber = '+$phoneNumber';
-  }
+  Future<void> startPhoneAccount() async {
+    String phoneNumber = phoneController.text.trim();
 
-  if (!phoneNumber.startsWith('+')) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Please enter a valid phone number.',
-        ),
-      ),
-    );
-    return;
-  }
+    // Remove common formatting characters
+    phoneNumber = phoneNumber.replaceAll(RegExp(r'[\s\-\(\)]'), '');
 
-  Navigator.of(context).push(
-    MaterialPageRoute(
-      builder: (context) => PhoneVerificationScreen(
-        phoneNumber: phoneNumber,
-        firstName: firstNameController.text.trim(),
-        lastName: lastNameController.text.trim(),
-        username: usernameController.text.trim(),
-        dateOfBirth: dobController.text.trim(),
-        password: passwordController.text,
-      ),
-    ),
-  );
-}
-
-Future<void> createEmailAccount() async {
-  try {
-    final email = emailController.text.trim();
-    final password = passwordController.text;
-
-    final credential =
-        await FirebaseAuth.instance.createUserWithEmailAndPassword(
-      email: email,
-      password: password,
-    );
-
-    final user = credential.user;
-
-    if (user == null) {
-      throw Exception('Account could not be created.');
+    // Automatically format a 10-digit US number
+    if (RegExp(r'^\d{10}$').hasMatch(phoneNumber)) {
+      phoneNumber = '+1$phoneNumber';
     }
 
-    final fullName =
-        '${firstNameController.text.trim()} ${lastNameController.text.trim()}';
+    // If user typed 1 + 10 digits, add the +
+    if (RegExp(r'^1\d{10}$').hasMatch(phoneNumber)) {
+      phoneNumber = '+$phoneNumber';
+    }
 
-    await user.updateDisplayName(fullName);
+    if (!phoneNumber.startsWith('+')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a valid phone number.')),
+      );
+      return;
+    }
 
-    final callable =
-    FirebaseFunctions.instance.httpsCallable('sendEmailOtp');
-
-    await callable.call({
-      'email': email,
-    });
-
-    if (!mounted) return;
-
-    Navigator.of(context).pushReplacement(
+    Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => EmailOtpScreen(
-          email: email,
+        builder: (context) => PhoneVerificationScreen(
+          phoneNumber: phoneNumber,
           firstName: firstNameController.text.trim(),
           lastName: lastNameController.text.trim(),
           username: usernameController.text.trim(),
           dateOfBirth: dobController.text.trim(),
+          password: passwordController.text,
         ),
       ),
     );
-  } on FirebaseAuthException catch (e) {
-    String message = 'Unable to create account.';
+  }
 
-    if (e.code == 'email-already-in-use') {
-      message = 'An account already exists with this email.';
-    } else if (e.code == 'invalid-email') {
-      message = 'Please enter a valid email address.';
-    } else if (e.code == 'weak-password') {
-      message = 'Please choose a stronger password.';
-    }
+  Future<void> createEmailAccount() async {
+    try {
+      final email = emailController.text.trim();
+      final password = passwordController.text;
 
-    if (!mounted) return;
+      final credential = await FirebaseAuth.instance
+          .createUserWithEmailAndPassword(email: email, password: password);
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
-  } on FirebaseFunctionsException catch (e) {
+      final user = credential.user;
+
+      if (user == null) {
+        throw Exception('Account could not be created.');
+      }
+
+      final fullName =
+          '${firstNameController.text.trim()} ${lastNameController.text.trim()}';
+
+      await user.updateDisplayName(fullName);
+
+      final callable = FirebaseFunctions.instance.httpsCallable('sendEmailOtp');
+
+      await callable.call({'email': email});
+
+      if (!mounted) return;
+
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (context) => EmailOtpScreen(
+            email: email,
+            firstName: firstNameController.text.trim(),
+            lastName: lastNameController.text.trim(),
+            username: usernameController.text.trim(),
+            dateOfBirth: dobController.text.trim(),
+          ),
+        ),
+      );
+    } on FirebaseAuthException catch (e) {
+      String message = 'Unable to create account.';
+
+      if (e.code == 'email-already-in-use') {
+        message = 'An account already exists with this email.';
+      } else if (e.code == 'invalid-email') {
+        message = 'Please enter a valid email address.';
+      } else if (e.code == 'weak-password') {
+        message = 'Please choose a stronger password.';
+      }
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    } on FirebaseFunctionsException catch (e) {
       if (!mounted) return;
 
       debugPrint('FUNCTION ERROR CODE: ${e.code}');
@@ -651,24 +611,19 @@ Future<void> createEmailAccount() async {
       debugPrint('FUNCTION ERROR DETAILS: ${e.details}');
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Function error: ${e.message ?? e.code}',
-          ),
-        ),
+        SnackBar(content: Text('Function error: ${e.message ?? e.code}')),
       );
     } catch (e) {
       debugPrint('GENERAL ERROR: $e');
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: $e'),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: $e')));
     }
-}
+  }
+
   bool useEmail = true;
   bool obscurePassword = true;
 
@@ -677,106 +632,112 @@ Future<void> createEmailAccount() async {
     final regex = RegExp(r'[!@#$%^&*(),.?":{}|<>]');
     return regex.hasMatch(value);
   }
-    // Opens a date picker when the user taps the DOB field
-    Future<void> selectDateOfBirth() async {
-      DateTime selectedDate = DateTime(2000, 1, 1);
 
-      // If the text field already has a date, try to use it first
-      if (dobController.text.isNotEmpty) {
-        final parts = dobController.text.split('/');
-        if (parts.length == 3) {
-          final month = int.tryParse(parts[0]);
-          final day = int.tryParse(parts[1]);
-          final year = int.tryParse(parts[2]);
+  // Opens a date picker when the user taps the DOB field
+  Future<void> selectDateOfBirth() async {
+    DateTime selectedDate = DateTime(2000, 1, 1);
 
-          if (month != null && day != null && year != null) {
-            selectedDate = DateTime(year, month, day);
-          }
+    // If the text field already has a date, try to use it first
+    if (dobController.text.isNotEmpty) {
+      final parts = dobController.text.split('/');
+      if (parts.length == 3) {
+        final month = int.tryParse(parts[0]);
+        final day = int.tryParse(parts[1]);
+        final year = int.tryParse(parts[2]);
+
+        if (month != null && day != null && year != null) {
+          selectedDate = DateTime(year, month, day);
         }
       }
-
-      await showModalBottomSheet(
-        context: context,
-        backgroundColor: Colors.black,
-        builder: (context) {
-          DateTime tempPickedDate = selectedDate;
-
-          return SizedBox(
-            height: 300,
-            child: Column(
-              children: [
-                // Top action bar
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      TextButton(
-                        onPressed: () {
-                          Navigator.pop(context);
-                        },
-                        child: const Text(
-                          'Cancel',
-                          style: TextStyle(color: Colors.white),
-                        ),
-                      ),
-                      TextButton(
-                        onPressed: () {
-                          final month =
-                              tempPickedDate.month.toString().padLeft(2, '0');
-                          final day =
-                              tempPickedDate.day.toString().padLeft(2, '0');
-                          final year = tempPickedDate.year.toString();
-
-                          setState(() {
-                            dobController.text = '$month/$day/$year';
-                          });
-
-                          Navigator.pop(context);
-                        },
-                        child: const Text(
-                          'Done',
-                          style: TextStyle(color: Colors.white),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const Divider(color: Colors.white24, height: 1),
-
-                Expanded(
-                  child: CupertinoTheme(
-                    data: const CupertinoThemeData(
-                      brightness: Brightness.dark,
-                    ),
-                    child: CupertinoDatePicker(
-                      mode: CupertinoDatePickerMode.date,
-                      initialDateTime: selectedDate,
-                      minimumDate: DateTime(1900),
-                      maximumDate: DateTime.now(),
-                      onDateTimeChanged: (DateTime newDate) {
-                        tempPickedDate = newDate;
-                      },
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
-      );
     }
+
+    await showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.black,
+      builder: (context) {
+        DateTime tempPickedDate = selectedDate;
+
+        return SizedBox(
+          height: 300,
+          child: Column(
+            children: [
+              // Top action bar
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    TextButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                      },
+                      child: const Text(
+                        'Cancel',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        final month = tempPickedDate.month.toString().padLeft(
+                          2,
+                          '0',
+                        );
+                        final day = tempPickedDate.day.toString().padLeft(
+                          2,
+                          '0',
+                        );
+                        final year = tempPickedDate.year.toString();
+
+                        setState(() {
+                          dobController.text = '$month/$day/$year';
+                        });
+
+                        Navigator.pop(context);
+                      },
+                      child: const Text(
+                        'Done',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const Divider(color: Colors.white24, height: 1),
+
+              Expanded(
+                child: CupertinoTheme(
+                  data: const CupertinoThemeData(brightness: Brightness.dark),
+                  child: CupertinoDatePicker(
+                    mode: CupertinoDatePickerMode.date,
+                    initialDateTime: selectedDate,
+                    minimumDate: DateTime(1900),
+                    maximumDate: DateTime.now(),
+                    onDateTimeChanged: (DateTime newDate) {
+                      tempPickedDate = newDate;
+                    },
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-      return Scaffold(
-    backgroundColor: Colors.black,
-    appBar: AppBar(
-      title: const Text('Create Account'),
+    return Scaffold(
       backgroundColor: Colors.black,
-      foregroundColor: Colors.white,
-    ),
+      appBar: AppBar(
+        title: const Text('Create Account'),
+        backgroundColor: Colors.black,
+        foregroundColor: Colors.white,
+      ),
 
       body: Padding(
         padding: const EdgeInsets.all(24),
@@ -853,7 +814,7 @@ Future<void> createEmailAccount() async {
                   if (value == null || value.trim().isEmpty) {
                     return 'Enter a username';
                   }
-                  if(value.trim().length < 3) {
+                  if (value.trim().length < 3) {
                     return 'Username must be at least 3 characters';
                   }
                   return null;
@@ -912,9 +873,7 @@ Future<void> createEmailAccount() async {
                     decoration: BoxDecoration(
                       color: Colors.grey.shade900,
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: Colors.white24,
-                      ),
+                      border: Border.all(color: Colors.white24),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -938,9 +897,7 @@ Future<void> createEmailAccount() async {
                             child: Text(
                               'Email',
                               style: TextStyle(
-                                color: useEmail
-                                    ? Colors.black
-                                    : Colors.white70,
+                                color: useEmail ? Colors.black : Colors.white70,
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -983,7 +940,6 @@ Future<void> createEmailAccount() async {
               ),
 
               const SizedBox(height: 16),
-
 
               // EMAIL or Phone FIELD
               if (useEmail)
@@ -1035,47 +991,45 @@ Future<void> createEmailAccount() async {
                   },
                 ),
 
-                const SizedBox(height: 16),
+              const SizedBox(height: 16),
 
-                TextFormField(
-                  controller: passwordController,
-                  obscureText: obscurePassword,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: InputDecoration(
-                    labelText: 'Password',
-                    labelStyle: const TextStyle(color: Colors.white),
-                    enabledBorder: const OutlineInputBorder(
-                      borderSide: BorderSide(color: Colors.white),
-                    ),
-                    focusedBorder: const OutlineInputBorder(
-                      borderSide: BorderSide(color: Colors.white),
-                    ),
-                    suffixIcon: IconButton(
-                      onPressed: () {
-                        setState(() {
-                          obscurePassword = !obscurePassword;
-                        });
-                      },
-                      icon: Icon(
-                        obscurePassword
-                            ? Icons.visibility_off
-                            : Icons.visibility,
-                        color: Colors.white,
-                      ),
+              TextFormField(
+                controller: passwordController,
+                obscureText: obscurePassword,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  labelText: 'Password',
+                  labelStyle: const TextStyle(color: Colors.white),
+                  enabledBorder: const OutlineInputBorder(
+                    borderSide: BorderSide(color: Colors.white),
+                  ),
+                  focusedBorder: const OutlineInputBorder(
+                    borderSide: BorderSide(color: Colors.white),
+                  ),
+                  suffixIcon: IconButton(
+                    onPressed: () {
+                      setState(() {
+                        obscurePassword = !obscurePassword;
+                      });
+                    },
+                    icon: Icon(
+                      obscurePassword ? Icons.visibility_off : Icons.visibility,
+                      color: Colors.white,
                     ),
                   ),
-                  validator: (value) {
-                    if (value == null || value.length < 7) {
-                      return 'Minimum 7 characters';
-                    }
-
-                    if (!hasSpecialCharacter(value)) {
-                      return 'Add a special character';
-                    }
-
-                    return null;
-                  },
                 ),
+                validator: (value) {
+                  if (value == null || value.length < 7) {
+                    return 'Minimum 7 characters';
+                  }
+
+                  if (!hasSpecialCharacter(value)) {
+                    return 'Add a special character';
+                  }
+
+                  return null;
+                },
+              ),
 
               const SizedBox(height: 24),
 
@@ -1110,158 +1064,136 @@ class _LoginScreenState extends State<LoginScreen> {
   bool obscurePassword = true;
 
   Future<void> loginUser() async {
-  final loginInput = loginController.text.trim();
-  final passwordInput = passwordController.text;
+    final loginInput = loginController.text.trim();
+    final passwordInput = passwordController.text;
 
-  if (loginInput.isEmpty || passwordInput.isEmpty) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Enter your username/email/phone and password.'),
-      ),
-    );
-    return;
-  }
-
-  try {
-    String resolvedType;
-    String? resolvedEmail;
-    String? resolvedPhone;
-
-    if (loginInput.contains('@')) {
-      resolvedType = 'email';
-      resolvedEmail = loginInput;
-    } else if (RegExp(r'^[\d\+\-\(\)\s]+$').hasMatch(loginInput)) {
-      resolvedType = 'phone';
-      resolvedPhone = loginInput;
-    } else {
-      final resolver =
-          FirebaseFunctions.instance.httpsCallable('resolveUsername');
-
-      final result = await resolver.call({
-        'username': loginInput,
-      });
-
-      resolvedType = result.data['authMethod'];
-      resolvedEmail = result.data['email'];
-      resolvedPhone = result.data['phoneNumber'];
-    }
-
-    if (resolvedType == 'email') {
-      if (resolvedEmail == null) {
-        throw Exception('Email account could not be resolved.');
-      }
-
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: resolvedEmail,
-        password: passwordInput,
-      );
-    } else if (resolvedType == 'phone') {
-      if (resolvedPhone == null) {
-        throw Exception('Phone account could not be resolved.');
-      }
-
-      String phoneNumber = resolvedPhone;
-
-      phoneNumber = phoneNumber.replaceAll(
-        RegExp(r'[\s\-\(\)]'),
-        '',
-      );
-
-      if (RegExp(r'^\d{10}$').hasMatch(phoneNumber)) {
-        phoneNumber = '+1$phoneNumber';
-      } else if (RegExp(r'^1\d{10}$').hasMatch(phoneNumber)) {
-        phoneNumber = '+$phoneNumber';
-      }
-
-      final callable =
-          FirebaseFunctions.instance
-              .httpsCallable('loginWithPhonePassword');
-
-      final result = await callable.call({
-        'phoneNumber': phoneNumber,
-        'password': passwordInput,
-      });
-
-      final customToken = result.data['customToken'];
-
-      if (customToken == null) {
-        throw Exception('Login token was not returned.');
-      }
-
-      await FirebaseAuth.instance.signInWithCustomToken(
-        customToken,
-      );
-    } else {
-      throw Exception('Unsupported authentication method.');
-    }
-
-    final prefs =
-        await SharedPreferences.getInstance();
-
-    await prefs.setBool(
-      'rememberMe',
-      rememberMe,
-    );
-
-    await prefs.setBool(
-      'isLoggedIn',
-      rememberMe,
-    );
-
-    if (!mounted) return;
-
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
-        builder: (context) =>
-            const MainNavigationScreen(),
-      ),
-    );
-  } on FirebaseAuthException catch (e) {
-    if (!mounted) return;
-
-    String message =
-        'Incorrect username/email/phone or password.';
-
-    if (e.code == 'invalid-email') {
-      message = 'Enter a valid email address.';
-    } else if (e.code == 'user-not-found') {
-      message = 'No account was found.';
-    } else if (e.code == 'wrong-password' ||
-        e.code == 'invalid-credential') {
-      message = 'Incorrect login information.';
-    }
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
-  } on FirebaseFunctionsException catch (e) {
-    if (!mounted) return;
-
-    String message =
-        e.message ?? 'Unable to log in.';
-
-    if (e.code == 'not-found') {
-      message = 'No account was found.';
-    } else if (e.code == 'unauthenticated') {
-      message = 'Incorrect login information.';
-    }
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
-  } catch (e) {
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Something went wrong. Please try again.',
+    if (loginInput.isEmpty || passwordInput.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Enter your username/email/phone and password.'),
         ),
-      ),
-    );
-  }
-}
+      );
+      return;
+    }
 
+    try {
+      String resolvedType;
+      String? resolvedEmail;
+      String? resolvedPhone;
+
+      if (loginInput.contains('@')) {
+        resolvedType = 'email';
+        resolvedEmail = loginInput;
+      } else if (RegExp(r'^[\d\+\-\(\)\s]+$').hasMatch(loginInput)) {
+        resolvedType = 'phone';
+        resolvedPhone = loginInput;
+      } else {
+        final resolver = FirebaseFunctions.instance.httpsCallable(
+          'resolveUsername',
+        );
+
+        final result = await resolver.call({'username': loginInput});
+
+        resolvedType = result.data['authMethod'];
+        resolvedEmail = result.data['email'];
+        resolvedPhone = result.data['phoneNumber'];
+      }
+
+      if (resolvedType == 'email') {
+        if (resolvedEmail == null) {
+          throw Exception('Email account could not be resolved.');
+        }
+
+        await FirebaseAuth.instance.signInWithEmailAndPassword(
+          email: resolvedEmail,
+          password: passwordInput,
+        );
+      } else if (resolvedType == 'phone') {
+        if (resolvedPhone == null) {
+          throw Exception('Phone account could not be resolved.');
+        }
+
+        String phoneNumber = resolvedPhone;
+
+        phoneNumber = phoneNumber.replaceAll(RegExp(r'[\s\-\(\)]'), '');
+
+        if (RegExp(r'^\d{10}$').hasMatch(phoneNumber)) {
+          phoneNumber = '+1$phoneNumber';
+        } else if (RegExp(r'^1\d{10}$').hasMatch(phoneNumber)) {
+          phoneNumber = '+$phoneNumber';
+        }
+
+        final callable = FirebaseFunctions.instance.httpsCallable(
+          'loginWithPhonePassword',
+        );
+
+        final result = await callable.call({
+          'phoneNumber': phoneNumber,
+          'password': passwordInput,
+        });
+
+        final customToken = result.data['customToken'];
+
+        if (customToken == null) {
+          throw Exception('Login token was not returned.');
+        }
+
+        await FirebaseAuth.instance.signInWithCustomToken(customToken);
+      } else {
+        throw Exception('Unsupported authentication method.');
+      }
+
+      final prefs = await SharedPreferences.getInstance();
+
+      await prefs.setBool('rememberMe', rememberMe);
+
+      await prefs.setBool('isLoggedIn', rememberMe);
+
+      if (!mounted) return;
+
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (context) => const MainNavigationScreen()),
+      );
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+
+      String message = 'Incorrect username/email/phone or password.';
+
+      if (e.code == 'invalid-email') {
+        message = 'Enter a valid email address.';
+      } else if (e.code == 'user-not-found') {
+        message = 'No account was found.';
+      } else if (e.code == 'wrong-password' || e.code == 'invalid-credential') {
+        message = 'Incorrect login information.';
+      }
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    } on FirebaseFunctionsException catch (e) {
+      if (!mounted) return;
+
+      String message = e.message ?? 'Unable to log in.';
+
+      if (e.code == 'not-found') {
+        message = 'No account was found.';
+      } else if (e.code == 'unauthenticated') {
+        message = 'Incorrect login information.';
+      }
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Something went wrong. Please try again.'),
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1309,9 +1241,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 suffixIcon: IconButton(
                   icon: Icon(
-                    obscurePassword
-                        ? Icons.visibility_off
-                        : Icons.visibility,
+                    obscurePassword ? Icons.visibility_off : Icons.visibility,
                     color: Colors.white70,
                   ),
                   onPressed: () {
@@ -1320,55 +1250,49 @@ class _LoginScreenState extends State<LoginScreen> {
                     });
                   },
                 ),
-                        ),
-        ),
-
-        const SizedBox(height: 4),
-
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) =>
-                        const ForgotUsernameScreen(),
-                  ),
-                );
-              },
-              child: const Text(
-                'Forgot Username?',
-                style: TextStyle(
-                  color: Colors.white70,
-                ),
               ),
             ),
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) =>
-                        const ForgotPasswordScreen(),
+
+            const SizedBox(height: 4),
+
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => const ForgotUsernameScreen(),
+                      ),
+                    );
+                  },
+                  child: const Text(
+                    'Forgot Username?',
+                    style: TextStyle(color: Colors.white70),
                   ),
-                );
-              },
-              child: const Text(
-                'Forgot Password?',
-                style: TextStyle(
-                  color: Colors.white70,
                 ),
-              ),
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => const ForgotPasswordScreen(),
+                      ),
+                    );
+                  },
+                  child: const Text(
+                    'Forgot Password?',
+                    style: TextStyle(color: Colors.white70),
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
 
-        const SizedBox(height: 4),
+            const SizedBox(height: 4),
 
-        Row(
-          children: [
-            Checkbox(
-              value: rememberMe,
+            Row(
+              children: [
+                Checkbox(
+                  value: rememberMe,
                   activeColor: Colors.greenAccent,
                   checkColor: Colors.black,
                   onChanged: (value) {
@@ -1401,20 +1325,18 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 }
 
-  // ---------------------------
-  // Forget Password Screen
-  // ---------------------------
+// ---------------------------
+// Forget Password Screen
+// ---------------------------
 
-  class ForgotPasswordScreen extends StatefulWidget {
+class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
 
   @override
-  State<ForgotPasswordScreen> createState() =>
-      _ForgotPasswordScreenState();
+  State<ForgotPasswordScreen> createState() => _ForgotPasswordScreenState();
 }
 
-class _ForgotPasswordScreenState
-    extends State<ForgotPasswordScreen> {
+class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   final emailController = TextEditingController();
 
   bool sending = false;
@@ -1424,9 +1346,7 @@ class _ForgotPasswordScreenState
 
     if (email.isEmpty || !email.contains('@')) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Enter a valid email address.'),
-        ),
+        const SnackBar(content: Text('Enter a valid email address.')),
       );
       return;
     }
@@ -1436,24 +1356,19 @@ class _ForgotPasswordScreenState
     });
 
     try {
-      await FirebaseAuth.instance.sendPasswordResetEmail(
-        email: email,
-      );
+      await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
 
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            'Password reset email sent. Check your inbox.',
-          ),
+          content: Text('Password reset email sent. Check your inbox.'),
         ),
       );
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
 
-      String message =
-          e.message ?? 'Unable to send reset email.';
+      String message = e.message ?? 'Unable to send reset email.';
 
       if (e.code == 'user-not-found') {
         message = 'No account was found with that email.';
@@ -1461,9 +1376,9 @@ class _ForgotPasswordScreenState
         message = 'Enter a valid email address.';
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
     } finally {
       if (mounted) {
         setState(() {
@@ -1492,17 +1407,11 @@ class _ForgotPasswordScreenState
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: ConstrainedBox(
-            constraints: const BoxConstraints(
-              maxWidth: 420,
-            ),
+            constraints: const BoxConstraints(maxWidth: 420),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Icon(
-                  Icons.lock_reset,
-                  color: Colors.white,
-                  size: 64,
-                ),
+                const Icon(Icons.lock_reset, color: Colors.white, size: 64),
                 const SizedBox(height: 24),
                 const Text(
                   'Reset your password',
@@ -1517,10 +1426,7 @@ class _ForgotPasswordScreenState
                 const Text(
                   'Enter the email address linked to your TrakOn account.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 16,
-                  ),
+                  style: TextStyle(color: Colors.white70, fontSize: 16),
                 ),
                 const SizedBox(height: 30),
                 TextField(
@@ -1529,29 +1435,19 @@ class _ForgotPasswordScreenState
                   style: const TextStyle(color: Colors.white),
                   decoration: const InputDecoration(
                     labelText: 'Email',
-                    labelStyle: TextStyle(
-                      color: Colors.white70,
-                    ),
+                    labelStyle: TextStyle(color: Colors.white70),
                     enabledBorder: OutlineInputBorder(
-                      borderSide: BorderSide(
-                        color: Colors.white38,
-                      ),
+                      borderSide: BorderSide(color: Colors.white38),
                     ),
                     focusedBorder: OutlineInputBorder(
-                      borderSide: BorderSide(
-                        color: Colors.white,
-                      ),
+                      borderSide: BorderSide(color: Colors.white),
                     ),
                   ),
                 ),
                 const SizedBox(height: 20),
                 ElevatedButton(
                   onPressed: sending ? null : sendResetEmail,
-                  child: Text(
-                    sending
-                        ? 'Sending...'
-                        : 'Send Reset Email',
-                  ),
+                  child: Text(sending ? 'Sending...' : 'Send Reset Email'),
                 ),
               ],
             ),
@@ -1569,12 +1465,10 @@ class ForgotUsernameScreen extends StatefulWidget {
   const ForgotUsernameScreen({super.key});
 
   @override
-  State<ForgotUsernameScreen> createState() =>
-      _ForgotUsernameScreenState();
+  State<ForgotUsernameScreen> createState() => _ForgotUsernameScreenState();
 }
 
-class _ForgotUsernameScreenState
-    extends State<ForgotUsernameScreen> {
+class _ForgotUsernameScreenState extends State<ForgotUsernameScreen> {
   final emailController = TextEditingController();
 
   bool sending = false;
@@ -1584,9 +1478,7 @@ class _ForgotUsernameScreenState
 
     if (email.isEmpty || !email.contains('@')) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Enter a valid email address.'),
-        ),
+        const SnackBar(content: Text('Enter a valid email address.')),
       );
       return;
     }
@@ -1596,13 +1488,11 @@ class _ForgotUsernameScreenState
     });
 
     try {
-      final callable =
-          FirebaseFunctions.instance
-              .httpsCallable('sendUsernameReminder');
+      final callable = FirebaseFunctions.instance.httpsCallable(
+        'sendUsernameReminder',
+      );
 
-      await callable.call({
-        'email': email,
-      });
+      await callable.call({'email': email});
 
       if (!mounted) return;
 
@@ -1619,10 +1509,7 @@ class _ForgotUsernameScreenState
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            e.message ??
-                'Unable to send username reminder.',
-          ),
+          content: Text(e.message ?? 'Unable to send username reminder.'),
         ),
       );
     } finally {
@@ -1653,17 +1540,11 @@ class _ForgotUsernameScreenState
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: ConstrainedBox(
-            constraints: const BoxConstraints(
-              maxWidth: 420,
-            ),
+            constraints: const BoxConstraints(maxWidth: 420),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Icon(
-                  Icons.person_search,
-                  color: Colors.white,
-                  size: 64,
-                ),
+                const Icon(Icons.person_search, color: Colors.white, size: 64),
 
                 const SizedBox(height: 24),
 
@@ -1683,10 +1564,7 @@ class _ForgotUsernameScreenState
                   'Enter the email address linked to your '
                   'TrakOn account.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 16,
-                  ),
+                  style: TextStyle(color: Colors.white70, fontSize: 16),
                 ),
 
                 const SizedBox(height: 30),
@@ -1694,23 +1572,15 @@ class _ForgotUsernameScreenState
                 TextField(
                   controller: emailController,
                   keyboardType: TextInputType.emailAddress,
-                  style: const TextStyle(
-                    color: Colors.white,
-                  ),
+                  style: const TextStyle(color: Colors.white),
                   decoration: const InputDecoration(
                     labelText: 'Email',
-                    labelStyle: TextStyle(
-                      color: Colors.white70,
-                    ),
+                    labelStyle: TextStyle(color: Colors.white70),
                     enabledBorder: OutlineInputBorder(
-                      borderSide: BorderSide(
-                        color: Colors.white38,
-                      ),
+                      borderSide: BorderSide(color: Colors.white38),
                     ),
                     focusedBorder: OutlineInputBorder(
-                      borderSide: BorderSide(
-                        color: Colors.white,
-                      ),
+                      borderSide: BorderSide(color: Colors.white),
                     ),
                   ),
                 ),
@@ -1718,12 +1588,9 @@ class _ForgotUsernameScreenState
                 const SizedBox(height: 20),
 
                 ElevatedButton(
-                  onPressed:
-                      sending ? null : sendUsernameReminder,
+                  onPressed: sending ? null : sendUsernameReminder,
                   child: Text(
-                    sending
-                        ? 'Sending...'
-                        : 'Send Username Reminder',
+                    sending ? 'Sending...' : 'Send Username Reminder',
                   ),
                 ),
               ],

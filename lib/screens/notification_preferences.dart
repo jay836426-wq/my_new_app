@@ -3,23 +3,18 @@ import 'package:shared_preferences/shared_preferences.dart';
 // Stores and loads the user's notification settings.
 class NotificationPreferences {
   // SharedPreferences keys.
-  static const String notificationsEnabledKey =
-      'notificationsEnabled';
+  static const String notificationsEnabledKey = 'notificationsEnabled';
 
-  static const String taskRemindersEnabledKey =
-      'taskRemindersEnabled';
+  static const String taskRemindersEnabledKey = 'taskRemindersEnabled';
 
   static const String highPriorityRemindersEnabledKey =
       'highPriorityRemindersEnabled';
 
-  static const String dailySummaryEnabledKey =
-      'dailySummaryEnabled';
+  static const String dailySummaryEnabledKey = 'dailySummaryEnabled';
 
-  static const String endOfDayEnabledKey =
-      'endOfDayEnabled';
+  static const String endOfDayEnabledKey = 'endOfDayEnabled';
 
-  static const String dailyMotivationEnabledKey =
-      'dailyMotivationEnabled';
+  static const String dailyMotivationEnabledKey = 'dailyMotivationEnabled';
 
   static const String carryOverNotificationsEnabledKey =
       'carryOverNotificationsEnabled';
@@ -28,23 +23,17 @@ class NotificationPreferences {
       'streakNotificationsEnabled';
 
   // Time settings.
-  static const String dailySummaryHourKey =
-      'dailySummaryHour';
+  static const String dailySummaryHourKey = 'dailySummaryHour';
 
-  static const String dailySummaryMinuteKey =
-      'dailySummaryMinute';
+  static const String dailySummaryMinuteKey = 'dailySummaryMinute';
 
-  static const String endOfDayHourKey =
-      'endOfDayHour';
+  static const String endOfDayHourKey = 'endOfDayHour';
 
-  static const String endOfDayMinuteKey =
-      'endOfDayMinute';
+  static const String endOfDayMinuteKey = 'endOfDayMinute';
 
-  static const String motivationHourKey =
-      'motivationHour';
+  static const String motivationHourKey = 'motivationHour';
 
-  static const String motivationMinuteKey =
-      'motivationMinute';
+  static const String motivationMinuteKey = 'motivationMinute';
 
   // Returns whether all notifications are enabled.
   static Future<bool> notificationsEnabled() async {

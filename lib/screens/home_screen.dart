@@ -210,12 +210,11 @@ class _HomeScreenState extends State<HomeScreen> {
     final prefs = await SharedPreferences.getInstance();
 
     setState(() {
-      userName = 
-          prefs.getString('fullName') ??
-          prefs.getString('username') ??
-          'User';
+      userName =
+          prefs.getString('fullName') ?? prefs.getString('username') ?? 'User';
     });
   }
+
   // List of available task categories
   final List<String> categories = [
     '🏋️ Fitness',
@@ -233,11 +232,7 @@ class _HomeScreenState extends State<HomeScreen> {
   ];
 
   // Listt of available task priority levels
-    final List<String> priorities = [
-    '🔴 High',
-    '🟡 Medium',
-    '🟢 Low',
-  ];
+  final List<String> priorities = ['🔴 High', '🟡 Medium', '🟢 Low'];
   // Tracks the user's current streak
   int streakCounter = 0;
 
@@ -276,8 +271,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     final DateTime today = DateTime.now();
 
-    final String todayString =
-        '${today.year}-${today.month}-${today.day}';
+    final String todayString = '${today.year}-${today.month}-${today.day}';
 
     final DateTime yesterday = today.subtract(const Duration(days: 1));
 
@@ -305,7 +299,7 @@ class _HomeScreenState extends State<HomeScreen> {
     await prefs.setString('lastCompletedDate', lastCompletedDate);
 
     final notificationsEnabled =
-    await NotificationPreferences.notificationsEnabled();
+        await NotificationPreferences.notificationsEnabled();
 
     final streakNotificationsEnabled =
         await NotificationPreferences.streakNotificationsEnabled();
@@ -320,9 +314,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Day completed! Streak updated 🔥'),
-      ),
+      const SnackBar(content: Text('Day completed! Streak updated 🔥')),
     );
   }
 
@@ -334,8 +326,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     final DateTime today = DateTime.now();
 
-    final String todayString =
-    '${today.year}-${today.month}-${today.day}';
+    final String todayString = '${today.year}-${today.month}-${today.day}';
 
     setState(() {
       dayCompleted = false;
@@ -352,11 +343,9 @@ class _HomeScreenState extends State<HomeScreen> {
     await prefs.setString('lastCompletedDate', lastCompletedDate);
 
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Day status updated.'),
-      ),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Day status updated.')));
   }
 
   // Runs when Home screen is first opened and loads the saved username
@@ -364,12 +353,10 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
 
-      final now = DateTime.now();
+    final now = DateTime.now();
 
     // Starts the weekly preview on the most recent Sunday
-    displayedWeekStart = now.subtract(
-      Duration(days: now.weekday % 7),
-    );
+    displayedWeekStart = now.subtract(Duration(days: now.weekday % 7));
     initializeHomeScreen();
     loadUserName();
   }
@@ -380,15 +367,15 @@ class _HomeScreenState extends State<HomeScreen> {
     await checkStreakReset();
   }
 
-
   // Calculates the user's current streak
   int getCurrentStreak() {
-
     // If there are no tasks, streak is 0
     if (tasks.isEmpty) return 0;
 
     // Check if every task is completed
-    final bool allTasksComplete = tasks.every((task) => task['completed'] == true);
+    final bool allTasksComplete = tasks.every(
+      (task) => task['completed'] == true,
+    );
 
     // Return 1 if all tasks are complete, otherwise 0
     return allTasksComplete ? 1 : 0;
@@ -452,9 +439,9 @@ class _HomeScreenState extends State<HomeScreen> {
       int.parse(dateParts[2]),
     );
 
-    final dayNumber = selectedDate.difference(
-      DateTime(selectedDate.year, 1, 1),
-    ).inDays;
+    final dayNumber = selectedDate
+        .difference(DateTime(selectedDate.year, 1, 1))
+        .inDays;
 
     final quoteIndex = dayNumber % motivationalQuotes.length;
 
@@ -469,76 +456,61 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // Loads all saved recurring-task templates.
-Future<List<Map<String, dynamic>>> loadRecurringTasks() async {
-  final prefs = await SharedPreferences.getInstance();
+  Future<List<Map<String, dynamic>>> loadRecurringTasks() async {
+    final prefs = await SharedPreferences.getInstance();
 
-  final savedRecurringTasks =
-      prefs.getString('recurringTasks');
+    final savedRecurringTasks = prefs.getString('recurringTasks');
 
-  if (savedRecurringTasks == null) {
-    return [];
+    if (savedRecurringTasks == null) {
+      return [];
+    }
+
+    final List decodedTasks = jsonDecode(savedRecurringTasks);
+
+    return decodedTasks.map((task) {
+      return Map<String, dynamic>.from(task);
+    }).toList();
   }
 
-  final List decodedTasks =
-      jsonDecode(savedRecurringTasks);
+  // Saves the recurring-task template list.
+  Future<void> saveRecurringTasks(
+    List<Map<String, dynamic>> recurringTasks,
+  ) async {
+    final prefs = await SharedPreferences.getInstance();
 
-  return decodedTasks.map((task) {
-    return Map<String, dynamic>.from(task);
-  }).toList();
-}
-
-
-// Saves the recurring-task template list.
-Future<void> saveRecurringTasks(
-  List<Map<String, dynamic>> recurringTasks,
-) async {
-  final prefs = await SharedPreferences.getInstance();
-
-  await prefs.setString(
-    'recurringTasks',
-    jsonEncode(recurringTasks),
-  );
-}
-
-
-// Saves a newly created recurring task as a reusable template.
-Future<void> addRecurringTaskTemplate(
-  Map<String, dynamic> task,
-) async {
-  // "Never" tasks do not need a recurring template.
-  if (task['repeat'] == null ||
-      task['repeat'] == 'Never') {
-    return;
+    await prefs.setString('recurringTasks', jsonEncode(recurringTasks));
   }
 
-  final recurringTasks =
-      await loadRecurringTasks();
+  // Saves a newly created recurring task as a reusable template.
+  Future<void> addRecurringTaskTemplate(Map<String, dynamic> task) async {
+    // "Never" tasks do not need a recurring template.
+    if (task['repeat'] == null || task['repeat'] == 'Never') {
+      return;
+    }
 
-  // Give the recurring series its own stable ID.
-  final recurringId =
-      DateTime.now().microsecondsSinceEpoch.toString();
+    final recurringTasks = await loadRecurringTasks();
 
-  final recurringTask =
-      Map<String, dynamic>.from(task);
+    // Give the recurring series its own stable ID.
+    final recurringId = DateTime.now().microsecondsSinceEpoch.toString();
 
-  recurringTask['recurringId'] = recurringId;
+    final recurringTask = Map<String, dynamic>.from(task);
 
-  // A template should not stay marked completed.
-  recurringTask['completed'] = false;
+    recurringTask['recurringId'] = recurringId;
 
-  recurringTasks.add(recurringTask);
+    // A template should not stay marked completed.
+    recurringTask['completed'] = false;
 
-  await saveRecurringTasks(recurringTasks);
+    recurringTasks.add(recurringTask);
 
-  // Also attach the recurring ID to today's copy.
-  task['recurringId'] = recurringId;
-}
+    await saveRecurringTasks(recurringTasks);
+
+    // Also attach the recurring ID to today's copy.
+    task['recurringId'] = recurringId;
+  }
 
   // Updates, creates, or removes the recurring template
   // when a task's repeat settings are edited.
-  Future<void> updateRecurringTaskTemplate(
-    Map<String, dynamic> task,
-  ) async {
+  Future<void> updateRecurringTaskTemplate(Map<String, dynamic> task) async {
     final recurringTasks = await loadRecurringTasks();
     final recurringId = task['recurringId'];
     final repeat = task['repeat'] ?? 'Never';
@@ -571,8 +543,7 @@ Future<void> addRecurringTaskTemplate(
     );
 
     if (index != -1) {
-      final updatedTemplate =
-          Map<String, dynamic>.from(task);
+      final updatedTemplate = Map<String, dynamic>.from(task);
 
       updatedTemplate['completed'] = false;
 
@@ -590,20 +561,17 @@ Future<void> addRecurringTaskTemplate(
     final String encodedTasks = jsonEncode(tasks);
 
     final String todayKey =
-    '${DateTime.now().year}-${DateTime.now().month}-${DateTime.now().day}';
+        '${DateTime.now().year}-${DateTime.now().month}-${DateTime.now().day}';
 
     final String taskKey =
         (selectedTaskDate.isEmpty || selectedTaskDate == todayKey)
-            ? 'tasks'
-            : 'tasks_$selectedTaskDate';
+        ? 'tasks'
+        : 'tasks_$selectedTaskDate';
 
     await prefs.setString(taskKey, encodedTasks);
 
     if (selectedTaskDate.isNotEmpty) {
-      await prefs.setBool(
-        'dayCompleted_$selectedTaskDate',
-        dayCompleted,
-      );
+      await prefs.setBool('dayCompleted_$selectedTaskDate', dayCompleted);
     }
     await prefs.setInt('streakCounter', streakCounter);
     await prefs.setString('lastCompletedDate', lastCompletedDate);
@@ -644,13 +612,10 @@ Future<void> addRecurringTaskTemplate(
 
     setState(() {
       tasks = loadedTasks;
-      dayCompleted =
-          prefs.getBool('dayCompleted_$todayKey') ?? false;
+      dayCompleted = prefs.getBool('dayCompleted_$todayKey') ?? false;
       streakCounter = prefs.getInt('streakCounter') ?? 0;
-      lastCompletedDate =
-          prefs.getString('lastCompletedDate') ?? '';
-      lastActiveDate =
-          prefs.getString('lastActiveDate') ?? '';
+      lastCompletedDate = prefs.getString('lastCompletedDate') ?? '';
+      lastActiveDate = prefs.getString('lastActiveDate') ?? '';
       selectedFilter = 'All';
     });
 
@@ -696,11 +661,14 @@ Future<void> addRecurringTaskTemplate(
     }
 
     // Keep only unfinished tasks
-    final incompleteTasks = previousDayTasks.where((task) {
-      return task['completed'] != true;
-    }).map((task) {
-      return Map<String, dynamic>.from(task);
-    }).toList();
+    final incompleteTasks = previousDayTasks
+        .where((task) {
+          return task['completed'] != true;
+        })
+        .map((task) {
+          return Map<String, dynamic>.from(task);
+        })
+        .toList();
 
     setState(() {
       dayCompleted = false;
@@ -759,6 +727,7 @@ Future<void> addRecurringTaskTemplate(
       await carryOverIncompleteTasks(incompleteTasks);
     }
   }
+
   // Carries unfinished tasks from the previous day into today
   Future<void> carryOverIncompleteTasks(
     List<Map<String, dynamic>> incompleteTasks,
@@ -767,18 +736,14 @@ Future<void> addRecurringTaskTemplate(
 
     setState(() {
       for (final task in incompleteTasks) {
-        tasks.add({
-          ...task,
-          'completed': false,
-          'date': selectedTaskDate,
-        });
+        tasks.add({...task, 'completed': false, 'date': selectedTaskDate});
       }
     });
 
     await saveTasks();
 
     final notificationsEnabled =
-    await NotificationPreferences.notificationsEnabled();
+        await NotificationPreferences.notificationsEnabled();
 
     final carryOverNotificationsEnabled =
         await NotificationPreferences.carryOverNotificationsEnabled();
@@ -810,10 +775,7 @@ Future<void> addRecurringTaskTemplate(
       });
 
       await prefs.setInt('streakCounter', streakCounter);
-      await prefs.setBool(
-        'dayCompleted_$todayString',
-        dayCompleted,
-      );
+      await prefs.setBool('dayCompleted_$todayString', dayCompleted);
     }
   }
 
@@ -840,64 +802,52 @@ Future<void> addRecurringTaskTemplate(
   }
 
   // Checks whether a recurring task belongs on a specific date.
-bool recurringTaskRunsOnDate(
-  Map<String, dynamic> task,
-  DateTime date,
-) {
-  final repeat = task['repeat'] ?? 'Never';
+  bool recurringTaskRunsOnDate(Map<String, dynamic> task, DateTime date) {
+    final repeat = task['repeat'] ?? 'Never';
 
-  final startDateText =
-      task['startDate'] ?? task['date'];
+    final startDateText = task['startDate'] ?? task['date'];
 
-  if (startDateText == null) {
-    return false;
-  }
-
-  final startDate =
-      parseDateKey(startDateText);
-
-  final selectedDateOnly = DateTime(
-    date.year,
-    date.month,
-    date.day,
-  );
-
-  final startDateOnly = DateTime(
-    startDate.year,
-    startDate.month,
-    startDate.day,
-  );
-
-  // Recurring tasks should never appear before
-  // the date on which the series began.
-  if (selectedDateOnly.isBefore(startDateOnly)) {
-    return false;
-  }
-
-  switch (repeat) {
-    case 'Daily':
-      return true;
-
-    case 'Weekdays':
-      return date.weekday >= DateTime.monday &&
-          date.weekday <= DateTime.friday;
-
-    case 'Weekly':
-      // Repeat on the same weekday as the original task.
-      return date.weekday == startDate.weekday;
-
-    case 'Specific Days':
-      final repeatDays =
-          List<int>.from(
-            task['repeatDays'] ?? [],
-          );
-
-      return repeatDays.contains(date.weekday);
-
-    default:
+    if (startDateText == null) {
       return false;
+    }
+
+    final startDate = parseDateKey(startDateText);
+
+    final selectedDateOnly = DateTime(date.year, date.month, date.day);
+
+    final startDateOnly = DateTime(
+      startDate.year,
+      startDate.month,
+      startDate.day,
+    );
+
+    // Recurring tasks should never appear before
+    // the date on which the series began.
+    if (selectedDateOnly.isBefore(startDateOnly)) {
+      return false;
+    }
+
+    switch (repeat) {
+      case 'Daily':
+        return true;
+
+      case 'Weekdays':
+        return date.weekday >= DateTime.monday &&
+            date.weekday <= DateTime.friday;
+
+      case 'Weekly':
+        // Repeat on the same weekday as the original task.
+        return date.weekday == startDate.weekday;
+
+      case 'Specific Days':
+        final repeatDays = List<int>.from(task['repeatDays'] ?? []);
+
+        return repeatDays.contains(date.weekday);
+
+      default:
+        return false;
+    }
   }
-}
 
   // Returns the full month and year (e.g. July 2026)
   String getMonthYearLabel(DateTime date) {
@@ -930,21 +880,16 @@ bool recurringTaskRunsOnDate(
   // Loads the selected day's normal tasks and rebuilds
   // recurring occurrences from the latest recurring templates.
   Future<void> loadTasksForSelectedDate() async {
-    final prefs =
-        await SharedPreferences.getInstance();
+    final prefs = await SharedPreferences.getInstance();
 
-    final taskKey =
-        getTaskStorageKey(selectedTaskDate);
+    final taskKey = getTaskStorageKey(selectedTaskDate);
 
-    final savedTasksText =
-        prefs.getString(taskKey);
+    final savedTasksText = prefs.getString(taskKey);
 
-    final savedTasks =
-        <Map<String, dynamic>>[];
+    final savedTasks = <Map<String, dynamic>>[];
 
     if (savedTasksText != null) {
-      final List decoded =
-          jsonDecode(savedTasksText);
+      final List decoded = jsonDecode(savedTasksText);
 
       savedTasks.addAll(
         decoded.map((task) {
@@ -953,60 +898,51 @@ bool recurringTaskRunsOnDate(
       );
     }
 
-    final selectedDate =
-        parseDateKey(selectedTaskDate);
+    final selectedDate = parseDateKey(selectedTaskDate);
 
-    final recurringTemplates =
-        await loadRecurringTasks();
+    final recurringTemplates = await loadRecurringTasks();
 
     // Keep normal, non-recurring tasks exactly as they are.
-    final rebuiltTasks = savedTasks.where((task) {
-      return task['recurringId'] == null;
-    }).map((task) {
-      return Map<String, dynamic>.from(task);
-    }).toList();
+    final rebuiltTasks = savedTasks
+        .where((task) {
+          return task['recurringId'] == null;
+        })
+        .map((task) {
+          return Map<String, dynamic>.from(task);
+        })
+        .toList();
 
     for (final template in recurringTemplates) {
       // Only generate the task if its CURRENT repeat
       // rules say it belongs on this date.
-      if (!recurringTaskRunsOnDate(
-        template,
-        selectedDate,
-      )) {
+      if (!recurringTaskRunsOnDate(template, selectedDate)) {
         continue;
       }
 
-      final recurringId =
-          template['recurringId'];
+      final recurringId = template['recurringId'];
 
       // Look for a previously saved occurrence so we can
       // preserve things such as completion status.
       Map<String, dynamic>? existingOccurrence;
 
       for (final savedTask in savedTasks) {
-        if (savedTask['recurringId'] ==
-            recurringId) {
+        if (savedTask['recurringId'] == recurringId) {
           existingOccurrence = savedTask;
           break;
         }
       }
 
       // Start with the newest series/template information.
-      final occurrence =
-          Map<String, dynamic>.from(template);
+      final occurrence = Map<String, dynamic>.from(template);
 
-      occurrence['date'] =
-          selectedTaskDate;
+      occurrence['date'] = selectedTaskDate;
 
       // Preserve completion status for this specific day.
-      occurrence['completed'] =
-          existingOccurrence?['completed'] ??
-          false;
+      occurrence['completed'] = existingOccurrence?['completed'] ?? false;
 
       // Preserve an existing notification ID when available.
       occurrence['notificationId'] =
-          existingOccurrence?['notificationId'] ??
-          createNotificationId();
+          existingOccurrence?['notificationId'] ?? createNotificationId();
 
       rebuiltTasks.add(occurrence);
     }
@@ -1016,20 +952,13 @@ bool recurringTaskRunsOnDate(
     setState(() {
       tasks = rebuiltTasks;
 
-      dayCompleted =
-          prefs.getBool(
-            'dayCompleted_$selectedTaskDate',
-          ) ??
-          false;
+      dayCompleted = prefs.getBool('dayCompleted_$selectedTaskDate') ?? false;
 
       selectedFilter = 'All';
     });
 
     // Replace this day's saved list with the corrected version.
-    await prefs.setString(
-      taskKey,
-      jsonEncode(rebuiltTasks),
-    );
+    await prefs.setString(taskKey, jsonEncode(rebuiltTasks));
   }
 
   // Loads the selected date shared between Home and Calendar
@@ -1046,8 +975,6 @@ bool recurringTaskRunsOnDate(
       await loadTasksForSelectedDate();
     }
   }
-
-
 
   // Calculates progress for a date while also
   // accounting for recurring tasks.
@@ -1086,8 +1013,7 @@ bool recurringTaskRunsOnDate(
       });
 
       if (!alreadyExists) {
-        final recurringCopy =
-            Map<String, dynamic>.from(recurringTask);
+        final recurringCopy = Map<String, dynamic>.from(recurringTask);
 
         recurringCopy['completed'] = false;
 
@@ -1153,98 +1079,91 @@ bool recurringTaskRunsOnDate(
     return dayTasks.length;
   }
 
-
   DateTime getNextDailyNotificationTime({
-  required int hour,
-  required int minute,
-}) {
-  final now = DateTime.now();
+    required int hour,
+    required int minute,
+  }) {
+    final now = DateTime.now();
 
-  DateTime scheduledTime = DateTime(
-    now.year,
-    now.month,
-    now.day,
-    hour,
-    minute,
-  );
-
-  if (!scheduledTime.isAfter(now)) {
-    scheduledTime = scheduledTime.add(
-      const Duration(days: 1),
+    DateTime scheduledTime = DateTime(
+      now.year,
+      now.month,
+      now.day,
+      hour,
+      minute,
     );
+
+    if (!scheduledTime.isAfter(now)) {
+      scheduledTime = scheduledTime.add(const Duration(days: 1));
+    }
+
+    return scheduledTime;
   }
 
-  return scheduledTime;
-}
+  Future<void> refreshDailyTaskNotifications() async {
+    if (!isViewingToday()) return;
 
-Future<void> refreshDailyTaskNotifications() async {
-  if (!isViewingToday()) return;
+    final notificationsEnabled =
+        await NotificationPreferences.notificationsEnabled();
 
-  final notificationsEnabled =
-      await NotificationPreferences.notificationsEnabled();
+    if (!notificationsEnabled) {
+      await NotificationService.cancelNotification(
+        NotificationService.dailySummaryNotificationId,
+      );
 
-  if (!notificationsEnabled) {
-    await NotificationService.cancelNotification(
-      NotificationService.dailySummaryNotificationId,
-    );
+      await NotificationService.cancelNotification(
+        NotificationService.endOfDayNotificationId,
+      );
 
-    await NotificationService.cancelNotification(
-      NotificationService.endOfDayNotificationId,
-    );
+      return;
+    }
 
-    return;
+    final remainingTaskCount = tasks.where((task) {
+      return task['completed'] != true;
+    }).length;
+
+    final dailySummaryEnabled =
+        await NotificationPreferences.dailySummaryEnabled();
+
+    if (dailySummaryEnabled) {
+      final summaryHour = await NotificationPreferences.dailySummaryHour();
+
+      final summaryMinute = await NotificationPreferences.dailySummaryMinute();
+
+      await NotificationService.scheduleDailyTaskSummary(
+        scheduledTime: getNextDailyNotificationTime(
+          hour: summaryHour,
+          minute: summaryMinute,
+        ),
+        remainingTaskCount: remainingTaskCount,
+      );
+    } else {
+      await NotificationService.cancelNotification(
+        NotificationService.dailySummaryNotificationId,
+      );
+    }
+
+    final endOfDayEnabled = await NotificationPreferences.endOfDayEnabled();
+
+    if (endOfDayEnabled) {
+      final endHour = await NotificationPreferences.endOfDayHour();
+
+      final endMinute = await NotificationPreferences.endOfDayMinute();
+
+      await NotificationService.scheduleEndOfDayNotification(
+        scheduledTime: getNextDailyNotificationTime(
+          hour: endHour,
+          minute: endMinute,
+        ),
+        remainingTaskCount: remainingTaskCount,
+      );
+    } else {
+      await NotificationService.cancelNotification(
+        NotificationService.endOfDayNotificationId,
+      );
+    }
   }
 
-  final remainingTaskCount = tasks.where((task) {
-    return task['completed'] != true;
-  }).length;
-
-  final dailySummaryEnabled =
-      await NotificationPreferences.dailySummaryEnabled();
-
-  if (dailySummaryEnabled) {
-    final summaryHour =
-        await NotificationPreferences.dailySummaryHour();
-
-    final summaryMinute =
-        await NotificationPreferences.dailySummaryMinute();
-
-    await NotificationService.scheduleDailyTaskSummary(
-      scheduledTime: getNextDailyNotificationTime(
-        hour: summaryHour,
-        minute: summaryMinute,
-      ),
-      remainingTaskCount: remainingTaskCount,
-    );
-  } else {
-    await NotificationService.cancelNotification(
-      NotificationService.dailySummaryNotificationId,
-    );
-  }
-
-  final endOfDayEnabled =
-      await NotificationPreferences.endOfDayEnabled();
-
-  if (endOfDayEnabled) {
-    final endHour =
-        await NotificationPreferences.endOfDayHour();
-
-    final endMinute =
-        await NotificationPreferences.endOfDayMinute();
-
-    await NotificationService.scheduleEndOfDayNotification(
-      scheduledTime: getNextDailyNotificationTime(
-        hour: endHour,
-        minute: endMinute,
-      ),
-      remainingTaskCount: remainingTaskCount,
-    );
-  } else {
-    await NotificationService.cancelNotification(
-      NotificationService.endOfDayNotificationId,
-    );
-  }
-}
   // Creates a stable base notification ID for a task.
   int createNotificationId() {
     return DateTime.now().microsecondsSinceEpoch.remainder(1000000000);
@@ -1269,13 +1188,7 @@ Future<void> refreshDailyTaskNotifications() async {
       throw FormatException('Invalid task date: $dateKey');
     }
 
-    return DateTime(
-      year,
-      month,
-      day,
-      reminderTime.hour,
-      reminderTime.minute,
-    );
+    return DateTime(year, month, day, reminderTime.hour, reminderTime.minute);
   }
 
   // Schedules the main reminder and priority-based follow-up reminders.
@@ -1285,18 +1198,20 @@ Future<void> refreshDailyTaskNotifications() async {
     required String? priority,
     required DateTime reminderDateTime,
   }) async {
+    // Do not schedule reminders in the past.
     if (reminderDateTime.isBefore(DateTime.now())) {
       return;
     }
 
+    // Respect the master notification setting.
     final notificationsEnabled =
-      await NotificationPreferences.notificationsEnabled();
+        await NotificationPreferences.notificationsEnabled();
 
     if (!notificationsEnabled) {
       return;
     }
 
-    // Don't schedule reminders if the user disabled them.
+    // Respect the task reminder setting.
     final taskRemindersEnabled =
         await NotificationPreferences.taskRemindersEnabled();
 
@@ -1304,47 +1219,76 @@ Future<void> refreshDailyTaskNotifications() async {
       return;
     }
 
-    // Main reminder.
+    // Main notification for every task.
+    String mainTitle = 'Task Reminder';
+
+    if (priority == '🔴 High') {
+      mainTitle = '🔴 High Priority Task';
+    } else if (priority == '🟡 Medium') {
+      mainTitle = '🟡 Medium Priority Task';
+    } else if (priority == '🟢 Low') {
+      mainTitle = '🟢 Low Priority Task';
+    }
+
     await NotificationService.scheduleNotification(
       id: notificationId,
-      title: 'Task Reminder',
+      title: mainTitle,
       body: taskTitle,
       scheduledTime: reminderDateTime,
     );
 
-    // High-priority tasks receive two additional reminders.
-    final highPriorityEnabled =
+    // Check whether stronger priority-based follow-ups are enabled.
+    final priorityRemindersEnabled =
         await NotificationPreferences.highPriorityRemindersEnabled();
-    if (priority == '🔴 High' && highPriorityEnabled) {
+
+    if (!priorityRemindersEnabled) {
+      return;
+    }
+
+    // ----------------------------------------------------------
+    // HIGH PRIORITY
+    // Main reminder + 15 min + 30 min + 60 min
+    // ----------------------------------------------------------
+    if (priority == '🔴 High') {
       await NotificationService.scheduleNotification(
         id: notificationId + 1,
-        title: 'High Priority Task',
-        body: '$taskTitle is still waiting.',
-        scheduledTime: reminderDateTime.add(
-          const Duration(minutes: 30),
-        ),
+        title: '🔴 High Priority Task Still Waiting',
+        body: '$taskTitle still needs your attention.',
+        scheduledTime: reminderDateTime.add(const Duration(minutes: 15)),
       );
 
       await NotificationService.scheduleNotification(
         id: notificationId + 2,
-        title: 'High Priority Task',
+        title: '🔴 Stay Focused',
         body: 'Do not forget to complete: $taskTitle',
-        scheduledTime: reminderDateTime.add(
-          const Duration(minutes: 60),
-        ),
+        scheduledTime: reminderDateTime.add(const Duration(minutes: 30)),
+      );
+
+      await NotificationService.scheduleNotification(
+        id: notificationId + 3,
+        title: '🔴 Final High Priority Reminder',
+        body: '$taskTitle is still unfinished.',
+        scheduledTime: reminderDateTime.add(const Duration(minutes: 60)),
       );
     }
-
-    // Medium-priority tasks receive one follow-up.
-    if (priority == '🟡 Medium') {
+    // ----------------------------------------------------------
+    // MEDIUM PRIORITY
+    // Main reminder + one follow-up after 30 minutes
+    // ----------------------------------------------------------
+    else if (priority == '🟡 Medium') {
       await NotificationService.scheduleNotification(
         id: notificationId + 1,
-        title: 'Task Follow-Up',
+        title: '🟡 Task Follow-Up',
         body: 'Remember to complete: $taskTitle',
-        scheduledTime: reminderDateTime.add(
-          const Duration(minutes: 60),
-        ),
+        scheduledTime: reminderDateTime.add(const Duration(minutes: 30)),
       );
+    }
+    // ----------------------------------------------------------
+    // LOW PRIORITY
+    // Only receives the original scheduled reminder.
+    // ----------------------------------------------------------
+    else if (priority == '🟢 Low') {
+      // No additional reminders needed.
     }
   }
 
@@ -1352,16 +1296,21 @@ Future<void> refreshDailyTaskNotifications() async {
   Future<void> cancelTaskReminders(Map<String, dynamic> task) async {
     final notificationId = task['notificationId'];
 
-    if (notificationId is! int) return;
+    if (notificationId is! int) {
+      return;
+    }
 
     await NotificationService.cancelNotification(notificationId);
+
     await NotificationService.cancelNotification(notificationId + 1);
+
     await NotificationService.cancelNotification(notificationId + 2);
+
+    await NotificationService.cancelNotification(notificationId + 3);
   }
 
   // Converts a saved reminder time (ex: "2:30 PM") back into a TimeOfDay object
   TimeOfDay? parseReminderTime(String? reminderText) {
-
     // If no reminder exists, return nothing
     if (reminderText == null || reminderText.trim().isEmpty) {
       return null;
@@ -1396,16 +1345,10 @@ Future<void> refreshDailyTaskNotifications() async {
     }
 
     // Return the converted reminder time
-    return TimeOfDay(
-      hour: hour,
-      minute: minute,
-    );
+    return TimeOfDay(hour: hour, minute: minute);
   }
 
-
   void showAddTaskPopup() {
-
-    
     showDialog(
       context: context,
       builder: (context) {
@@ -1413,7 +1356,10 @@ Future<void> refreshDailyTaskNotifications() async {
           builder: (context, setDialogState) {
             return AlertDialog(
               backgroundColor: Colors.black,
-              title: const Text('Add Task', style: TextStyle(color: Colors.white)),
+              title: const Text(
+                'Add Task',
+                style: TextStyle(color: Colors.white),
+              ),
               content: SizedBox(
                 width: 300,
                 child: SingleChildScrollView(
@@ -1443,8 +1389,8 @@ Future<void> refreshDailyTaskNotifications() async {
                       ),
 
                       const SizedBox(height: 20),
- 
-                    DropdownButton<String>(
+
+                      DropdownButton<String>(
                         value: selectedCategory,
                         dropdownColor: Colors.black,
                         isExpanded: true,
@@ -1558,8 +1504,9 @@ Future<void> refreshDailyTaskNotifications() async {
                             ])
                               ChoiceChip(
                                 label: Text(day['label'] as String),
-                                selected:
-                                    selectedRepeatDays.contains(day['value'] as int),
+                                selected: selectedRepeatDays.contains(
+                                  day['value'] as int,
+                                ),
                                 onSelected: (selected) {
                                   setDialogState(() {
                                     final value = day['value'] as int;
@@ -1611,26 +1558,33 @@ Future<void> refreshDailyTaskNotifications() async {
                                         vertical: 8,
                                       ),
                                       child: Row(
-                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
                                         children: [
                                           TextButton(
-                                            onPressed: () => Navigator.pop(context),
+                                            onPressed: () =>
+                                                Navigator.pop(context),
                                             child: const Text(
                                               'Cancel',
-                                              style: TextStyle(color: Colors.white),
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                              ),
                                             ),
                                           ),
                                           TextButton(
                                             onPressed: () {
                                               setDialogState(() {
-                                                selectedReminderTime = tempReminderTime;
+                                                selectedReminderTime =
+                                                    tempReminderTime;
                                               });
 
                                               Navigator.pop(context);
                                             },
                                             child: const Text(
                                               'Done',
-                                              style: TextStyle(color: Colors.white),
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                              ),
                                             ),
                                           ),
                                         ],
@@ -1673,114 +1627,111 @@ Future<void> refreshDailyTaskNotifications() async {
                       Align(
                         alignment: Alignment.centerLeft,
                         child: TextButton(
-                        onPressed: () {
-                          setDialogState(() {
-                            selectedReminderTime = null;
-                          });
-                        },
-                        child: const Text(
-                          'Clear Reminder',
-                          style: TextStyle(color: Colors.redAccent),
+                          onPressed: () {
+                            setDialogState(() {
+                              selectedReminderTime = null;
+                            });
+                          },
+                          child: const Text(
+                            'Clear Reminder',
+                            style: TextStyle(color: Colors.redAccent),
+                          ),
                         ),
                       ),
-                    ),
-                ],
+                    ],
+                  ),
+                ),
               ),
-            ),
-          ),
 
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    taskController.clear();
+                    descriptionController.clear();
+                  },
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    final newTaskTitle = taskController.text.trim();
 
+                    if (newTaskTitle.isEmpty) {
+                      return;
+                    }
 
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                taskController.clear();
-                descriptionController.clear();
-              },
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                final newTaskTitle = taskController.text.trim();
+                    final reminderToSchedule = selectedReminderTime;
+                    final notificationId = createNotificationId();
 
-                if (newTaskTitle.isEmpty) {
-                  return;
-                }
+                    final newTask = <String, dynamic>{
+                      'title': newTaskTitle,
+                      'description': descriptionController.text.trim(),
+                      'completed': false,
+                      'category': selectedCategory,
+                      'priority': selectedPriority,
+                      'reminderTime': selectedReminderTime?.format(context),
+                      'notificationId': notificationId,
 
-                final reminderToSchedule = selectedReminderTime;
-                final notificationId = createNotificationId();
+                      // Date for this specific task occurrence.
+                      'date': selectedTaskDate,
 
-                final newTask = <String, dynamic>{
-                  'title': newTaskTitle,
-                  'description': descriptionController.text.trim(),
-                  'completed': false,
-                  'category': selectedCategory,
-                  'priority': selectedPriority,
-                  'reminderTime': selectedReminderTime?.format(context),
-                  'notificationId': notificationId,
+                      // Original date the recurring series begins.
+                      'startDate': selectedTaskDate,
 
-                  // Date for this specific task occurrence.
-                  'date': selectedTaskDate,
+                      // Repeat settings.
+                      'repeat': selectedRepeat,
+                      'repeatDays': selectedRepeatDays.toList(),
+                    };
 
-                  // Original date the recurring series begins.
-                  'startDate': selectedTaskDate,
+                    setState(() {
+                      tasks.add(newTask);
+                    });
 
-                  // Repeat settings.
-                  'repeat': selectedRepeat,
-                  'repeatDays': selectedRepeatDays.toList(),
-                };
+                    // Close the popup immediately after the task is added.
+                    Navigator.of(context).pop();
 
-                setState(() {
-                  tasks.add(newTask);
-                });
+                    taskController.clear();
+                    descriptionController.clear();
 
-                // Close the popup immediately after the task is added.
-                Navigator.of(context).pop();
+                    // Reset the Add Task fields for next time.
+                    setState(() {
+                      selectedPriority = null;
+                      selectedReminderTime = null;
+                      selectedRepeat = 'Never';
+                      selectedRepeatDays.clear();
+                    });
 
-                taskController.clear();
-                descriptionController.clear();
+                    // If this task repeats, save a reusable recurring template
+                    // for future matching dates.
+                    await addRecurringTaskTemplate(newTask);
 
-                // Reset the Add Task fields for next time.
-                setState(() {
-                  selectedPriority = null;
-                  selectedReminderTime = null;
-                  selectedRepeat = 'Never';
-                  selectedRepeatDays.clear();
-                });
+                    if (reminderToSchedule != null) {
+                      final reminderDateTime = buildReminderDateTime(
+                        dateKey: selectedTaskDate,
+                        reminderTime: reminderToSchedule,
+                      );
 
-                // If this task repeats, save a reusable recurring template
-                // for future matching dates.
-                await addRecurringTaskTemplate(newTask);
+                      await scheduleSmartReminders(
+                        notificationId: notificationId,
+                        taskTitle: newTaskTitle,
+                        priority: newTask['priority'],
+                        reminderDateTime: reminderDateTime,
+                      );
+                    }
 
-                if (reminderToSchedule != null) {
-                  final reminderDateTime = buildReminderDateTime(
-                    dateKey: selectedTaskDate,
-                    reminderTime: reminderToSchedule,
-                  );
-
-                  await scheduleSmartReminders(
-                    notificationId: notificationId,
-                    taskTitle: newTaskTitle,
-                    priority: newTask['priority'],
-                    reminderDateTime: reminderDateTime,
-                  );
-                }
-
-                await saveTasks();
-              },
-              child: const Text('Add'),
-            ),
-          ],
+                    await saveTasks();
+                  },
+                  child: const Text('Add'),
+                ),
+              ],
+            );
+          },
         );
-      });
-    });
+      },
+    );
   }
 
-  Widget taskTile({
-    required String title,
-    required bool completed,
-  }) {
+  Widget taskTile({required String title, required bool completed}) {
     return Container(
       margin: const EdgeInsets.only(bottom: 20),
       decoration: BoxDecoration(
@@ -1789,33 +1740,25 @@ Future<void> refreshDailyTaskNotifications() async {
       ),
       child: ListTile(
         leading: Icon(
-          completed
-              ? Icons.check_circle
-              : Icons.radio_button_unchecked,
-          color:
-              completed
-                  ? Colors.greenAccent
-                  : Colors.white54,
+          completed ? Icons.check_circle : Icons.radio_button_unchecked,
+          color: completed ? Colors.greenAccent : Colors.white54,
         ),
         title: Text(
           title,
           style: TextStyle(
             color: Colors.white,
-            decoration:
-                completed
-                    ? TextDecoration.lineThrough
-                    : null,
+            decoration: completed ? TextDecoration.lineThrough : null,
           ),
         ),
       ),
     );
   }
 
-
   void showEditTaskPopup(Map<String, dynamic> task) {
     final editController = TextEditingController(text: task['title']);
     final editDescriptionController = TextEditingController(
-    text: task['description'] ?? '',);
+      text: task['description'] ?? '',
+    );
     String editCategory = task['category'] ?? selectedCategory;
     String? editPriority = task['priority'];
     String? editReminderTime = task['reminderTime'];
@@ -1823,10 +1766,7 @@ Future<void> refreshDailyTaskNotifications() async {
     // Load the task's existing repeat settings.
     String editRepeat = task['repeat'] ?? 'Never';
 
-    Set<int> editRepeatDays =
-      Set<int>.from(task['repeatDays'] ?? []);
-
-
+    Set<int> editRepeatDays = Set<int>.from(task['repeatDays'] ?? []);
 
     showDialog(
       context: context,
@@ -1840,389 +1780,392 @@ Future<void> refreshDailyTaskNotifications() async {
                 style: TextStyle(color: Colors.white),
               ),
               content: SizedBox(
-              width: 300,
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextField(
-                      controller: editController,
-                      style: const TextStyle(color: Colors.white),
-                      decoration: const InputDecoration(
-                        labelText: 'Task name',
-                        labelStyle: TextStyle(color: Colors.white70),
+                width: 300,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextField(
+                        controller: editController,
+                        style: const TextStyle(color: Colors.white),
+                        decoration: const InputDecoration(
+                          labelText: 'Task name',
+                          labelStyle: TextStyle(color: Colors.white70),
+                        ),
                       ),
-                    ),
 
-                    const SizedBox(height: 16),
+                      const SizedBox(height: 16),
 
-                    TextField(
-                      controller: editDescriptionController,
-                      style: const TextStyle(color: Colors.white),
-                      maxLines: 3,
-                      decoration: const InputDecoration(
-                        labelText: 'Description (Optional)',
-                        labelStyle: TextStyle(color: Colors.white70),
-                        alignLabelWithHint: true,
+                      TextField(
+                        controller: editDescriptionController,
+                        style: const TextStyle(color: Colors.white),
+                        maxLines: 3,
+                        decoration: const InputDecoration(
+                          labelText: 'Description (Optional)',
+                          labelStyle: TextStyle(color: Colors.white70),
+                          alignLabelWithHint: true,
+                        ),
                       ),
-                    ),
 
-                    const SizedBox(height: 16),
+                      const SizedBox(height: 16),
 
-                    DropdownButton<String>(
-                      value: editCategory,
-                      dropdownColor: Colors.black,
-                      isExpanded: true,
-                      style: const TextStyle(color: Colors.white),
-                      items: categories.map((category) {
-                        return DropdownMenuItem<String>(
-                          value: category,
-                          child: Text(category),
-                        );
-                      }).toList(),
-                      onChanged: (value) {
-                        setDialogState(() {
-                          editCategory = value!;
-                        });
-                      },
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    DropdownButton<String>(
-                      value: editPriority,
-                      hint: const Text(
-                        'Optional Priority',
-                        style: TextStyle(color: Colors.white70),
+                      DropdownButton<String>(
+                        value: editCategory,
+                        dropdownColor: Colors.black,
+                        isExpanded: true,
+                        style: const TextStyle(color: Colors.white),
+                        items: categories.map((category) {
+                          return DropdownMenuItem<String>(
+                            value: category,
+                            child: Text(category),
+                          );
+                        }).toList(),
+                        onChanged: (value) {
+                          setDialogState(() {
+                            editCategory = value!;
+                          });
+                        },
                       ),
-                      dropdownColor: Colors.black,
-                      isExpanded: true,
-                      style: const TextStyle(color: Colors.white),
-                      items: priorities.map((priority) {
-                        return DropdownMenuItem<String>(
-                          value: priority,
-                          child: Text(priority),
-                        );
-                      }).toList(),
-                      onChanged: (value) {
-                        setDialogState(() {
-                          editPriority = value!;
-                        });
-                      },
-                    ),
 
-                    Align(
-                      alignment: Alignment.centerLeft,
+                      const SizedBox(height: 16),
+
+                      DropdownButton<String>(
+                        value: editPriority,
+                        hint: const Text(
+                          'Optional Priority',
+                          style: TextStyle(color: Colors.white70),
+                        ),
+                        dropdownColor: Colors.black,
+                        isExpanded: true,
+                        style: const TextStyle(color: Colors.white),
+                        items: priorities.map((priority) {
+                          return DropdownMenuItem<String>(
+                            value: priority,
+                            child: Text(priority),
+                          );
+                        }).toList(),
+                        onChanged: (value) {
+                          setDialogState(() {
+                            editPriority = value!;
+                          });
+                        },
+                      ),
+
+                      Align(
+                        alignment: Alignment.centerLeft,
                         child: TextButton(
+                          onPressed: () {
+                            setDialogState(() {
+                              editPriority = null;
+                            });
+                          },
+                          child: const Text(
+                            'Clear Priority',
+                            style: TextStyle(color: Colors.red),
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      DropdownButton<String>(
+                        value: editRepeat,
+                        dropdownColor: Colors.black,
+                        isExpanded: true,
+                        style: const TextStyle(color: Colors.white),
+
+                        items: const [
+                          DropdownMenuItem(
+                            value: 'Never',
+                            child: Text('Repeat: Never'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'Daily',
+                            child: Text('Repeat: Daily'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'Weekdays',
+                            child: Text('Repeat: Weekdays'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'Weekly',
+                            child: Text('Repeat: Weekly'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'Specific Days',
+                            child: Text('Repeat: Specific Days'),
+                          ),
+                        ],
+
+                        onChanged: (value) {
+                          if (value == null) return;
+
+                          setDialogState(() {
+                            editRepeat = value;
+
+                            // Clear selected days if Specific Days is no longer used.
+                            if (editRepeat != 'Specific Days') {
+                              editRepeatDays.clear();
+                            }
+                          });
+                        },
+                      ),
+
+                      // Show weekday choices only for Specific Days.
+                      if (editRepeat == 'Specific Days') ...[
+                        const SizedBox(height: 8),
+
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            for (final day in const [
+                              {'label': 'M', 'value': 1},
+                              {'label': 'T', 'value': 2},
+                              {'label': 'W', 'value': 3},
+                              {'label': 'T', 'value': 4},
+                              {'label': 'F', 'value': 5},
+                              {'label': 'S', 'value': 6},
+                              {'label': 'S', 'value': 7},
+                            ])
+                              ChoiceChip(
+                                label: Text(day['label'] as String),
+                                selected: editRepeatDays.contains(
+                                  day['value'] as int,
+                                ),
+                                onSelected: (selected) {
+                                  setDialogState(() {
+                                    final value = day['value'] as int;
+
+                                    if (selected) {
+                                      editRepeatDays.add(value);
+                                    } else {
+                                      editRepeatDays.remove(value);
+                                    }
+                                  });
+                                },
+                              ),
+                          ],
+                        ),
+                      ],
+                      const SizedBox(height: 16),
+
+                      ListTile(
+                        title: Text(
+                          editReminderTime == null
+                              ? 'Set Reminder'
+                              : 'Reminder: $editReminderTime',
+                          style: const TextStyle(color: Colors.white),
+                        ),
+                        trailing: const Icon(
+                          Icons.notifications,
+                          color: Colors.white,
+                        ),
+                        onTap: () async {
+                          TimeOfDay tempReminderTime = TimeOfDay.now();
+
+                          // If a reminder already exists, use it as the initial picker value
+                          if (editReminderTime != null) {
+                            final parts = editReminderTime!.split(':');
+
+                            if (parts.length == 2) {
+                              int hour = int.parse(parts[0]);
+                              final minuteAndPeriod = parts[1].split(' ');
+
+                              int minute = int.parse(minuteAndPeriod[0]);
+
+                              if (minuteAndPeriod.length == 2) {
+                                final period = minuteAndPeriod[1];
+
+                                if (period == 'PM' && hour != 12) {
+                                  hour += 12;
+                                }
+
+                                if (period == 'AM' && hour == 12) {
+                                  hour = 0;
+                                }
+                              }
+
+                              tempReminderTime = TimeOfDay(
+                                hour: hour,
+                                minute: minute,
+                              );
+                            }
+                          }
+
+                          await showModalBottomSheet(
+                            context: context,
+                            backgroundColor: Colors.black,
+                            builder: (context) {
+                              return SizedBox(
+                                height: 300,
+                                child: Column(
+                                  children: [
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                        vertical: 8,
+                                      ),
+                                      child: Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          TextButton(
+                                            onPressed: () =>
+                                                Navigator.pop(context),
+                                            child: const Text(
+                                              'Cancel',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                          ),
+                                          TextButton(
+                                            onPressed: () {
+                                              setDialogState(() {
+                                                editReminderTime =
+                                                    tempReminderTime.format(
+                                                      context,
+                                                    );
+                                              });
+
+                                              Navigator.pop(context);
+                                            },
+                                            child: const Text(
+                                              'Done',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+
+                                    const Divider(color: Colors.white24),
+
+                                    Expanded(
+                                      child: CupertinoTheme(
+                                        data: const CupertinoThemeData(
+                                          brightness: Brightness.dark,
+                                        ),
+                                        child: CupertinoDatePicker(
+                                          mode: CupertinoDatePickerMode.time,
+                                          use24hFormat: false,
+                                          initialDateTime: DateTime(
+                                            2026,
+                                            1,
+                                            1,
+                                            tempReminderTime.hour,
+                                            tempReminderTime.minute,
+                                          ),
+                                          onDateTimeChanged: (newTime) {
+                                            tempReminderTime = TimeOfDay(
+                                              hour: newTime.hour,
+                                              minute: newTime.minute,
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          );
+                        },
+                      ),
+
+                      TextButton(
                         onPressed: () {
                           setDialogState(() {
-                            editPriority = null;
+                            editReminderTime = null;
                           });
                         },
                         child: const Text(
-                          'Clear Priority',
+                          'Clear Reminder',
                           style: TextStyle(color: Colors.red),
                         ),
                       ),
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    DropdownButton<String>(
-                      value: editRepeat,
-                      dropdownColor: Colors.black,
-                      isExpanded: true,
-                      style: const TextStyle(color: Colors.white),
-
-                      items: const [
-                        DropdownMenuItem(
-                          value: 'Never',
-                          child: Text('Repeat: Never'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'Daily',
-                          child: Text('Repeat: Daily'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'Weekdays',
-                          child: Text('Repeat: Weekdays'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'Weekly',
-                          child: Text('Repeat: Weekly'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'Specific Days',
-                          child: Text('Repeat: Specific Days'),
-                        ),
-                      ],
-
-                      onChanged: (value) {
-                        if (value == null) return;
-
-                        setDialogState(() {
-                          editRepeat = value;
-
-                          // Clear selected days if Specific Days is no longer used.
-                          if (editRepeat != 'Specific Days') {
-                            editRepeatDays.clear();
-                          }
-                        });
-                      },
-                    ),
-
-                    // Show weekday choices only for Specific Days.
-                    if (editRepeat == 'Specific Days') ...[
-                      const SizedBox(height: 8),
-
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: [
-                          for (final day in const [
-                            {'label': 'M', 'value': 1},
-                            {'label': 'T', 'value': 2},
-                            {'label': 'W', 'value': 3},
-                            {'label': 'T', 'value': 4},
-                            {'label': 'F', 'value': 5},
-                            {'label': 'S', 'value': 6},
-                            {'label': 'S', 'value': 7},
-                          ])
-                            ChoiceChip(
-                              label: Text(day['label'] as String),
-                              selected:
-                                  editRepeatDays.contains(day['value'] as int),
-                              onSelected: (selected) {
-                                setDialogState(() {
-                                  final value = day['value'] as int;
-
-                                  if (selected) {
-                                    editRepeatDays.add(value);
-                                  } else {
-                                    editRepeatDays.remove(value);
-                                  }
-                                });
-                              },
-                            ),
-                        ],
-                      ),
                     ],
-                    const SizedBox(height: 16),
-
-                    ListTile(
-                      title: Text(
-                        editReminderTime == null
-                            ? 'Set Reminder'
-                            : 'Reminder: $editReminderTime',
-                        style: const TextStyle(color: Colors.white),
-                      ),
-                      trailing: const Icon(
-                        Icons.notifications,
-                        color: Colors.white,
-                      ),
-                      onTap: () async {
-                        TimeOfDay tempReminderTime = TimeOfDay.now();
-
-                        // If a reminder already exists, use it as the initial picker value
-                        if (editReminderTime != null) {
-                          final parts = editReminderTime!.split(':');
-
-                          if (parts.length == 2) {
-                            int hour = int.parse(parts[0]);
-                            final minuteAndPeriod = parts[1].split(' ');
-
-                            int minute = int.parse(minuteAndPeriod[0]);
-
-                            if (minuteAndPeriod.length == 2) {
-                              final period = minuteAndPeriod[1];
-
-                              if (period == 'PM' && hour != 12) {
-                                hour += 12;
-                              }
-
-                              if (period == 'AM' && hour == 12) {
-                                hour = 0;
-                              }
-                            }
-
-                            tempReminderTime = TimeOfDay(
-                              hour: hour,
-                              minute: minute,
-                            );
-                          }
-                        }
-
-                        await showModalBottomSheet(
-                          context: context,
-                          backgroundColor: Colors.black,
-                          builder: (context) {
-                            return SizedBox(
-                              height: 300,
-                              child: Column(
-                                children: [
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 16,
-                                      vertical: 8,
-                                    ),
-                                    child: Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        TextButton(
-                                          onPressed: () => Navigator.pop(context),
-                                          child: const Text(
-                                            'Cancel',
-                                            style: TextStyle(color: Colors.white),
-                                          ),
-                                        ),
-                                        TextButton(
-                                          onPressed: () {
-                                            setDialogState(() {
-                                              editReminderTime =
-                                                  tempReminderTime.format(context);
-                                            });
-
-                                            Navigator.pop(context);
-                                          },
-                                          child: const Text(
-                                            'Done',
-                                            style: TextStyle(color: Colors.white),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-
-                                  const Divider(color: Colors.white24),
-
-                                  Expanded(
-                                    child: CupertinoTheme(
-                                      data: const CupertinoThemeData(
-                                        brightness: Brightness.dark,
-                                      ),
-                                      child: CupertinoDatePicker(
-                                        mode: CupertinoDatePickerMode.time,
-                                        use24hFormat: false,
-                                        initialDateTime: DateTime(
-                                          2026,
-                                          1,
-                                          1,
-                                          tempReminderTime.hour,
-                                          tempReminderTime.minute,
-                                        ),
-                                        onDateTimeChanged: (newTime) {
-                                          tempReminderTime = TimeOfDay(
-                                            hour: newTime.hour,
-                                            minute: newTime.minute,
-                                          );
-                                        },
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            );
-                          },
-                        );
-                      },
-                    ),
-
-
-                    TextButton(
-                      onPressed: () {
-                        setDialogState(() {
-                          editReminderTime = null;
-                        });
-                      },
-                      child: const Text(
-                        'Clear Reminder',
-                        style: TextStyle(color: Colors.red),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ),
-            ),
-            actionsOverflowDirection: VerticalDirection.down,
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text(
-                  'Cancel',
-                  style: TextStyle(color: Colors.white70),
+              actionsOverflowDirection: VerticalDirection.down,
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text(
+                    'Cancel',
+                    style: TextStyle(color: Colors.white70),
+                  ),
                 ),
-              ),
 
-              ElevatedButton(
-                onPressed: () async {
-                  final updatedTitle = editController.text.trim();
+                ElevatedButton(
+                  onPressed: () async {
+                    final updatedTitle = editController.text.trim();
 
-                  if (updatedTitle.isEmpty) {
-                    return;
-                  }
+                    if (updatedTitle.isEmpty) {
+                      return;
+                    }
 
-                  // Keep the existing notification ID when possible.
-                  final existingNotificationId = task['notificationId'];
+                    // Keep the existing notification ID when possible.
+                    final existingNotificationId = task['notificationId'];
 
-                  final int notificationId =
-                      existingNotificationId is int
-                          ? existingNotificationId
-                          : createNotificationId();
+                    final int notificationId = existingNotificationId is int
+                        ? existingNotificationId
+                        : createNotificationId();
 
-                  final editedTime =
-                      parseReminderTime(editReminderTime);
+                    final editedTime = parseReminderTime(editReminderTime);
 
-                  // Update the task immediately.
-                  setState(() {
-                    task['title'] = updatedTitle;
-                    task['description'] =
-                        editDescriptionController.text.trim();
-                    task['category'] = editCategory;
-                    task['priority'] = editPriority;
-                    task['reminderTime'] = editReminderTime;
-                    task['notificationId'] = notificationId;
+                    // Update the task immediately.
+                    setState(() {
+                      task['title'] = updatedTitle;
+                      task['description'] = editDescriptionController.text
+                          .trim();
+                      task['category'] = editCategory;
+                      task['priority'] = editPriority;
+                      task['reminderTime'] = editReminderTime;
+                      task['notificationId'] = notificationId;
 
-                    task['repeat'] = editRepeat;
-                    task['repeatDays'] = editRepeatDays.toList();
-                  });
+                      task['repeat'] = editRepeat;
+                      task['repeatDays'] = editRepeatDays.toList();
+                    });
 
-                  // Close the Edit popup immediately.
-                  Navigator.of(context).pop();
+                    // Close the Edit popup immediately.
+                    Navigator.of(context).pop();
 
-                  // Update reminders and recurring-series storage.
-                  await cancelTaskReminders(task);
+                    // Update reminders and recurring-series storage.
+                    await cancelTaskReminders(task);
 
-                  await updateRecurringTaskTemplate(task);
+                    await updateRecurringTaskTemplate(task);
 
-                  if (editedTime != null &&
-                      task['completed'] != true) {
-                    final reminderDateTime =
-                        buildReminderDateTime(
-                      dateKey:
-                          task['date'] ?? selectedTaskDate,
-                      reminderTime: editedTime,
-                    );
+                    if (editedTime != null && task['completed'] != true) {
+                      final reminderDateTime = buildReminderDateTime(
+                        dateKey: task['date'] ?? selectedTaskDate,
+                        reminderTime: editedTime,
+                      );
 
-                    await scheduleSmartReminders(
-                      notificationId: notificationId,
-                      taskTitle: updatedTitle,
-                      priority: editPriority,
-                      reminderDateTime: reminderDateTime,
-                    );
-                  }
+                      await scheduleSmartReminders(
+                        notificationId: notificationId,
+                        taskTitle: updatedTitle,
+                        priority: editPriority,
+                        reminderDateTime: reminderDateTime,
+                      );
+                    }
 
-                  await saveTasks();
-                },
-                child: const Text('Save'),
-              ),
-            ],
+                    await saveTasks();
+                  },
+                  child: const Text('Save'),
+                ),
+              ],
             );
           },
         );
       },
     );
   }
-  
+
   // Rearranges tasks and saves the updated order
   Future<void> reorderTasks(int oldIndex, int newIndex) async {
     if (newIndex > oldIndex) {
@@ -2260,11 +2203,12 @@ Future<void> refreshDailyTaskNotifications() async {
     await saveTasks();
   }
 
-
   @override
   Widget build(BuildContext context) {
-    final int completedTasks = tasks.where((task) => task['completed'] == true).length;
-    final double progress = tasks.isEmpty ? 0: completedTasks / tasks.length;
+    final int completedTasks = tasks
+        .where((task) => task['completed'] == true)
+        .length;
+    final double progress = tasks.isEmpty ? 0 : completedTasks / tasks.length;
 
     final List<Map<String, dynamic>> filteredTasks = getFilteredTasks();
     return Scaffold(
@@ -2289,8 +2233,8 @@ Future<void> refreshDailyTaskNotifications() async {
                       DateTime.now().hour < 12
                           ? 'Good Morning, $userName 👋'
                           : DateTime.now().hour < 17
-                              ? 'Good Afternoon, $userName 👋'
-                              : 'Good Evening, $userName 👋',
+                          ? 'Good Afternoon, $userName 👋'
+                          : 'Good Evening, $userName 👋',
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 30,
@@ -2300,7 +2244,10 @@ Future<void> refreshDailyTaskNotifications() async {
                   ),
 
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 18,
+                      vertical: 14,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.white10,
                       borderRadius: BorderRadius.circular(18),
@@ -2338,13 +2285,10 @@ Future<void> refreshDailyTaskNotifications() async {
                 ),
               ),
               const SizedBox(height: 12),
-              
+
               const Text(
                 'Track. Focus. Achieve.',
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: 16,
-                ),
+                style: TextStyle(color: Colors.white70, fontSize: 16),
               ),
 
               const SizedBox(height: 32),
@@ -2356,9 +2300,7 @@ Future<void> refreshDailyTaskNotifications() async {
                 decoration: BoxDecoration(
                   color: Colors.white10,
                   borderRadius: BorderRadius.circular(18),
-                  border: Border.all(
-                    color: Colors.white12,
-                  ),
+                  border: Border.all(color: Colors.white12),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -2429,69 +2371,70 @@ Future<void> refreshDailyTaskNotifications() async {
                         ),
                       ),
                     ),
-                  
-                  // Motivational messages
-                  const SizedBox(height: 10),
 
-                  Text(
-                    getMotivationMessage(progress),
-                    style: const TextStyle(
-                      color: Colors.white70,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500
+                    // Motivational messages
+                    const SizedBox(height: 10),
+
+                    Text(
+                      getMotivationMessage(progress),
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
-                  ),
 
-                  const SizedBox(height: 15),
-                  
-              // Complete Task Button
-                ElevatedButton(
-                  onPressed: isViewingToday() ? () async {
-                    if (dayCompleted) {
-                      await undoCompleteDay();
-                    } else{
-                      final bool? confirm = await showDialog<bool>(
-                        context: context,
-                        builder: (context) => AlertDialog(
-                          title: const Text('Complete Day'),
-                          content: const Text(
-                            'Are you sure you completed your day?',
-                          ),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(context, false),
-                              child: const Text('No'),
-                            ),
-                            TextButton(
-                              onPressed: () => Navigator.pop(context, true),
-                              child: const Text('Yes'),
-                            ),
-                          ],
+                    const SizedBox(height: 15),
+
+                    // Complete Task Button
+                    ElevatedButton(
+                      onPressed: isViewingToday()
+                          ? () async {
+                              if (dayCompleted) {
+                                await undoCompleteDay();
+                              } else {
+                                final bool? confirm = await showDialog<bool>(
+                                  context: context,
+                                  builder: (context) => AlertDialog(
+                                    title: const Text('Complete Day'),
+                                    content: const Text(
+                                      'Are you sure you completed your day?',
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () =>
+                                            Navigator.pop(context, false),
+                                        child: const Text('No'),
+                                      ),
+                                      TextButton(
+                                        onPressed: () =>
+                                            Navigator.pop(context, true),
+                                        child: const Text('Yes'),
+                                      ),
+                                    ],
+                                  ),
+                                );
+
+                                if (confirm == true) {
+                                  completeDay();
+                                }
+                              }
+                            }
+                          : null,
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 10,
                         ),
-                      );
-
-                        if (confirm == true) {
-                          completeDay();
-                        }
-                    }
-                  }
-                  : null,
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 10,
+                      ),
+                      child: Text(
+                        dayCompleted ? '✅ Day Complete' : '⭕ Mark Day Complete',
+                      ),
                     ),
-                  ),
-                  child: Text(
-                    dayCompleted
-                    ? '✅ Day Complete'
-                    : '⭕ Mark Day Complete',
-                  ),
-                ),
 
-                const SizedBox(height: 20),
+                    const SizedBox(height: 20),
 
-                const SizedBox(height: 8),
+                    const SizedBox(height: 8),
 
                     Text(
                       '${(progress * 100).toInt()}% complete',
@@ -2598,7 +2541,15 @@ Future<void> refreshDailyTaskNotifications() async {
                           final isSelected = selectedTaskDate == dateKey;
                           final isToday = dateKey == todayKey;
 
-                          final dayNames = ['Sun', 'Mon', 'Tues', 'Wed', 'Thurs', 'Fri', 'Sat'];
+                          final dayNames = [
+                            'Sun',
+                            'Mon',
+                            'Tues',
+                            'Wed',
+                            'Thurs',
+                            'Fri',
+                            'Sat',
+                          ];
 
                           return FutureBuilder<double>(
                             future: getProgressForDate(date),
@@ -2619,7 +2570,8 @@ Future<void> refreshDailyTaskNotifications() async {
                                       onTap: () async {
                                         await saveTasks();
 
-                                        final prefs = await SharedPreferences.getInstance();
+                                        final prefs =
+                                            await SharedPreferences.getInstance();
 
                                         setState(() {
                                           selectedTaskDate = dateKey;
@@ -2633,93 +2585,110 @@ Future<void> refreshDailyTaskNotifications() async {
                                         await loadTasksForSelectedDate();
                                       },
                                       child: AnimatedContainer(
-                                        duration: const Duration(milliseconds: 200),
+                                        duration: const Duration(
+                                          milliseconds: 200,
+                                        ),
                                         curve: Curves.easeOut,
-                                        margin: const EdgeInsets.symmetric(horizontal: 4),
+                                        margin: const EdgeInsets.symmetric(
+                                          horizontal: 4,
+                                        ),
                                         decoration: BoxDecoration(
                                           color: Colors.transparent,
-                                          borderRadius: BorderRadius.circular(18),
-                                        ),
-                                      child: Column(
-                                        mainAxisAlignment: MainAxisAlignment.center,
-                                        children: [
-                                          Text(
-                                            dayNames[date.weekday % 7],
-                                            style: TextStyle(
-                                              color: isSelected
-                                                  ? Colors.white
-                                                  : Colors.white70,
-                                              fontSize: 12,
-                                              fontWeight: isSelected
-                                                  ? FontWeight.w600
-                                                  : FontWeight.normal,
-                                            ),
+                                          borderRadius: BorderRadius.circular(
+                                            18,
                                           ),
-
-                                          const SizedBox(height: 8),
-
-                                          AnimatedContainer(
-                                            duration: const Duration(milliseconds: 200),
-                                            curve: Curves.easeOut,
-                                            padding: EdgeInsets.all(isSelected ? 3 : 0),
-                                            decoration: BoxDecoration(
-                                              shape: BoxShape.circle,
-                                              color: isSelected
-                                                  ? ringColor.withValues(alpha: 0.10)
-                                                  : Colors.transparent,
-                                              border: isSelected
-                                                  ? Border.all(
-                                                      color: ringColor,
-                                                      width: 1.5,
-                                                    )
-                                                  : null,
-                                            ),
-                                            child: CustomPaint(
-                                              painter: DayProgressPainter(
-                                                progress: dayProgress,
-                                                color: ringColor,
+                                        ),
+                                        child: Column(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            Text(
+                                              dayNames[date.weekday % 7],
+                                              style: TextStyle(
+                                                color: isSelected
+                                                    ? Colors.white
+                                                    : Colors.white70,
+                                                fontSize: 12,
+                                                fontWeight: isSelected
+                                                    ? FontWeight.w600
+                                                    : FontWeight.normal,
                                               ),
-                                              child: SizedBox(
-                                                width: isSelected ? 46 : 42,
-                                                height: isSelected ? 46 : 42,
-                                              child: Center(
-                                                child: Text(
-                                                  '${date.day}',
-                                                  style: TextStyle(
-                                                    color: isSelected
-                                                        ? ringColor
-                                                        : isToday
+                                            ),
+
+                                            const SizedBox(height: 8),
+
+                                            AnimatedContainer(
+                                              duration: const Duration(
+                                                milliseconds: 200,
+                                              ),
+                                              curve: Curves.easeOut,
+                                              padding: EdgeInsets.all(
+                                                isSelected ? 3 : 0,
+                                              ),
+                                              decoration: BoxDecoration(
+                                                shape: BoxShape.circle,
+                                                color: isSelected
+                                                    ? ringColor.withValues(
+                                                        alpha: 0.10,
+                                                      )
+                                                    : Colors.transparent,
+                                                border: isSelected
+                                                    ? Border.all(
+                                                        color: ringColor,
+                                                        width: 1.5,
+                                                      )
+                                                    : null,
+                                              ),
+                                              child: CustomPaint(
+                                                painter: DayProgressPainter(
+                                                  progress: dayProgress,
+                                                  color: ringColor,
+                                                ),
+                                                child: SizedBox(
+                                                  width: isSelected ? 46 : 42,
+                                                  height: isSelected ? 46 : 42,
+                                                  child: Center(
+                                                    child: Text(
+                                                      '${date.day}',
+                                                      style: TextStyle(
+                                                        color: isSelected
+                                                            ? ringColor
+                                                            : isToday
                                                             ? Colors.white
                                                             : Colors.white70,
-                                                    fontWeight: isSelected
-                                                        ? FontWeight.w700
-                                                        : FontWeight.w600,
-                                                    fontSize: isSelected ? 18 : 16,
+                                                        fontWeight: isSelected
+                                                            ? FontWeight.w700
+                                                            : FontWeight.w600,
+                                                        fontSize: isSelected
+                                                            ? 18
+                                                            : 16,
+                                                      ),
+                                                    ),
                                                   ),
                                                 ),
                                               ),
                                             ),
-                                            ),
-                                          ),
 
-                                          const SizedBox(height: 6),
-                                          SizedBox(
-                                            width: 50,
-                                            child: Text(
-                                              taskCount == 1 ? '1 task' : '$taskCount tasks',
-                                              textAlign: TextAlign.center,
-                                              maxLines: 1,
-                                              overflow: TextOverflow.visible,
-                                              style: const TextStyle(
-                                                color: Colors.white54,
-                                                fontSize: 10,
-                                                fontWeight: FontWeight.w500,
+                                            const SizedBox(height: 6),
+                                            SizedBox(
+                                              width: 50,
+                                              child: Text(
+                                                taskCount == 1
+                                                    ? '1 task'
+                                                    : '$taskCount tasks',
+                                                textAlign: TextAlign.center,
+                                                maxLines: 1,
+                                                overflow: TextOverflow.visible,
+                                                style: const TextStyle(
+                                                  color: Colors.white54,
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.w500,
+                                                ),
                                               ),
                                             ),
-                                          ),
-                                        ],
+                                          ],
+                                        ),
                                       ),
-                                    ),
                                     ),
                                   );
                                 },
@@ -2739,7 +2708,7 @@ Future<void> refreshDailyTaskNotifications() async {
                 dropdownColor: Colors.grey[900],
                 isExpanded: true,
                 style: const TextStyle(color: Colors.white),
-                items: ['All', ... categories].map((filter) {
+                items: ['All', ...categories].map((filter) {
                   return DropdownMenuItem<String>(
                     value: filter,
                     child: Text(filter),
@@ -2775,203 +2744,218 @@ Future<void> refreshDailyTaskNotifications() async {
                       onReorder: reorderTasks,
                       itemBuilder: (context, index) {
                         final task = filteredTasks[index];
-                          return Card(
-                            key: ObjectKey(task),
-                            color: Colors.white10,
-                            child: ListTile(
-                              leading: GestureDetector(
-                                onTap: () async {
+                        return Card(
+                          key: ObjectKey(task),
+                          color: Colors.white10,
+                          child: ListTile(
+                            leading: GestureDetector(
+                              onTap: () async {
+                                // Get the task that the user tapped
+                                final task = filteredTasks[index];
 
-                                  // Get the task that the user tapped
-                                  final task = filteredTasks[index];
+                                // Determine the task's new completion status
+                                final bool isNowCompleted =
+                                    task['completed'] != true;
 
-                                  // Determine the task's new completion status
-                                  final bool isNowCompleted = task['completed'] != true;
+                                // Update the task's completed value
+                                setState(() {
+                                  task['completed'] = isNowCompleted;
+                                });
 
-                                  // Update the task's completed value
-                                  setState(() {
-                                    task['completed'] = isNowCompleted;
-                                  });
+                                // If the task was just completed, cancel all remaining reminders
+                                if (isNowCompleted) {
+                                  await cancelTaskReminders(task);
+                                } else {
+                                  // If the task was marked incomplete again,
+                                  // try to restore its reminders
+                                  final reminderTime = parseReminderTime(
+                                    task['reminderTime'],
+                                  );
 
-                                  // If the task was just completed, cancel all remaining reminders
-                                  if (isNowCompleted) {
-                                    await cancelTaskReminders(task);
-                                  } else {
+                                  // Only continue if the task has a reminder time
+                                  if (reminderTime != null) {
+                                    // Get the task's saved notification ID
+                                    final notificationId =
+                                        task['notificationId'];
 
-                                    // If the task was marked incomplete again,
-                                    // try to restore its reminders
-                                    final reminderTime = parseReminderTime(
-                                      task['reminderTime'],
-                                    );
+                                    // Only reschedule if the notification ID is valid
+                                    if (notificationId is int) {
+                                      // Build the task's full reminder date and time
+                                      final reminderDateTime =
+                                          buildReminderDateTime(
+                                            dateKey:
+                                                task['date'] ??
+                                                selectedTaskDate,
+                                            reminderTime: reminderTime,
+                                          );
 
-                                    // Only continue if the task has a reminder time
-                                    if (reminderTime != null) {
-
-                                      // Get the task's saved notification ID
-                                      final notificationId = task['notificationId'];
-
-                                      // Only reschedule if the notification ID is valid
-                                      if (notificationId is int) {
-
-                                        // Build the task's full reminder date and time
-                                        final reminderDateTime = buildReminderDateTime(
-                                          dateKey: task['date'] ?? selectedTaskDate,
-                                          reminderTime: reminderTime,
-                                        );
-
-                                        // Schedule the reminders again based on priority
-                                        await scheduleSmartReminders(
-                                          notificationId: notificationId,
-                                          taskTitle: task['title'].toString(),
-                                          priority: task['priority']?.toString(),
-                                          reminderDateTime: reminderDateTime,
-                                        );
-                                      }
+                                      // Schedule the reminders again based on priority
+                                      await scheduleSmartReminders(
+                                        notificationId: notificationId,
+                                        taskTitle: task['title'].toString(),
+                                        priority: task['priority']?.toString(),
+                                        reminderDateTime: reminderDateTime,
+                                      );
                                     }
                                   }
+                                }
 
-                                  // Save the updated task list
-                                  await saveTasks();
-                                },
-                                child: CustomPaint(
-                                  painter: DayProgressPainter(
-                                    progress: filteredTasks[index]['completed'] == true ? 1.0 : 0.0,
-                                  ),
-                                  child: SizedBox(
-                                    width: 34,
-                                    height: 34,
-                                    child: Center(
-                                      child: filteredTasks[index]['completed'] == true
-                                          ? const Icon(
-                                              Icons.check,
-                                              color: Colors.greenAccent,
-                                              size: 20,
-                                            )
-                                          : const SizedBox(),
-                                    ),
+                                // Save the updated task list
+                                await saveTasks();
+                              },
+                              child: CustomPaint(
+                                painter: DayProgressPainter(
+                                  progress:
+                                      filteredTasks[index]['completed'] == true
+                                      ? 1.0
+                                      : 0.0,
+                                ),
+                                child: SizedBox(
+                                  width: 34,
+                                  height: 34,
+                                  child: Center(
+                                    child:
+                                        filteredTasks[index]['completed'] ==
+                                            true
+                                        ? const Icon(
+                                            Icons.check,
+                                            color: Colors.greenAccent,
+                                            size: 20,
+                                          )
+                                        : const SizedBox(),
                                   ),
                                 ),
                               ),
-                              title: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    '${filteredTasks[index]['category'] ?? '🏠 Personal'} • '
-                                    '${filteredTasks[index]['title']}',
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      decoration: filteredTasks[index]['completed'] == true
-                                          ? TextDecoration.lineThrough
-                                          : TextDecoration.none,
-                                    ),
-                                  ),
-
-                                  if ((filteredTasks[index]['description'] ?? '').toString().isNotEmpty)
-                                    Padding(
-                                      padding: const EdgeInsets.only(top: 6),
-                                      child: Text(
-                                        filteredTasks[index]['description'],
-                                        style: const TextStyle(
-                                          color: Colors.white60,
-                                          fontSize: 13,
-                                          height: 1.3,
-                                        ),
-                                      ),
-                                    ),
-
-                                  if(filteredTasks[index]['priority'] != null)
-                                    Text(
-                                      filteredTasks[index]['priority'],
-                                      style: const TextStyle(
-                                        color: Colors.white70,
-                                        fontSize: 12,
-                                      ),
-                                  ),
-
-                                  // Show recurrence underneath repeating tasks.
-                                  if ((filteredTasks[index]['repeat'] ?? 'Never') != 'Never')
-                                    Padding(
-                                      padding: const EdgeInsets.only(top: 3),
-                                      child: Text(
-                                        '🔁 ${filteredTasks[index]['repeat']}',
-                                        style: const TextStyle(
-                                          color: Colors.white70,
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                    ),
-                                  if (filteredTasks[index]['reminderTime'] != null)
-                                    Text(
-                                      '🔔 ${filteredTasks[index]['reminderTime']}',
-                                      style: const TextStyle(
-                                        color: Colors.white70,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                ],
-                              ),
-                              trailing: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  ReorderableDragStartListener(
-                                    index: index,
-                                    child: const Padding(
-                                      padding: EdgeInsets.symmetric(horizontal: 4),
-                                      child: Icon(
-                                        Icons.drag_handle,
-                                        color: Colors.white54,
-                                        size: 22,
-                                      ),
-                                    ),
-                                  ),
-                                  IconButton(
-                                    visualDensity: VisualDensity.compact,
-                                    constraints: const BoxConstraints(
-                                      minWidth: 34,
-                                      minHeight: 34,
-                                    ),
-                                    padding: EdgeInsets.zero,
-                                    icon: const Icon(
-                                      Icons.edit,
-                                      color: Colors.greenAccent,
-                                      size: 20,
-                                    ),
-                                    onPressed: () {
-                                      showEditTaskPopup(task);
-                                    },
-                                  ),
-                                  IconButton(
-                                    visualDensity: VisualDensity.compact,
-                                    constraints: const BoxConstraints(
-                                      minWidth: 34,
-                                      minHeight: 34,
-                                    ),
-                                    padding: EdgeInsets.zero,
-                                    icon: const Icon(
-                                      Icons.delete,
-                                      color: Colors.redAccent,
-                                      size: 20,
-                                    ),
-                                    onPressed: () async {
-                                      final taskToDelete = filteredTasks[index];
-
-                                      await cancelTaskReminders(taskToDelete);
-
-                                      setState(() {
-                                        tasks.remove(taskToDelete);
-                                      });
-
-                                      await saveTasks();
-                                    },
-                                  ),
-                                ],
-                              ),
                             ),
-                          );
-                        },
-                      ),
+                            title: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '${filteredTasks[index]['category'] ?? '🏠 Personal'} • '
+                                  '${filteredTasks[index]['title']}',
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    decoration:
+                                        filteredTasks[index]['completed'] ==
+                                            true
+                                        ? TextDecoration.lineThrough
+                                        : TextDecoration.none,
+                                  ),
+                                ),
+
+                                if ((filteredTasks[index]['description'] ?? '')
+                                    .toString()
+                                    .isNotEmpty)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 6),
+                                    child: Text(
+                                      filteredTasks[index]['description'],
+                                      style: const TextStyle(
+                                        color: Colors.white60,
+                                        fontSize: 13,
+                                        height: 1.3,
+                                      ),
+                                    ),
+                                  ),
+
+                                if (filteredTasks[index]['priority'] != null)
+                                  Text(
+                                    filteredTasks[index]['priority'],
+                                    style: const TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+
+                                // Show recurrence underneath repeating tasks.
+                                if ((filteredTasks[index]['repeat'] ??
+                                        'Never') !=
+                                    'Never')
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 3),
+                                    child: Text(
+                                      '🔁 ${filteredTasks[index]['repeat']}',
+                                      style: const TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ),
+                                if (filteredTasks[index]['reminderTime'] !=
+                                    null)
+                                  Text(
+                                    '🔔 ${filteredTasks[index]['reminderTime']}',
+                                    style: const TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                ReorderableDragStartListener(
+                                  index: index,
+                                  child: const Padding(
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: 4,
+                                    ),
+                                    child: Icon(
+                                      Icons.drag_handle,
+                                      color: Colors.white54,
+                                      size: 22,
+                                    ),
+                                  ),
+                                ),
+                                IconButton(
+                                  visualDensity: VisualDensity.compact,
+                                  constraints: const BoxConstraints(
+                                    minWidth: 34,
+                                    minHeight: 34,
+                                  ),
+                                  padding: EdgeInsets.zero,
+                                  icon: const Icon(
+                                    Icons.edit,
+                                    color: Colors.greenAccent,
+                                    size: 20,
+                                  ),
+                                  onPressed: () {
+                                    showEditTaskPopup(task);
+                                  },
+                                ),
+                                IconButton(
+                                  visualDensity: VisualDensity.compact,
+                                  constraints: const BoxConstraints(
+                                    minWidth: 34,
+                                    minHeight: 34,
+                                  ),
+                                  padding: EdgeInsets.zero,
+                                  icon: const Icon(
+                                    Icons.delete,
+                                    color: Colors.redAccent,
+                                    size: 20,
+                                  ),
+                                  onPressed: () async {
+                                    final taskToDelete = filteredTasks[index];
+
+                                    await cancelTaskReminders(taskToDelete);
+
+                                    setState(() {
+                                      tasks.remove(taskToDelete);
+                                    });
+
+                                    await saveTasks();
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
 
               const SizedBox(height: 24),
 
@@ -2995,9 +2979,6 @@ Future<void> refreshDailyTaskNotifications() async {
 
               const SizedBox(height: 12),
 
-
-
-
               if (getProgress() == 1 && tasks.isNotEmpty)
                 Padding(
                   padding: EdgeInsets.only(top: 16),
@@ -3016,7 +2997,7 @@ Future<void> refreshDailyTaskNotifications() async {
           ),
         ),
       ),
-      );
+    );
   }
 }
 
@@ -3024,10 +3005,7 @@ class DayProgressPainter extends CustomPainter {
   final double progress;
   final Color color;
 
-  DayProgressPainter({
-    required this.progress,
-    this.color = Colors.greenAccent,
-  });
+  DayProgressPainter({required this.progress, this.color = Colors.greenAccent});
 
   @override
   void paint(Canvas canvas, Size size) {
