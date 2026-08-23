@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class CalendarScreen extends StatefulWidget {
   const CalendarScreen({super.key});
@@ -31,6 +32,22 @@ class _CalendarScreenState extends State<CalendarScreen> {
     'December',
   ];
 
+  // Returns the Firebase UID for the currently signed-in TrakOn user.
+  String get currentUserId {
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
+      throw StateError('No authenticated user is available.');
+    }
+
+    return user.uid;
+  }
+
+  // Makes SharedPreferences keys user-specific.
+  String userKey(String key) {
+    return '${currentUserId}_$key';
+  }
+
   @override
   void initState() {
     super.initState();
@@ -43,7 +60,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   String getTaskStorageKey(String dateKey) {
     final todayKey = getDateKey(DateTime.now());
-    return dateKey == todayKey ? 'tasks' : 'tasks_$dateKey';
+
+    return dateKey == todayKey ? userKey('tasks') : userKey('tasks_$dateKey');
   }
 
   DateTime parseDateKey(String dateKey) {
@@ -60,7 +78,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
   Future<List<Map<String, dynamic>>> loadRecurringTasks() async {
     final prefs = await SharedPreferences.getInstance();
 
-    final savedRecurringTasks = prefs.getString('recurringTasks');
+    final savedRecurringTasks = prefs.getString(userKey('recurringTasks'));
 
     if (savedRecurringTasks == null) {
       return [];
@@ -198,7 +216,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
   Future<void> loadSelectedDateAndTasks() async {
     final prefs = await SharedPreferences.getInstance();
 
-    final savedDateKey = prefs.getString('selectedTaskDate');
+    final savedDateKey = prefs.getString(userKey('selectedTaskDate'));
 
     if (savedDateKey != null) {
       final savedDate = parseDateKey(savedDateKey);
@@ -304,7 +322,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                           final prefs = await SharedPreferences.getInstance();
 
                           await prefs.setString(
-                            'selectedTaskDate',
+                            userKey('selectedTaskDate'),
                             getDateKey(selectedDate),
                           );
 
@@ -391,7 +409,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                           final String selectedDateKey =
                               '${selectedDate.year}-${selectedDate.month}-${selectedDate.day}';
                           await prefs.setString(
-                            'selectedTaskDate',
+                            userKey('selectedTaskDate'),
                             selectedDateKey,
                           );
 

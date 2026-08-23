@@ -753,10 +753,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     if (plannedTodayTasks != null) {
       // Move today's previously planned tasks into the main current-day key
-      await prefs.setString(
-        userKey('tasks'),
-        plannedTodayTasks,
-      );
+      await prefs.setString(userKey('tasks'), plannedTodayTasks);
 
       // Remove the dated copy after moving it
       await prefs.remove(userKey('tasks_$todayString'));
