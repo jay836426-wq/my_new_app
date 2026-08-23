@@ -189,7 +189,8 @@ class SettingsScreen extends StatelessWidget {
                   text:
                       'Check out TrakOn — a simple productivity app for tracking tasks, '
                       'staying focused, and building consistency.\n\n'
-                      'Track. Focus. Achieve.',
+                      'Track. Focus. Achieve.\n\n'
+                      'Learn more: https://gettrakon.com',
                 ),
               );
             },
@@ -1360,7 +1361,7 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
                       style: const TextStyle(color: Colors.white60),
                     ),
                   ),
-                  onTap: showEditPhoneDialog,
+                  onTap: null,
                 ),
               ],
             ),

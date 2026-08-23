@@ -260,7 +260,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                 child: ScaleTransition(
                   scale: _logoScale,
                   child: Image.asset(
-                    'assets/trakon_logo.png',
+                    'assets/TrakOn_logo.png',
                     width: 150,
                     height: 150,
                     fit: BoxFit.contain,
@@ -749,306 +749,315 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
         foregroundColor: Colors.white,
       ),
 
-      body: Padding(
-        padding: const EdgeInsets.all(24),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
 
-        child: Form(
-          key: _formKey,
+          child: Form(
+            key: _formKey,
 
-          child: Column(
-            children: [
-              // First Name
-              TextFormField(
-                controller: firstNameController,
-                style: const TextStyle(color: Colors.white),
-                decoration: const InputDecoration(
-                  labelText: 'First Name',
-                  labelStyle: TextStyle(color: Colors.white),
-                  enabledBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: Colors.white),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: Colors.white),
-                  ),
-                ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Required';
-                  }
-                  return null;
-                },
-              ),
-
-              const SizedBox(height: 16),
-
-              // Last Name
-              TextFormField(
-                controller: lastNameController,
-                style: const TextStyle(color: Colors.white),
-                decoration: const InputDecoration(
-                  labelText: 'Last Name',
-                  labelStyle: TextStyle(color: Colors.white),
-                  enabledBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: Colors.white),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: Colors.white),
-                  ),
-                ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Required';
-                  }
-                  return null;
-                },
-              ),
-
-              const SizedBox(height: 16),
-
-              TextFormField(
-                controller: usernameController,
-                style: const TextStyle(color: Colors.white),
-                decoration: const InputDecoration(
-                  labelText: 'Username',
-                  hintText: 'Example: jbok24',
-                  labelStyle: TextStyle(color: Colors.white),
-                  hintStyle: TextStyle(color: Colors.white38),
-                  enabledBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: Colors.white),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: Colors.white),
-                  ),
-                ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Enter a username';
-                  }
-                  if (value.trim().length < 3) {
-                    return 'Username must be at least 3 characters';
-                  }
-                  return null;
-                },
-              ),
-
-              const SizedBox(height: 16),
-
-              // DOB FIELD
-              // User taps this field to open the date picker
-              TextFormField(
-                controller: dobController,
-                style: const TextStyle(color: Colors.white),
-                readOnly: true,
-                onTap: selectDateOfBirth,
-                decoration: const InputDecoration(
-                  labelText: 'Date of Birth',
-                  hintText: 'MM/DD/YYYY',
-                  hintStyle: TextStyle(color: Colors.white54),
-                  labelStyle: TextStyle(color: Colors.white),
-                  suffixIcon: Icon(Icons.calendar_today, color: Colors.white),
-                  enabledBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: Colors.white),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: Colors.white),
-                  ),
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please select your date of birth';
-                  }
-                  return null;
-                },
-              ),
-
-              const SizedBox(height: 16),
-
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Sign up with',
-                    style: TextStyle(
-                      color: Colors.white70,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // First Name
+                TextFormField(
+                  controller: firstNameController,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: const InputDecoration(
+                    labelText: 'First Name',
+                    labelStyle: TextStyle(color: Colors.white),
+                    enabledBorder: OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.white),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.white),
                     ),
                   ),
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Required';
+                    }
+                    return null;
+                  },
+                ),
 
-                  const SizedBox(height: 8),
+                const SizedBox(height: 16),
 
-                  Container(
-                    height: 42,
-                    padding: const EdgeInsets.all(3),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade900,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.white24),
+                // Last Name
+                TextFormField(
+                  controller: lastNameController,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: const InputDecoration(
+                    labelText: 'Last Name',
+                    labelStyle: TextStyle(color: Colors.white),
+                    enabledBorder: OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.white),
                     ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        GestureDetector(
-                          onTap: () {
-                            setState(() {
-                              useEmail = true;
-                            });
-                          },
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 180),
-                            width: 90,
-                            alignment: Alignment.center,
-                            decoration: BoxDecoration(
-                              color: useEmail
-                                  ? Colors.white
-                                  : Colors.transparent,
-                              borderRadius: BorderRadius.circular(7),
-                            ),
-                            child: Text(
-                              'Email',
-                              style: TextStyle(
-                                color: useEmail ? Colors.black : Colors.white70,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
+                    focusedBorder: OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.white),
+                    ),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Required';
+                    }
+                    return null;
+                  },
+                ),
+
+                const SizedBox(height: 16),
+
+                TextFormField(
+                  controller: usernameController,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: const InputDecoration(
+                    labelText: 'Username',
+                    hintText: 'Example: jbok24',
+                    labelStyle: TextStyle(color: Colors.white),
+                    hintStyle: TextStyle(color: Colors.white38),
+                    enabledBorder: OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.white),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.white),
+                    ),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Enter a username';
+                    }
+                    if (value.trim().length < 3) {
+                      return 'Username must be at least 3 characters';
+                    }
+                    return null;
+                  },
+                ),
+
+                const SizedBox(height: 16),
+
+                // DOB FIELD
+                // User taps this field to open the date picker
+                TextFormField(
+                  controller: dobController,
+                  style: const TextStyle(color: Colors.white),
+                  readOnly: true,
+                  onTap: selectDateOfBirth,
+                  decoration: const InputDecoration(
+                    labelText: 'Date of Birth',
+                    hintText: 'MM/DD/YYYY',
+                    hintStyle: TextStyle(color: Colors.white54),
+                    labelStyle: TextStyle(color: Colors.white),
+                    suffixIcon: Icon(Icons.calendar_today, color: Colors.white),
+                    enabledBorder: OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.white),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.white),
+                    ),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please select your date of birth';
+                    }
+                    return null;
+                  },
+                ),
+
+                const SizedBox(height: 16),
+
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Sign up with',
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+
+                    const SizedBox(height: 8),
+
+                    Container(
+                      height: 42,
+                      padding: const EdgeInsets.all(3),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade900,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.white24),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                useEmail = true;
+                              });
+                            },
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 180),
+                              width: 90,
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                color: useEmail
+                                    ? Colors.white
+                                    : Colors.transparent,
+                                borderRadius: BorderRadius.circular(7),
+                              ),
+                              child: Text(
+                                'Email',
+                                style: TextStyle(
+                                  color: useEmail
+                                      ? Colors.black
+                                      : Colors.white70,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                             ),
                           ),
-                        ),
 
-                        GestureDetector(
-                          onTap: () {
-                            setState(() {
-                              useEmail = false;
-                            });
-                          },
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 180),
-                            width: 90,
-                            alignment: Alignment.center,
-                            decoration: BoxDecoration(
-                              color: !useEmail
-                                  ? Colors.white
-                                  : Colors.transparent,
-                              borderRadius: BorderRadius.circular(7),
-                            ),
-                            child: Text(
-                              'Phone',
-                              style: TextStyle(
+                          GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                useEmail = false;
+                              });
+                            },
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 180),
+                              width: 90,
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
                                 color: !useEmail
-                                    ? Colors.black
-                                    : Colors.white70,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
+                                    ? Colors.white
+                                    : Colors.transparent,
+                                borderRadius: BorderRadius.circular(7),
+                              ),
+                              child: Text(
+                                'Phone',
+                                style: TextStyle(
+                                  color: !useEmail
+                                      ? Colors.black
+                                      : Colors.white70,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 16),
-
-              // EMAIL or Phone FIELD
-              if (useEmail)
-                TextFormField(
-                  controller: emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: const InputDecoration(
-                    labelText: 'Email',
-                    hintText: 'example@email.com',
-                    labelStyle: TextStyle(color: Colors.white),
-                    hintStyle: TextStyle(color: Colors.white38),
-                    enabledBorder: OutlineInputBorder(
-                      borderSide: BorderSide(color: Colors.white),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderSide: BorderSide(color: Colors.white),
-                    ),
-                  ),
-                  validator: (value) {
-                    if (useEmail && (value == null || value.trim().isEmpty)) {
-                      return 'Enter your email';
-                    }
-                    return null;
-                  },
-                )
-              else
-                TextFormField(
-                  controller: phoneController,
-                  keyboardType: TextInputType.phone,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: const InputDecoration(
-                    labelText: 'Phone Number',
-                    hintText: '+1 555 555 5555',
-                    labelStyle: TextStyle(color: Colors.white),
-                    hintStyle: TextStyle(color: Colors.white38),
-                    enabledBorder: OutlineInputBorder(
-                      borderSide: BorderSide(color: Colors.white),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderSide: BorderSide(color: Colors.white),
-                    ),
-                  ),
-                  validator: (value) {
-                    if (!useEmail && (value == null || value.trim().isEmpty)) {
-                      return 'Enter your phone number';
-                    }
-                    return null;
-                  },
+                  ],
                 ),
 
-              const SizedBox(height: 16),
+                const SizedBox(height: 16),
 
-              TextFormField(
-                controller: passwordController,
-                obscureText: obscurePassword,
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  labelText: 'Password',
-                  labelStyle: const TextStyle(color: Colors.white),
-                  enabledBorder: const OutlineInputBorder(
-                    borderSide: BorderSide(color: Colors.white),
-                  ),
-                  focusedBorder: const OutlineInputBorder(
-                    borderSide: BorderSide(color: Colors.white),
-                  ),
-                  suffixIcon: IconButton(
-                    onPressed: () {
-                      setState(() {
-                        obscurePassword = !obscurePassword;
-                      });
+                // EMAIL or Phone FIELD
+                if (useEmail)
+                  TextFormField(
+                    controller: emailController,
+                    keyboardType: TextInputType.emailAddress,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: const InputDecoration(
+                      labelText: 'Email',
+                      hintText: 'example@email.com',
+                      labelStyle: TextStyle(color: Colors.white),
+                      hintStyle: TextStyle(color: Colors.white38),
+                      enabledBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: Colors.white),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: Colors.white),
+                      ),
+                    ),
+                    validator: (value) {
+                      if (useEmail && (value == null || value.trim().isEmpty)) {
+                        return 'Enter your email';
+                      }
+                      return null;
                     },
-                    icon: Icon(
-                      obscurePassword ? Icons.visibility_off : Icons.visibility,
-                      color: Colors.white,
+                  )
+                else
+                  TextFormField(
+                    controller: phoneController,
+                    keyboardType: TextInputType.phone,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: const InputDecoration(
+                      labelText: 'Phone Number',
+                      hintText: '+1 555 555 5555',
+                      labelStyle: TextStyle(color: Colors.white),
+                      hintStyle: TextStyle(color: Colors.white38),
+                      enabledBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: Colors.white),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: Colors.white),
+                      ),
+                    ),
+                    validator: (value) {
+                      if (!useEmail &&
+                          (value == null || value.trim().isEmpty)) {
+                        return 'Enter your phone number';
+                      }
+                      return null;
+                    },
+                  ),
+
+                const SizedBox(height: 16),
+
+                TextFormField(
+                  controller: passwordController,
+                  obscureText: obscurePassword,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    labelText: 'Password',
+                    labelStyle: const TextStyle(color: Colors.white),
+                    enabledBorder: const OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.white),
+                    ),
+                    focusedBorder: const OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.white),
+                    ),
+                    suffixIcon: IconButton(
+                      onPressed: () {
+                        setState(() {
+                          obscurePassword = !obscurePassword;
+                        });
+                      },
+                      icon: Icon(
+                        obscurePassword
+                            ? Icons.visibility_off
+                            : Icons.visibility,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
+                  validator: (value) {
+                    if (value == null || value.length < 7) {
+                      return 'Minimum 7 characters';
+                    }
+
+                    if (!hasSpecialCharacter(value)) {
+                      return 'Add a special character';
+                    }
+
+                    return null;
+                  },
                 ),
-                validator: (value) {
-                  if (value == null || value.length < 7) {
-                    return 'Minimum 7 characters';
-                  }
 
-                  if (!hasSpecialCharacter(value)) {
-                    return 'Add a special character';
-                  }
+                const SizedBox(height: 24),
 
-                  return null;
-                },
-              ),
-
-              const SizedBox(height: 24),
-
-              // SUBMIT BUTTON
-              ElevatedButton(
-                onPressed: submitForm,
-                child: const Text('Create Account'),
-              ),
-            ],
+                // SUBMIT BUTTON
+                ElevatedButton(
+                  onPressed: submitForm,
+                  child: const Text('Create Account'),
+                ),
+              ],
+            ),
           ),
         ),
       ),

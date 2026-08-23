@@ -647,7 +647,7 @@ exports.sendUsernameReminder = onCall(
           new Resend(RESEND_API_KEY.value());
 
       const result = await resend.emails.send({
-        from: "TrakOn <onboarding@resend.dev>",
+        from: "TrakOn <support@gettrakon.com>",
         to: email,
         subject: "Your TrakOn username",
         html: `

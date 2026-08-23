@@ -131,6 +131,16 @@ class _PhoneTermsAcceptanceScreenState
       if (!mounted) return;
 
       Navigator.of(context).popUntil((route) => route.isFirst);
+    } on FirebaseFunctionsException catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            e.message ?? 'Unable to cancel account creation. Please try again.',
+          ),
+        ),
+      );
     } catch (_) {
       if (!mounted) return;
 

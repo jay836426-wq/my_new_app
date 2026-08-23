@@ -967,6 +967,16 @@ class _HomeScreenState extends State<HomeScreen> {
 
       occurrence['date'] = selectedTaskDate;
 
+      // Keep the description only on the original task.
+      // Future recurring copies keep the task name but start
+      // with a blank description.
+      final recurringStartDate =
+          template['startDate']?.toString() ?? template['date']?.toString();
+
+      if (selectedTaskDate != recurringStartDate) {
+        occurrence['description'] = '';
+      }
+
       // Preserve completion status for this specific day.
       occurrence['completed'] = existingOccurrence?['completed'] ?? false;
 
@@ -1666,6 +1676,239 @@ class _HomeScreenState extends State<HomeScreen> {
                       ],
 
                       const SizedBox(height: 12),
+
+                      const SizedBox(height: 16),
+
+                      // ---------------------------------------------------------------------------
+                      // OPTIONAL START TIME
+                      // ---------------------------------------------------------------------------
+                      ListTile(
+                        title: Text(
+                          selectedStartTime == null
+                              ? 'Start Time (Optional)'
+                              : 'Start: ${selectedStartTime!.format(context)}',
+                          style: const TextStyle(color: Colors.white),
+                        ),
+                        trailing: const Icon(
+                          Icons.play_arrow,
+                          color: Colors.greenAccent,
+                        ),
+                        onTap: () async {
+                          TimeOfDay tempStartTime =
+                              selectedStartTime ?? TimeOfDay.now();
+
+                          await showModalBottomSheet(
+                            context: context,
+                            backgroundColor: Colors.black,
+                            builder: (context) {
+                              return SizedBox(
+                                height: 300,
+                                child: Column(
+                                  children: [
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                        vertical: 8,
+                                      ),
+                                      child: Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          TextButton(
+                                            onPressed: () =>
+                                                Navigator.pop(context),
+                                            child: const Text(
+                                              'Cancel',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                          ),
+                                          TextButton(
+                                            onPressed: () {
+                                              setDialogState(() {
+                                                selectedStartTime =
+                                                    tempStartTime;
+                                              });
+
+                                              Navigator.pop(context);
+                                            },
+                                            child: const Text(
+                                              'Done',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+
+                                    const Divider(color: Colors.white24),
+
+                                    Expanded(
+                                      child: CupertinoTheme(
+                                        data: const CupertinoThemeData(
+                                          brightness: Brightness.dark,
+                                        ),
+                                        child: CupertinoDatePicker(
+                                          mode: CupertinoDatePickerMode.time,
+                                          use24hFormat: false,
+                                          initialDateTime: DateTime(
+                                            2026,
+                                            1,
+                                            1,
+                                            tempStartTime.hour,
+                                            tempStartTime.minute,
+                                          ),
+                                          onDateTimeChanged: (newTime) {
+                                            tempStartTime = TimeOfDay(
+                                              hour: newTime.hour,
+                                              minute: newTime.minute,
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          );
+                        },
+                      ),
+
+                      if (selectedStartTime != null)
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: TextButton(
+                            onPressed: () {
+                              setDialogState(() {
+                                selectedStartTime = null;
+                              });
+                            },
+                            child: const Text(
+                              'Clear Start Time',
+                              style: TextStyle(color: Colors.redAccent),
+                            ),
+                          ),
+                        ),
+
+                      // ---------------------------------------------------------------------------
+                      // OPTIONAL END TIME
+                      // ---------------------------------------------------------------------------
+                      ListTile(
+                        title: Text(
+                          selectedEndTime == null
+                              ? 'End Time (Optional)'
+                              : 'End: ${selectedEndTime!.format(context)}',
+                          style: const TextStyle(color: Colors.white),
+                        ),
+                        trailing: const Icon(
+                          Icons.stop_circle_outlined,
+                          color: Colors.redAccent,
+                        ),
+                        onTap: () async {
+                          TimeOfDay tempEndTime =
+                              selectedEndTime ??
+                              selectedStartTime ??
+                              TimeOfDay.now();
+
+                          await showModalBottomSheet(
+                            context: context,
+                            backgroundColor: Colors.black,
+                            builder: (context) {
+                              return SizedBox(
+                                height: 300,
+                                child: Column(
+                                  children: [
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                        vertical: 8,
+                                      ),
+                                      child: Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          TextButton(
+                                            onPressed: () =>
+                                                Navigator.pop(context),
+                                            child: const Text(
+                                              'Cancel',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                          ),
+                                          TextButton(
+                                            onPressed: () {
+                                              setDialogState(() {
+                                                selectedEndTime = tempEndTime;
+                                              });
+
+                                              Navigator.pop(context);
+                                            },
+                                            child: const Text(
+                                              'Done',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+
+                                    const Divider(color: Colors.white24),
+
+                                    Expanded(
+                                      child: CupertinoTheme(
+                                        data: const CupertinoThemeData(
+                                          brightness: Brightness.dark,
+                                        ),
+                                        child: CupertinoDatePicker(
+                                          mode: CupertinoDatePickerMode.time,
+                                          use24hFormat: false,
+                                          initialDateTime: DateTime(
+                                            2026,
+                                            1,
+                                            1,
+                                            tempEndTime.hour,
+                                            tempEndTime.minute,
+                                          ),
+                                          onDateTimeChanged: (newTime) {
+                                            tempEndTime = TimeOfDay(
+                                              hour: newTime.hour,
+                                              minute: newTime.minute,
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          );
+                        },
+                      ),
+
+                      if (selectedEndTime != null)
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: TextButton(
+                            onPressed: () {
+                              setDialogState(() {
+                                selectedEndTime = null;
+                              });
+                            },
+                            child: const Text(
+                              'Clear End Time',
+                              style: TextStyle(color: Colors.redAccent),
+                            ),
+                          ),
+                        ),
 
                       const SizedBox(height: 16),
 
@@ -2928,22 +3171,38 @@ class _HomeScreenState extends State<HomeScreen> {
                                                   width: isSelected ? 46 : 42,
                                                   height: isSelected ? 46 : 42,
                                                   child: Center(
-                                                    child: Text(
-                                                      '${date.day}',
-                                                      style: TextStyle(
-                                                        color: isSelected
-                                                            ? ringColor
-                                                            : isToday
-                                                            ? Colors.white
-                                                            : Colors.white70,
-                                                        fontWeight: isSelected
-                                                            ? FontWeight.w700
-                                                            : FontWeight.w600,
-                                                        fontSize: isSelected
-                                                            ? 18
-                                                            : 16,
-                                                      ),
-                                                    ),
+                                                    child:
+                                                        dayProgress >= 1.0 &&
+                                                            taskCount > 0
+                                                        // When every task for this day is complete,
+                                                        // replace the date number with a large green check.
+                                                        ? const Icon(
+                                                            Icons.check,
+                                                            color: Colors
+                                                                .greenAccent,
+                                                            size: 28,
+                                                          )
+                                                        : Text(
+                                                            '${date.day}',
+                                                            style: TextStyle(
+                                                              color: isSelected
+                                                                  ? ringColor
+                                                                  : isToday
+                                                                  ? Colors.white
+                                                                  : Colors
+                                                                        .white70,
+                                                              fontWeight:
+                                                                  isSelected
+                                                                  ? FontWeight
+                                                                        .w700
+                                                                  : FontWeight
+                                                                        .w600,
+                                                              fontSize:
+                                                                  isSelected
+                                                                  ? 18
+                                                                  : 16,
+                                                            ),
+                                                          ),
                                                   ),
                                                 ),
                                               ),

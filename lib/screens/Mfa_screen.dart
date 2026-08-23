@@ -6,6 +6,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'main_navigation_screen.dart';
 import 'tutorial_screen.dart';
 
+import 'package:shared_preferences/shared_preferences.dart';
+
 // ---------------------------
 // MFA Screen
 // ---------------------------
@@ -28,6 +30,7 @@ class _MfaScreenState extends State<MfaScreen> {
   final codeController = TextEditingController();
 
   String? verificationId;
+  String? verifiedPhoneNumber;
 
   bool emailVerified = false;
   bool codeSent = false;
@@ -126,15 +129,37 @@ class _MfaScreenState extends State<MfaScreen> {
       return;
     }
 
-    final phoneNumber = phoneController.text.trim();
+    String phoneNumber = phoneController.text.trim();
 
+    // Make sure something was entered first.
     if (phoneNumber.isEmpty) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Enter your phone number.')));
-
       return;
     }
+
+    // Remove spaces, dashes, and parentheses.
+    phoneNumber = phoneNumber.replaceAll(RegExp(r'[\s\-\(\)]'), '');
+
+    // Assume a US number when exactly 10 digits are entered.
+    if (RegExp(r'^\d{10}$').hasMatch(phoneNumber)) {
+      phoneNumber = '+1$phoneNumber';
+    } else if (RegExp(r'^1\d{10}$').hasMatch(phoneNumber)) {
+      phoneNumber = '+$phoneNumber';
+    }
+
+    // Firebase expects the number in international format.
+    if (!phoneNumber.startsWith('+')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter a valid phone number.')),
+      );
+      return;
+    }
+
+    // Keep the normalized number so we can save it after
+    // the user successfully verifies the SMS code.
+    verifiedPhoneNumber = phoneNumber;
 
     setState(() {
       loading = true;
@@ -223,6 +248,14 @@ class _MfaScreenState extends State<MfaScreen> {
       final assertion = PhoneMultiFactorGenerator.getAssertion(credential);
 
       await user.multiFactor.enroll(assertion, displayName: 'Primary Phone');
+
+      // Save the verified MFA phone number locally so Account Settings
+      // can display it later.
+      final prefs = await SharedPreferences.getInstance();
+
+      if (verifiedPhoneNumber != null) {
+        await prefs.setString('phoneNumber', verifiedPhoneNumber!);
+      }
 
       if (!mounted) return;
 
