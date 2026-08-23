@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'notification_service.dart';
 import 'package:flutter/cupertino.dart';
 import 'notification_preferences.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 // ---------------------------
 // Home Screen
@@ -216,6 +217,29 @@ class _HomeScreenState extends State<HomeScreen> {
   String selectedStatus = 'Not Started';
 
   // ---------------------------------------------------------------------------
+  // USER-SPECIFIC LOCAL STORAGE
+  // ---------------------------------------------------------------------------
+
+  // Returns the Firebase UID for the currently signed-in TrakOn user.
+  // Every user's local data is stored under their own UID so accounts
+  // on the same device can never read each other's tasks.
+  String get currentUserId {
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
+      throw StateError('No authenticated user is available.');
+    }
+
+    return user.uid;
+  }
+
+  // Creates a SharedPreferences key that belongs only to the
+  // currently authenticated Firebase user.
+  String userKey(String key) {
+    return '${currentUserId}_$key';
+  }
+
+  // ---------------------------------------------------------------------------
   // TASK STATUS OPTIONS
   // ---------------------------------------------------------------------------
 
@@ -229,11 +253,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // Loads saved username/full name from local storage
   Future<void> loadUserName() async {
-    final prefs = await SharedPreferences.getInstance();
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (!mounted) return;
 
     setState(() {
-      userName =
-          prefs.getString('fullName') ?? prefs.getString('username') ?? 'User';
+      userName = user?.displayName?.trim().isNotEmpty == true
+          ? user!.displayName!.trim()
+          : 'User';
     });
   }
 
@@ -316,9 +343,9 @@ class _HomeScreenState extends State<HomeScreen> {
       lastCompletedDate = todayString;
     });
 
-    await prefs.setBool('dayCompleted_$todayString', dayCompleted);
-    await prefs.setInt('streakCounter', streakCounter);
-    await prefs.setString('lastCompletedDate', lastCompletedDate);
+    await prefs.setBool(userKey('dayCompleted_$todayString'), dayCompleted);
+    await prefs.setInt(userKey('streakCounter'), streakCounter);
+    await prefs.setString(userKey('lastCompletedDate'), lastCompletedDate);
 
     final notificationsEnabled =
         await NotificationPreferences.notificationsEnabled();
@@ -360,9 +387,9 @@ class _HomeScreenState extends State<HomeScreen> {
       lastCompletedDate = '';
     });
 
-    await prefs.setBool('dayCompleted_$todayString', dayCompleted);
-    await prefs.setInt('streakCounter', streakCounter);
-    await prefs.setString('lastCompletedDate', lastCompletedDate);
+    await prefs.setBool(userKey('dayCompleted_$todayString'), dayCompleted);
+    await prefs.setInt(userKey('streakCounter'), streakCounter);
+    await prefs.setString(userKey('lastCompletedDate'), lastCompletedDate);
 
     if (!mounted) return;
     ScaffoldMessenger.of(
@@ -481,7 +508,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<List<Map<String, dynamic>>> loadRecurringTasks() async {
     final prefs = await SharedPreferences.getInstance();
 
-    final savedRecurringTasks = prefs.getString('recurringTasks');
+    final savedRecurringTasks = prefs.getString(userKey('recurringTasks'));
 
     if (savedRecurringTasks == null) {
       return [];
@@ -500,7 +527,10 @@ class _HomeScreenState extends State<HomeScreen> {
   ) async {
     final prefs = await SharedPreferences.getInstance();
 
-    await prefs.setString('recurringTasks', jsonEncode(recurringTasks));
+    await prefs.setString(
+      userKey('recurringTasks'),
+      jsonEncode(recurringTasks),
+    );
   }
 
   // Saves a newly created recurring task as a reusable template.
@@ -595,18 +625,22 @@ class _HomeScreenState extends State<HomeScreen> {
 
     final String taskKey =
         (selectedTaskDate.isEmpty || selectedTaskDate == todayKey)
-        ? 'tasks'
-        : 'tasks_$selectedTaskDate';
+        ? userKey('tasks')
+        : userKey('tasks_$selectedTaskDate');
 
     await prefs.setString(taskKey, encodedTasks);
 
     if (selectedTaskDate.isNotEmpty) {
-      await prefs.setBool('dayCompleted_$selectedTaskDate', dayCompleted);
+      await prefs.setBool(
+        userKey('dayCompleted_$selectedTaskDate'),
+        dayCompleted,
+      );
     }
-    await prefs.setInt('streakCounter', streakCounter);
-    await prefs.setString('lastCompletedDate', lastCompletedDate);
-    await prefs.setString('lastActiveDate', lastActiveDate);
-    await prefs.setString('selectedTaskDate', selectedTaskDate);
+
+    await prefs.setInt(userKey('streakCounter'), streakCounter);
+    await prefs.setString(userKey('lastCompletedDate'), lastCompletedDate);
+    await prefs.setString(userKey('lastActiveDate'), lastActiveDate);
+    await prefs.setString(userKey('selectedTaskDate'), selectedTaskDate);
 
     if (isViewingToday()) {
       await refreshDailyTaskNotifications();
@@ -624,7 +658,7 @@ class _HomeScreenState extends State<HomeScreen> {
     selectedTaskDate = todayKey;
 
     // The main "tasks" key contains the active day's tasks.
-    final String? savedTasks = prefs.getString('tasks');
+    final String? savedTasks = prefs.getString(userKey('tasks'));
 
     final loadedTasks = <Map<String, dynamic>>[];
 
@@ -642,14 +676,17 @@ class _HomeScreenState extends State<HomeScreen> {
 
     setState(() {
       tasks = loadedTasks;
-      dayCompleted = prefs.getBool('dayCompleted_$todayKey') ?? false;
-      streakCounter = prefs.getInt('streakCounter') ?? 0;
-      lastCompletedDate = prefs.getString('lastCompletedDate') ?? '';
-      lastActiveDate = prefs.getString('lastActiveDate') ?? '';
+      dayCompleted = prefs.getBool(userKey('dayCompleted_$todayKey')) ?? false;
+
+      streakCounter = prefs.getInt(userKey('streakCounter')) ?? 0;
+
+      lastCompletedDate = prefs.getString(userKey('lastCompletedDate')) ?? '';
+
+      lastActiveDate = prefs.getString(userKey('lastActiveDate')) ?? '';
       selectedFilter = 'All';
     });
 
-    await prefs.setString('selectedTaskDate', todayKey);
+    await prefs.setString(userKey('selectedTaskDate'), todayKey);
   }
 
   Future<void> checkForNewDay() async {
@@ -661,7 +698,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     if (lastActiveDate.isEmpty) {
       lastActiveDate = todayString;
-      await prefs.setString('lastActiveDate', lastActiveDate);
+      await prefs.setString(userKey('lastActiveDate'), lastActiveDate);
       return;
     }
 
@@ -669,7 +706,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     // Read the active day's tasks directly from storage.
     // Do not rely on whichever calendar date happens to be displayed.
-    final savedPreviousTasks = prefs.getString('tasks');
+    final savedPreviousTasks = prefs.getString(userKey('tasks'));
 
     final previousDayTasks = <Map<String, dynamic>>[];
 
@@ -685,7 +722,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     if (previousDayTasks.isNotEmpty) {
       await prefs.setString(
-        'tasks_$lastActiveDate',
+        userKey('tasks_$lastActiveDate'),
         jsonEncode(previousDayTasks),
       );
     }
@@ -705,23 +742,27 @@ class _HomeScreenState extends State<HomeScreen> {
       lastActiveDate = todayString;
       selectedTaskDate = todayString;
     });
+    await prefs.setString(userKey('lastActiveDate'), todayString);
 
-    await prefs.setString('lastActiveDate', todayString);
-    await prefs.setString('selectedTaskDate', todayString);
-    await prefs.setBool('dayCompleted_$todayString', false);
+    await prefs.setString(userKey('selectedTaskDate'), todayString);
+
+    await prefs.setBool(userKey('dayCompleted_$todayString'), false);
 
     // Check whether tasks were already planned for today
-    final plannedTodayTasks = prefs.getString('tasks_$todayString');
+    final plannedTodayTasks = prefs.getString(userKey('tasks_$todayString'));
 
     if (plannedTodayTasks != null) {
       // Move today's previously planned tasks into the main current-day key
-      await prefs.setString('tasks', plannedTodayTasks);
+      await prefs.setString(
+        userKey('tasks'),
+        plannedTodayTasks,
+      );
 
       // Remove the dated copy after moving it
-      await prefs.remove('tasks_$todayString');
+      await prefs.remove(userKey('tasks_$todayString'));
     } else {
       // Prevent yesterday's tasks from appearing as today's tasks
-      await prefs.remove('tasks');
+      await prefs.remove(userKey('tasks'));
     }
 
     // Load the correct tasks for the new current day
@@ -804,8 +845,9 @@ class _HomeScreenState extends State<HomeScreen> {
         dayCompleted = false;
       });
 
-      await prefs.setInt('streakCounter', streakCounter);
-      await prefs.setBool('dayCompleted_$todayString', dayCompleted);
+      await prefs.setInt(userKey('streakCounter'), streakCounter);
+
+      await prefs.setBool(userKey('dayCompleted_$todayString'), dayCompleted);
     }
   }
 
@@ -904,7 +946,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final today = DateTime.now();
     final todayKey = getDateKey(today);
 
-    return dateKey == todayKey ? 'tasks' : 'tasks_$dateKey';
+    return dateKey == todayKey ? userKey('tasks') : userKey('tasks_$dateKey');
   }
 
   // Loads the selected day's normal tasks and rebuilds
@@ -996,7 +1038,8 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {
       tasks = rebuiltTasks;
 
-      dayCompleted = prefs.getBool('dayCompleted_$selectedTaskDate') ?? false;
+      dayCompleted =
+          prefs.getBool(userKey('dayCompleted_$selectedTaskDate')) ?? false;
 
       selectedFilter = 'All';
     });
@@ -1009,7 +1052,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> loadSelectedTaskDateFromPrefs() async {
     final prefs = await SharedPreferences.getInstance();
 
-    final savedDate = prefs.getString('selectedTaskDate');
+    final savedDate = prefs.getString(userKey('selectedTaskDate'));
 
     if (savedDate != null && savedDate != selectedTaskDate) {
       setState(() {

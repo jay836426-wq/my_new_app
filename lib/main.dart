@@ -527,6 +527,20 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
   Future<void> startPhoneAccount() async {
     String phoneNumber = phoneController.text.trim();
 
+    // A new signup must start with a clean Firebase Auth session.
+    // This prevents a previously authenticated account from carrying
+    // into the new phone-account creation flow.
+    if (FirebaseAuth.instance.currentUser != null) {
+      await FirebaseAuth.instance.signOut();
+    }
+
+    // Also clear TrakOn's local login flag for the new signup.
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('isLoggedIn', false);
+
+    // Make sure this screen still exists after the async operations above.
+    if (!mounted) return;
+
     // Remove common formatting characters
     phoneNumber = phoneNumber.replaceAll(RegExp(r'[\s\-\(\)]'), '');
 

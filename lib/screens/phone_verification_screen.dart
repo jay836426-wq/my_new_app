@@ -178,6 +178,9 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen> {
         message = 'Incorrect verification code.';
       } else if (e.code == 'session-expired') {
         message = 'This code expired. Please resend it.';
+      } else if (e.code == 'phone-already-in-use') {
+        message =
+            'An account already exists with this phone number. Please log in instead.';
       }
 
       _showMessage(message);
@@ -205,6 +208,21 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen> {
       throw FirebaseAuthException(
         code: 'missing-user',
         message: 'Phone account could not be created.',
+      );
+    }
+
+    // This screen is specifically for CREATE ACCOUNT.
+    // If Firebase says this phone number already belongs to an existing
+    // account, do not accidentally sign the user into that account.
+    final isNewUser = userCredential.additionalUserInfo?.isNewUser;
+
+    if (isNewUser == false) {
+      await FirebaseAuth.instance.signOut();
+
+      throw FirebaseAuthException(
+        code: 'phone-already-in-use',
+        message:
+            'An account already exists with this phone number. Please log in instead.',
       );
     }
 
