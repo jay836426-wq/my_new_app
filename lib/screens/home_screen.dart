@@ -2421,6 +2421,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       // ---------------------------------------------------------------------------
                       // EDIT OPTIONAL TASK SCHEDULE
                       // ---------------------------------------------------------------------------
+
+                      // START TIME
                       ListTile(
                         title: Text(
                           editStartTime == null
@@ -2433,23 +2435,94 @@ class _HomeScreenState extends State<HomeScreen> {
                           color: Colors.greenAccent,
                         ),
                         onTap: () async {
-                          TimeOfDay initialTime =
+                          // Start the Apple-style picker at the task's current
+                          // start time. If there isn't one yet, use the current time.
+                          TimeOfDay tempStartTime =
                               parseReminderTime(editStartTime) ??
                               TimeOfDay.now();
 
-                          final picked = await showTimePicker(
+                          await showModalBottomSheet(
                             context: context,
-                            initialTime: initialTime,
+                            backgroundColor: Colors.black,
+                            builder: (context) {
+                              return SizedBox(
+                                height: 300,
+                                child: Column(
+                                  children: [
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                        vertical: 8,
+                                      ),
+                                      child: Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          TextButton(
+                                            onPressed: () =>
+                                                Navigator.pop(context),
+                                            child: const Text(
+                                              'Cancel',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                          ),
+                                          TextButton(
+                                            onPressed: () {
+                                              setDialogState(() {
+                                                editStartTime = tempStartTime
+                                                    .format(context);
+                                              });
+
+                                              Navigator.pop(context);
+                                            },
+                                            child: const Text(
+                                              'Done',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+
+                                    const Divider(color: Colors.white24),
+
+                                    Expanded(
+                                      child: CupertinoTheme(
+                                        data: const CupertinoThemeData(
+                                          brightness: Brightness.dark,
+                                        ),
+                                        child: CupertinoDatePicker(
+                                          mode: CupertinoDatePickerMode.time,
+                                          use24hFormat: false,
+                                          initialDateTime: DateTime(
+                                            2026,
+                                            1,
+                                            1,
+                                            tempStartTime.hour,
+                                            tempStartTime.minute,
+                                          ),
+                                          onDateTimeChanged: (newTime) {
+                                            tempStartTime = TimeOfDay(
+                                              hour: newTime.hour,
+                                              minute: newTime.minute,
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
                           );
-
-                          if (picked == null) return;
-
-                          setDialogState(() {
-                            editStartTime = picked.format(context);
-                          });
                         },
                       ),
 
+                      // END TIME
                       ListTile(
                         title: Text(
                           editEndTime == null
@@ -2459,24 +2532,94 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                         trailing: const Icon(
                           Icons.stop_circle_outlined,
-                          color: Colors.greenAccent,
+                          color: Colors.redAccent,
                         ),
                         onTap: () async {
-                          TimeOfDay initialTime =
+                          // Start at the existing end time. If there isn't one,
+                          // use the start time, then fall back to the current time.
+                          TimeOfDay tempEndTime =
                               parseReminderTime(editEndTime) ??
                               parseReminderTime(editStartTime) ??
                               TimeOfDay.now();
 
-                          final picked = await showTimePicker(
+                          await showModalBottomSheet(
                             context: context,
-                            initialTime: initialTime,
+                            backgroundColor: Colors.black,
+                            builder: (context) {
+                              return SizedBox(
+                                height: 300,
+                                child: Column(
+                                  children: [
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                        vertical: 8,
+                                      ),
+                                      child: Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          TextButton(
+                                            onPressed: () =>
+                                                Navigator.pop(context),
+                                            child: const Text(
+                                              'Cancel',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                          ),
+                                          TextButton(
+                                            onPressed: () {
+                                              setDialogState(() {
+                                                editEndTime = tempEndTime
+                                                    .format(context);
+                                              });
+
+                                              Navigator.pop(context);
+                                            },
+                                            child: const Text(
+                                              'Done',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+
+                                    const Divider(color: Colors.white24),
+
+                                    Expanded(
+                                      child: CupertinoTheme(
+                                        data: const CupertinoThemeData(
+                                          brightness: Brightness.dark,
+                                        ),
+                                        child: CupertinoDatePicker(
+                                          mode: CupertinoDatePickerMode.time,
+                                          use24hFormat: false,
+                                          initialDateTime: DateTime(
+                                            2026,
+                                            1,
+                                            1,
+                                            tempEndTime.hour,
+                                            tempEndTime.minute,
+                                          ),
+                                          onDateTimeChanged: (newTime) {
+                                            tempEndTime = TimeOfDay(
+                                              hour: newTime.hour,
+                                              minute: newTime.minute,
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
                           );
-
-                          if (picked == null) return;
-
-                          setDialogState(() {
-                            editEndTime = picked.format(context);
-                          });
                         },
                       ),
 
