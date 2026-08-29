@@ -1109,13 +1109,24 @@ class _HomeScreenState extends State<HomeScreen> {
       return 0;
     }
 
-    final completed = dayTasks.where((task) {
-      return task['completed'] == true;
-    }).length;
+    // Give each task a progress value based on its workflow status.
+    // Not Started = 0%
+    // In Progress = 50%
+    // Complete = 100%
+    double totalProgress = 0;
 
-    return completed / dayTasks.length;
+    for (final task in dayTasks) {
+      final status = task['status']?.toString() ?? 'Not Started';
+
+      if (status == 'Complete' || task['completed'] == true) {
+        totalProgress += 1.0;
+      } else if (status == 'In Progress') {
+        totalProgress += 0.5;
+      }
+    }
+
+    return totalProgress / dayTasks.length;
   }
-
   // Returns the correct task count for a date,
   // including recurring tasks that belong on that day.
   Future<int> getTaskCountForDate(DateTime date) async {
@@ -2914,6 +2925,11 @@ class _HomeScreenState extends State<HomeScreen> {
     final int completedTasks = tasks
         .where((task) => task['completed'] == true)
         .length;
+    
+    final int inProgressTasks = tasks.where((task) {
+      return (task['status']?.toString() ?? 'Not Started') == 'In Progress';
+    }).length;
+
     final double progress = tasks.isEmpty ? 0 : completedTasks / tasks.length;
 
     final List<Map<String, dynamic>> filteredTasks = getFilteredTasks();
@@ -3174,14 +3190,28 @@ class _HomeScreenState extends State<HomeScreen> {
                             fontWeight: FontWeight.w600,
                           ),
                         ),
-                        Text(
-                          '$completedTasks out of ${tasks.length} completed',
-                          style: const TextStyle(
-                            color: Colors.greenAccent,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
+                       Column(
+  crossAxisAlignment: CrossAxisAlignment.end,
+  children: [
+    Text(
+      '$completedTasks out of ${tasks.length} completed',
+      style: const TextStyle(
+        color: Colors.greenAccent, // Matches Complete
+        fontSize: 13,
+        fontWeight: FontWeight.w600,
+      ),
+    ),
+    const SizedBox(height: 3),
+    Text(
+      '$inProgressTasks in progress',
+      style: const TextStyle(
+        color: Colors.amber, // Matches In Progress
+        fontSize: 12,
+        fontWeight: FontWeight.w600,
+      ),
+    ),
+  ],
+),
                       ],
                     ),
 
@@ -3495,25 +3525,55 @@ class _HomeScreenState extends State<HomeScreen> {
 
                                 // Save the updated task state.
                                 await saveTasks();
+
+                                if (!mounted) return;
+
+                                setState((){});
                               },
                               child: CustomPaint(
                                 painter: DayProgressPainter(
+                                  // Not Started = empty
+                                  // In Progress = half filled
+                                  // Complete = fully filled
                                   progress:
-                                      filteredTasks[index]['completed'] == true
+                                      (task['status']?.toString() ??
+                                              'Not Started') ==
+                                          'Complete'
                                       ? 1.0
+                                      : (task['status']?.toString() ??
+                                                'Not Started') ==
+                                            'In Progress'
+                                      ? 0.5
                                       : 0.0,
+
+                                  // Amber while in progress, green when complete.
+                                  color:
+                                      (task['status']?.toString() ??
+                                              'Not Started') ==
+                                          'In Progress'
+                                      ? Colors.amber
+                                      : Colors.greenAccent,
                                 ),
                                 child: SizedBox(
                                   width: 34,
                                   height: 34,
                                   child: Center(
                                     child:
-                                        filteredTasks[index]['completed'] ==
-                                            true
+                                        (task['status']?.toString() ??
+                                                'Not Started') ==
+                                            'Complete'
                                         ? const Icon(
                                             Icons.check,
                                             color: Colors.greenAccent,
                                             size: 20,
+                                          )
+                                        : (task['status']?.toString() ??
+                                                  'Not Started') ==
+                                              'In Progress'
+                                        ? const Icon(
+                                            Icons.play_arrow,
+                                            color: Colors.amber,
+                                            size: 18,
                                           )
                                         : const SizedBox(),
                                   ),
@@ -3605,6 +3665,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
                                       // Save the updated task.
                                       await saveTasks();
+
+                                      if (!mounted) return;
+
+                                      setState(() {});
                                     },
                                     child: Row(
                                       mainAxisSize: MainAxisSize.min,

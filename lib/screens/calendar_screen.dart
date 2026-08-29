@@ -248,7 +248,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
         .where((task) => task['completed'] == true)
         .length;
 
-    final remainingCount = selectedTasks.length - completedCount;
+    final inProgressCount = selectedTasks.where((task) {
+      return (task['status']?.toString() ?? 'Not Started') == 'In Progress';
+    }).length;
+
+    final notStartedCount = selectedTasks.where((task) {
+      return (task['status']?.toString() ?? 'Not Started') == 'Not Started' &&
+          task['completed'] != true;
+    }).length;
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -465,16 +472,43 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                   ),
                                 ),
                                 builder: (context, snapshot) {
-                                  final taskCount = snapshot.data?.length ?? 0;
+                                  final dayTasks = snapshot.data ?? [];
+
+                                  // No tasks = no dot
+                                  Color dotColor = Colors.transparent;
+
+                                  if (dayTasks.isNotEmpty) {
+                                    final allCompleted = dayTasks.every((task) {
+                                      final status =
+                                          task['status']?.toString() ??
+                                          'Not Started';
+
+                                      return status == 'Complete' ||
+                                          task['completed'] == true;
+                                    });
+
+                                    final anyInProgress = dayTasks.any((task) {
+                                      final status =
+                                          task['status']?.toString() ??
+                                          'Not Started';
+
+                                      return status == 'In Progress';
+                                    });
+
+                                    if (allCompleted) {
+                                      dotColor = Colors.greenAccent;
+                                    } else if (anyInProgress) {
+                                      dotColor = Colors.amber;
+                                    } else {
+                                      dotColor = Colors.white38;
+                                    }
+                                  }
 
                                   return Container(
                                     width: 6,
                                     height: 6,
                                     decoration: BoxDecoration(
-                                      // Green dot only when this date really has tasks.
-                                      color: taskCount > 0
-                                          ? Colors.greenAccent
-                                          : Colors.transparent,
+                                      color: dotColor,
                                       shape: BoxShape.circle,
                                     ),
                                   );
@@ -548,6 +582,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       if (selectedTasks.isNotEmpty) ...[
                         Row(
                           children: [
+                            // Completed
                             Expanded(
                               child: Container(
                                 padding: const EdgeInsets.symmetric(
@@ -564,8 +599,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                     const Text(
                                       'Completed',
                                       style: TextStyle(
-                                        color: Colors.white54,
+                                        color: Colors.greenAccent,
                                         fontSize: 12,
+                                        fontWeight: FontWeight.w600,
                                       ),
                                     ),
                                     const SizedBox(height: 4),
@@ -584,6 +620,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
                             const SizedBox(width: 10),
 
+                            // In Progress
                             Expanded(
                               child: Container(
                                 padding: const EdgeInsets.symmetric(
@@ -598,15 +635,54 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     const Text(
-                                      'Remaining',
+                                      'In Progress',
                                       style: TextStyle(
-                                        color: Colors.white54,
+                                        color: Colors.amber,
                                         fontSize: 12,
+                                        fontWeight: FontWeight.w600,
                                       ),
                                     ),
                                     const SizedBox(height: 4),
                                     Text(
-                                      '$remainingCount',
+                                      '$inProgressCount',
+                                      style: const TextStyle(
+                                        color: Colors.amber,
+                                        fontSize: 22,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+
+                            const SizedBox(width: 10),
+
+                            // Not Started
+                            Expanded(
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                  horizontal: 14,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.white10,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Not Started',
+                                      style: TextStyle(
+                                        color: Colors.white54,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      '$notStartedCount',
                                       style: const TextStyle(
                                         color: Colors.white,
                                         fontSize: 22,
@@ -663,14 +739,25 @@ class _CalendarScreenState extends State<CalendarScreen> {
                             ),
                           ),
                         ...selectedTasks.map((task) {
+                          final status =
+                              task['status']?.toString() ?? 'Not Started';
+
+                          final icon = status == 'Complete'
+                              ? '✅'
+                              : status == 'In Progress'
+                              ? '▶️'
+                              : '⬜';
+
                           return Padding(
                             padding: const EdgeInsets.only(bottom: 6),
                             child: Text(
-                              task['completed']
-                                  ? '✅ ${task['title']}'
-                                  : '⬜ ${task['title']}',
-                              style: const TextStyle(
-                                color: Colors.white70,
+                              '$icon ${task['title']}',
+                              style: TextStyle(
+                                color: status == 'Complete'
+                                    ? Colors.greenAccent
+                                    : status == 'In Progress'
+                                    ? Colors.amber
+                                    : Colors.white70,
                                 fontSize: 14,
                               ),
                             ),
