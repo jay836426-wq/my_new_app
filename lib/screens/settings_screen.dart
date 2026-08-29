@@ -190,7 +190,7 @@ class SettingsScreen extends StatelessWidget {
                       'Check out TrakOn — a simple productivity app for tracking tasks, '
                       'staying focused, and building consistency.\n\n'
                       'Track. Focus. Achieve.\n\n'
-                      'Learn more: https://gettrakon.com',
+                      'Download TrakOn: https://apps.apple.com/app/id6804818478',
                 ),
               );
             },
