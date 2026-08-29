@@ -1127,6 +1127,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return totalProgress / dayTasks.length;
   }
+
   // Returns the correct task count for a date,
   // including recurring tasks that belong on that day.
   Future<int> getTaskCountForDate(DateTime date) async {
@@ -2925,7 +2926,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final int completedTasks = tasks
         .where((task) => task['completed'] == true)
         .length;
-    
+
     final int inProgressTasks = tasks.where((task) {
       return (task['status']?.toString() ?? 'Not Started') == 'In Progress';
     }).length;
@@ -3190,28 +3191,28 @@ class _HomeScreenState extends State<HomeScreen> {
                             fontWeight: FontWeight.w600,
                           ),
                         ),
-                       Column(
-  crossAxisAlignment: CrossAxisAlignment.end,
-  children: [
-    Text(
-      '$completedTasks out of ${tasks.length} completed',
-      style: const TextStyle(
-        color: Colors.greenAccent, // Matches Complete
-        fontSize: 13,
-        fontWeight: FontWeight.w600,
-      ),
-    ),
-    const SizedBox(height: 3),
-    Text(
-      '$inProgressTasks in progress',
-      style: const TextStyle(
-        color: Colors.amber, // Matches In Progress
-        fontSize: 12,
-        fontWeight: FontWeight.w600,
-      ),
-    ),
-  ],
-),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              '$completedTasks out of ${tasks.length} completed',
+                              style: const TextStyle(
+                                color: Colors.greenAccent, // Matches Complete
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              '$inProgressTasks in progress',
+                              style: const TextStyle(
+                                color: Colors.amber, // Matches In Progress
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
                       ],
                     ),
 
@@ -3528,7 +3529,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
                                 if (!mounted) return;
 
-                                setState((){});
+                                setState(() {});
                               },
                               child: CustomPaint(
                                 painter: DayProgressPainter(

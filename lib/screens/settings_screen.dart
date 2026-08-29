@@ -200,11 +200,28 @@ class SettingsScreen extends StatelessWidget {
             icon: Icons.star_outline,
             title: '⭐ Rate TrakOn',
             onTap: () async {
-              final InAppReview inAppReview = InAppReview.instance;
+              final reviewUrl = Uri.parse(
+                'https://apps.apple.com/app/id6804818478?action=write-review',
+              );
 
-              if (await inAppReview.isAvailable()) {
-                await inAppReview.requestReview();
-              } else if (context.mounted) {
+              try {
+                final launched = await launchUrl(
+                  reviewUrl,
+                  mode: LaunchMode.externalApplication,
+                );
+
+                if (!launched && context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'Ratings will be available when TrakOn is released on the App Store.',
+                      ),
+                    ),
+                  );
+                }
+              } catch (_) {
+                if (!context.mounted) return;
+
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                     content: Text(
