@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:TrakOn/screens/calendar_screen.dart';
 
 import 'home_screen.dart';
+import 'insights_screen.dart';
 //import 'calendar_screen.dart';
 import 'settings_screen.dart';
 // import 'friends_screen.dart';
@@ -22,6 +23,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   final List<Widget> screens = const [
     HomeScreen(),
     CalendarScreen(),
+    InsightsScreen(),
     SettingsScreen(),
   ];
 
@@ -47,6 +49,10 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
           BottomNavigationBarItem(
             icon: Icon(Icons.calendar_month),
             label: 'Calendar',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.bar_chart),
+            label: 'Stats',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.settings),

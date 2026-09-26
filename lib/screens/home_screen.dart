@@ -5,7 +5,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'notification_service.dart';
 import 'package:flutter/cupertino.dart';
 import 'notification_preferences.dart';
+import 'task_search_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 // ---------------------------
 // Home Screen
@@ -26,6 +28,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // Controller for optional task description
   final TextEditingController descriptionController = TextEditingController();
+  final TextEditingController searchController = TextEditingController();
+  String searchQuery = '';
+  List<Map<String, dynamic>> availableGoals = [];
+  String? selectedGoalId;
+  final TextEditingController tagsController = TextEditingController();
 
   // Store the category selected in the dropdown
   String selectedCategory = '🏠 Personal';
@@ -407,13 +414,50 @@ class _HomeScreenState extends State<HomeScreen> {
     // Starts the weekly preview on the most recent Sunday
     displayedWeekStart = now.subtract(Duration(days: now.weekday % 7));
     initializeHomeScreen();
+    loadGoals();
     loadUserName();
+  }
+
+  Future<void> loadGoals() async {
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getString(userKey('goals'));
+    if (!mounted) return;
+    setState(() {
+      try {
+        availableGoals = saved == null ? [] : (jsonDecode(saved) as List)
+            .map((goal) => Map<String, dynamic>.from(goal as Map)).toList();
+      } catch (_) {
+        availableGoals = [];
+      }
+    });
+  }
+
+  Future<void> openTaskSearch() async {
+    await saveTasks();
+    if (!mounted) return;
+    final result = await Navigator.of(context).push<TaskSearchResult>(
+      MaterialPageRoute(builder: (_) => const TaskSearchScreen()));
+    if (result == null || !mounted) return;
+    setState(() {
+      selectedTaskDate = result.date;
+      final date = parseDateKey(result.date);
+      displayedWeekStart = date.subtract(Duration(days: date.weekday % 7));
+      searchController.clear();
+      searchQuery = '';
+    });
+    await loadTasksForSelectedDate();
+    if (!mounted) return;
+    final matching = tasks.where((task) =>
+        task['notificationId'] == result.notificationId &&
+        task['title']?.toString() == result.title);
+    if (matching.isNotEmpty) showTaskDetails(matching.first);
   }
 
   Future<void> initializeHomeScreen() async {
     await loadTasks();
     await checkForNewDay();
     await checkStreakReset();
+    await refreshAllRecurringReminders();
   }
 
   // Calculates the user's current streak
@@ -432,13 +476,98 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // Returns tasks based on selected category filter
   List<Map<String, dynamic>> getFilteredTasks() {
-    if (selectedFilter == 'All') {
-      return tasks;
-    }
-
     return tasks.where((task) {
-      return task['category'] == selectedFilter;
+      final matchesCategory = selectedFilter == 'All' ||
+          task['category'] == selectedFilter;
+      final query = searchQuery.trim().toLowerCase();
+      final matchesSearch = query.isEmpty ||
+          (task['title']?.toString() ?? '').toLowerCase().contains(query) ||
+          (task['description']?.toString() ?? '').toLowerCase().contains(query) ||
+          (task['tags'] is List && (task['tags'] as List)
+              .any((tag) => tag.toString().toLowerCase().contains(query)));
+      return matchesCategory && matchesSearch;
     }).toList();
+  }
+
+  void offerUndoStatus(Map<String, dynamic> task, String previousStatus,
+      String date) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: const Text('Task status updated'),
+      action: SnackBarAction(label: 'Undo', onPressed: () async {
+        if (selectedTaskDate != date || !tasks.contains(task)) return;
+        setState(() {
+          task['status'] = previousStatus;
+          task['completed'] = previousStatus == 'Complete';
+        });
+        await handleTaskStatusNotifications(task);
+        await saveTasks();
+      }),
+    ));
+  }
+
+  void showTaskDetails(Map<String, dynamic> task) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF202020),
+      builder: (sheetContext) => SafeArea(
+        child: SingleChildScrollView(child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(task['title']?.toString() ?? 'Task',
+                style: const TextStyle(color: Colors.white, fontSize: 24,
+                  fontWeight: FontWeight.bold)),
+              const SizedBox(height: 16),
+              if ((task['description']?.toString() ?? '').isNotEmpty) ...[
+                Text(task['description'].toString(),
+                  style: const TextStyle(color: Colors.white70)),
+                const SizedBox(height: 16),
+              ],
+              Text('Status: ${task['status'] ?? 'Not Started'}',
+                style: const TextStyle(color: Colors.white70)),
+              Text('Category: ${task['category'] ?? 'Personal'}',
+                style: const TextStyle(color: Colors.white70)),
+              if (task['priority'] != null)
+                Text('Priority: ${task['priority']}',
+                  style: const TextStyle(color: Colors.white70)),
+              if (task['tags'] is List && (task['tags'] as List).isNotEmpty)
+                Text('Tags: ${(task['tags'] as List).join(', ')}',
+                  style: const TextStyle(color: Colors.white70)),
+              if (task['goalId'] != null)
+                Text('Goal: ${goalTitleFor(task['goalId'])}',
+                  style: const TextStyle(color: Colors.white70)),
+              if (task['startTime'] != null || task['endTime'] != null)
+                Text('Time: ${task['startTime'] ?? '—'} – ${task['endTime'] ?? '—'}',
+                  style: const TextStyle(color: Colors.white70)),
+              if (task['reminderTime'] != null)
+                Text('Reminder: ${task['reminderTime']}',
+                  style: const TextStyle(color: Colors.white70)),
+              const SizedBox(height: 20),
+              ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.pop(sheetContext);
+                  showEditTaskPopup(task);
+                },
+                icon: const Icon(Icons.edit),
+                label: const Text('Edit task'),
+              ),
+            ],
+          ),
+        )),
+      ),
+    );
+  }
+
+  String goalTitleFor(Object? id) {
+    for (final goal in availableGoals) {
+      if (goal['id'] == id) return goal['title']?.toString() ?? 'Goal';
+    }
+    return 'Removed goal';
   }
 
   // Smoothly transitions color based on progress
@@ -501,6 +630,8 @@ class _HomeScreenState extends State<HomeScreen> {
   void dispose() {
     taskController.dispose();
     descriptionController.dispose();
+    searchController.dispose();
+    tagsController.dispose();
     super.dispose();
   }
 
@@ -574,6 +705,7 @@ class _HomeScreenState extends State<HomeScreen> {
     // If recurrence was turned off, remove the old template.
     if (repeat == 'Never') {
       if (recurringId != null) {
+        await cancelRecurringReminders(task);
         recurringTasks.removeWhere(
           (item) => item['recurringId'] == recurringId,
         );
@@ -1023,9 +1155,9 @@ class _HomeScreenState extends State<HomeScreen> {
       // Otherwise, a new recurring occurrence begins as Not Started.
       occurrence['status'] = existingOccurrence?['status'] ?? 'Not Started';
 
-      // Preserve an existing notification ID when available.
-      occurrence['notificationId'] =
-          existingOccurrence?['notificationId'] ?? createNotificationId();
+      // All occurrences use the series ID so edits and deletion can cancel
+      // every repeating reminder for that series.
+      occurrence['notificationId'] = template['notificationId'];
 
       rebuiltTasks.add(occurrence);
     }
@@ -1287,6 +1419,142 @@ class _HomeScreenState extends State<HomeScreen> {
     return DateTime(year, month, day, reminderTime.hour, reminderTime.minute);
   }
 
+  // A recurring series owns 29 IDs: four for each weekday and one for
+  // today's optional in-progress end-time reminder.
+  Future<void> cancelRecurringReminders(Map<String, dynamic> task) async {
+    final base = task['notificationId'];
+    if (base is! int) return;
+    for (var offset = 0; offset <= 28; offset++) {
+      await NotificationService.cancelNotification(base + offset);
+    }
+  }
+
+  Future<void> refreshRecurringTaskReminders(String recurringId) async {
+    final templates = await loadRecurringTasks();
+    for (final template in templates) {
+      if (template['recurringId'] == recurringId) {
+        await scheduleRecurringReminders(template);
+        return;
+      }
+    }
+  }
+
+  Future<void> refreshAllRecurringReminders() async {
+    for (final template in await loadRecurringTasks()) {
+      await scheduleRecurringReminders(template);
+    }
+  }
+
+  Future<void> scheduleRecurringReminders(Map<String, dynamic> template) async {
+    await cancelRecurringReminders(template);
+    if (!await NotificationPreferences.notificationsEnabled() ||
+        !await NotificationPreferences.taskRemindersEnabled()) return;
+
+    final base = template['notificationId'];
+    if (base is! int) return;
+    final time = parseReminderTime(template['startTime']) ??
+        parseReminderTime(template['reminderTime']);
+    if (time == null) return;
+    final repeat = template['repeat']?.toString() ?? 'Never';
+    if (repeat == 'Never') return;
+
+    final startText = template['startDate']?.toString() ?? template['date']?.toString();
+    if (startText == null) return;
+    final start = parseDateKey(startText);
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final firstDay = start.isAfter(today) ? start : today;
+
+    String todayStatus = 'Not Started';
+    if (recurringTaskRunsOnDate(template, today)) {
+      Map<String, dynamic>? todayOccurrence;
+      if (isViewingToday()) {
+        for (final task in tasks) {
+          if (task['recurringId'] == template['recurringId']) {
+            todayOccurrence = task;
+            break;
+          }
+        }
+      } else {
+        final prefs = await SharedPreferences.getInstance();
+        try {
+          final saved = jsonDecode(prefs.getString(userKey('tasks')) ?? '[]') as List;
+          for (final value in saved) {
+            if (value is Map && value['recurringId'] == template['recurringId']) {
+              todayOccurrence = Map<String, dynamic>.from(value);
+              break;
+            }
+          }
+        } catch (_) {}
+      }
+      todayStatus = todayOccurrence?['status']?.toString() ?? 'Not Started';
+      if (todayOccurrence?['completed'] == true) todayStatus = 'Complete';
+    }
+
+    final weekdays = <int>[];
+    if (repeat == 'Daily') {
+      weekdays.add(1); // One daily repeating stream.
+    } else if (repeat == 'Weekdays') {
+      weekdays.addAll([1, 2, 3, 4, 5]);
+    } else if (repeat == 'Weekly') {
+      weekdays.add(start.weekday);
+    } else if (repeat == 'Specific Days') {
+      weekdays.addAll(List<int>.from(template['repeatDays'] ?? [])
+          .where((day) => day >= 1 && day <= 7).toSet());
+    }
+
+    final priority = template['priority']?.toString();
+    final followUpsEnabled = await NotificationPreferences.highPriorityRemindersEnabled();
+    final offsets = <Duration>[Duration.zero];
+    if (followUpsEnabled && priority == '🔴 High') {
+      offsets.addAll(const [Duration(minutes: 15), Duration(minutes: 30), Duration(minutes: 60)]);
+    } else if (followUpsEnabled && priority == '🟡 Medium') {
+      offsets.add(const Duration(minutes: 30));
+    }
+
+    for (final weekday in weekdays) {
+      var date = firstDay;
+      if (repeat != 'Daily') {
+        date = firstDay.add(Duration(days: (weekday - firstDay.weekday + 7) % 7));
+      }
+      var scheduled = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+      while (!scheduled.isAfter(now) ||
+          (date == today && todayStatus != 'Not Started')) {
+        date = date.add(Duration(days: repeat == 'Daily' ? 1 : 7));
+        scheduled = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+      }
+
+      final id = base + (weekday - 1) * 4;
+      final match = repeat == 'Daily'
+          ? DateTimeComponents.time : DateTimeComponents.dayOfWeekAndTime;
+      final title = priority == '🔴 High' ? '🔴 High Priority Task'
+          : priority == '🟡 Medium' ? '🟡 Medium Priority Task'
+          : priority == '🟢 Low' ? '🟢 Low Priority Task' : 'Task Reminder';
+      final taskTitle = template['title']?.toString() ?? 'Your task';
+      for (var index = 0; index < offsets.length; index++) {
+        await NotificationService.scheduleNotification(
+          id: id + index,
+          title: index == 0 ? title : '$title Follow-Up',
+          body: taskTitle,
+          scheduledTime: scheduled.add(offsets[index]),
+          matchDateTimeComponents: match,
+        );
+      }
+    }
+
+    if (todayStatus == 'In Progress' && recurringTaskRunsOnDate(template, today)) {
+      final end = parseReminderTime(template['endTime']);
+      if (end != null) {
+        await NotificationService.scheduleNotification(
+          id: base + 28,
+          title: priority == '🔴 High' ? '🔴 High Priority Task Ending' : 'Task Time Ending',
+          body: template['title']?.toString() ?? 'Your task',
+          scheduledTime: DateTime(today.year, today.month, today.day, end.hour, end.minute),
+        );
+      }
+    }
+  }
+
   // Schedules the main reminder and priority-based follow-up reminders.
   Future<void> scheduleSmartReminders({
     required int notificationId,
@@ -1415,6 +1683,12 @@ class _HomeScreenState extends State<HomeScreen> {
   // Not Started, In Progress, and Complete.
   Future<void> handleTaskStatusNotifications(Map<String, dynamic> task) async {
     final status = task['status']?.toString() ?? 'Not Started';
+
+    final recurringId = task['recurringId'];
+    if (recurringId is String && task['repeat'] != 'Never') {
+      await refreshRecurringTaskReminders(recurringId);
+      return;
+    }
 
     // Always clear the old notification chain first
     // so outdated status reminders do not keep firing.
@@ -1589,6 +1863,34 @@ class _HomeScreenState extends State<HomeScreen> {
                           alignLabelWithHint: true,
                         ),
                       ),
+
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: tagsController,
+                        style: const TextStyle(color: Colors.white),
+                        decoration: const InputDecoration(
+                          labelText: 'Tags (comma separated)',
+                          labelStyle: TextStyle(color: Colors.white70),
+                        ),
+                      ),
+
+                      if (availableGoals.isNotEmpty)
+                        DropdownButton<String>(
+                          value: availableGoals.any((goal) => goal['id'] == selectedGoalId)
+                              ? selectedGoalId : null,
+                          hint: const Text('Link to a goal (optional)',
+                            style: TextStyle(color: Colors.white70)),
+                          dropdownColor: Colors.black,
+                          isExpanded: true,
+                          style: const TextStyle(color: Colors.white),
+                          items: [
+                            const DropdownMenuItem<String>(value: '', child: Text('No goal')),
+                            ...availableGoals.map((goal) => DropdownMenuItem<String>(
+                              value: goal['id'].toString(), child: Text(goal['title'].toString()))),
+                          ],
+                          onChanged: (value) => setDialogState(() =>
+                            selectedGoalId = value == '' ? null : value),
+                        ),
 
                       const SizedBox(height: 20),
 
@@ -2124,6 +2426,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       'description': descriptionController.text.trim(),
                       'completed': false,
                       'category': selectedCategory,
+                      'tags': tagsController.text.split(',').map((tag) => tag.trim())
+                          .where((tag) => tag.isNotEmpty).toSet().toList(),
+                      'goalId': selectedGoalId,
 
                       // Optional priority level.
                       'priority': selectedPriority,
@@ -2161,10 +2466,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
                     taskController.clear();
                     descriptionController.clear();
+                    tagsController.clear();
 
                     // Reset the Add Task fields for next time.
                     setState(() {
                       selectedPriority = null;
+                      selectedGoalId = null;
                       selectedReminderTime = null;
 
                       selectedStartTime = null;
@@ -2230,6 +2537,10 @@ class _HomeScreenState extends State<HomeScreen> {
     final editDescriptionController = TextEditingController(
       text: task['description'] ?? '',
     );
+    final editTagsController = TextEditingController(
+      text: task['tags'] is List ? (task['tags'] as List).join(', ') : '',
+    );
+    String? editGoalId = task['goalId']?.toString();
     String editCategory = task['category'] ?? selectedCategory;
     String? editPriority = task['priority'];
     String? editReminderTime = task['reminderTime'];
@@ -2286,6 +2597,34 @@ class _HomeScreenState extends State<HomeScreen> {
                           alignLabelWithHint: true,
                         ),
                       ),
+
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: editTagsController,
+                        style: const TextStyle(color: Colors.white),
+                        decoration: const InputDecoration(
+                          labelText: 'Tags (comma separated)',
+                          labelStyle: TextStyle(color: Colors.white70),
+                        ),
+                      ),
+
+                      if (availableGoals.isNotEmpty)
+                        DropdownButton<String>(
+                          value: availableGoals.any((goal) => goal['id'] == editGoalId)
+                              ? editGoalId : null,
+                          hint: const Text('Link to a goal (optional)',
+                            style: TextStyle(color: Colors.white70)),
+                          dropdownColor: Colors.black,
+                          isExpanded: true,
+                          style: const TextStyle(color: Colors.white),
+                          items: [
+                            const DropdownMenuItem<String>(value: '', child: Text('No goal')),
+                            ...availableGoals.map((goal) => DropdownMenuItem<String>(
+                              value: goal['id'].toString(), child: Text(goal['title'].toString()))),
+                          ],
+                          onChanged: (value) => setDialogState(() =>
+                            editGoalId = value == '' ? null : value),
+                        ),
 
                       const SizedBox(height: 16),
 
@@ -2846,6 +3185,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       task['description'] = editDescriptionController.text
                           .trim();
                       task['category'] = editCategory;
+                      task['tags'] = editTagsController.text.split(',')
+                          .map((tag) => tag.trim()).where((tag) => tag.isNotEmpty)
+                          .toSet().toList();
+                      task['goalId'] = editGoalId;
                       task['priority'] = editPriority;
                       task['reminderTime'] = editReminderTime;
                       task['notificationId'] = notificationId;
@@ -2892,7 +3235,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     setState(() {
       // Reordering while viewing every task
-      if (selectedFilter == 'All') {
+      if (selectedFilter == 'All' && searchQuery.trim().isEmpty) {
         final movedTask = tasks.removeAt(oldIndex);
         tasks.insert(newIndex, movedTask);
         return;
@@ -2907,7 +3250,7 @@ class _HomeScreenState extends State<HomeScreen> {
       final filteredIndexes = <int>[];
 
       for (int index = 0; index < tasks.length; index++) {
-        if (tasks[index]['category'] == selectedFilter) {
+        if (filteredTasks.any((task) => identical(task, tasks[index]))) {
           filteredIndexes.add(index);
         }
       }
@@ -2941,6 +3284,8 @@ class _HomeScreenState extends State<HomeScreen> {
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
         automaticallyImplyLeading: false,
+        actions: [IconButton(onPressed: openTaskSearch,
+          icon: const Icon(Icons.search), tooltip: 'Search all tasks')],
       ),
       body: SingleChildScrollView(
         child: Padding(
@@ -3315,7 +3660,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                         });
 
                                         await prefs.setString(
-                                          'selectedTaskDate',
+                                          userKey('selectedTaskDate'),
                                           selectedTaskDate,
                                         );
 
@@ -3456,6 +3801,23 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
 
               // Category filter buttons
+              TextField(
+                controller: searchController,
+                onChanged: (value) => setState(() => searchQuery = value),
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  hintText: 'Search tasks',
+                  prefixIcon: const Icon(Icons.search),
+                  suffixIcon: searchQuery.isEmpty ? null : IconButton(
+                    icon: const Icon(Icons.clear),
+                    onPressed: () => setState(() {
+                      searchController.clear();
+                      searchQuery = '';
+                    }),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
               DropdownButton<String>(
                 value: selectedFilter,
                 dropdownColor: Colors.grey[900],
@@ -3501,6 +3863,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           key: ObjectKey(task),
                           color: Colors.white10,
                           child: ListTile(
+                            onTap: () => showTaskDetails(task),
                             leading: GestureDetector(
                               onTap: () async {
                                 // Get the task that the user tapped.
@@ -3508,6 +3871,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
                                 final currentStatus =
                                     task['status']?.toString() ?? 'Not Started';
+                                final statusDate = selectedTaskDate;
 
                                 setState(() {
                                   if (currentStatus == 'Complete') {
@@ -3526,6 +3890,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
                                 // Save the updated task state.
                                 await saveTasks();
+                                offerUndoStatus(task, currentStatus, statusDate);
 
                                 if (!mounted) return;
 
@@ -3623,6 +3988,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                     ),
                                   ),
 
+                                if (task['tags'] is List && (task['tags'] as List).isNotEmpty)
+                                  Text((task['tags'] as List).map((tag) => '#$tag').join('  '),
+                                    style: const TextStyle(color: Colors.greenAccent, fontSize: 12)),
+
                                 // ---------------------------------------------------------------------------
                                 // TASK STATUS
                                 // ---------------------------------------------------------------------------
@@ -3639,6 +4008,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                       final currentStatus =
                                           task['status']?.toString() ??
                                           'Not Started';
+                                      final statusDate = selectedTaskDate;
 
                                       String nextStatus;
 
@@ -3666,6 +4036,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
                                       // Save the updated task.
                                       await saveTasks();
+                                      offerUndoStatus(task, currentStatus, statusDate);
 
                                       if (!mounted) return;
 
@@ -3832,14 +4203,56 @@ class _HomeScreenState extends State<HomeScreen> {
                                   ),
                                   onPressed: () async {
                                     final taskToDelete = filteredTasks[index];
+                                    final originalIndex = tasks.indexOf(taskToDelete);
+                                    final deletedDate = selectedTaskDate;
+                                    final recurringId = taskToDelete['recurringId'];
+                                    final recurring = recurringId == null
+                                        ? <Map<String, dynamic>>[]
+                                        : await loadRecurringTasks();
+                                    final removedTemplates = recurring
+                                        .where((item) => item['recurringId'] == recurringId)
+                                        .map((item) => Map<String, dynamic>.from(item)).toList();
 
-                                    await cancelTaskReminders(taskToDelete);
+                                    if (recurringId != null) {
+                                      await cancelRecurringReminders(taskToDelete);
+                                    } else {
+                                      await cancelTaskReminders(taskToDelete);
+                                    }
+                                    if (recurringId != null) {
+                                      recurring.removeWhere((item) => item['recurringId'] == recurringId);
+                                      await saveRecurringTasks(recurring);
+                                    }
 
                                     setState(() {
                                       tasks.remove(taskToDelete);
                                     });
 
                                     await saveTasks();
+                                    if (!mounted) return;
+                                    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: const Text('Task deleted'),
+                                        action: SnackBarAction(
+                                          label: 'Undo',
+                                          onPressed: () async {
+                                            if (selectedTaskDate != deletedDate) return;
+                                            setState(() => tasks.insert(
+                                              originalIndex.clamp(0, tasks.length).toInt(),
+                                              taskToDelete,
+                                            ));
+                                            await saveTasks();
+                                            if (removedTemplates.isNotEmpty) {
+                                              final restored = await loadRecurringTasks();
+                                              restored.addAll(removedTemplates);
+                                              await saveRecurringTasks(restored);
+                                              await refreshRecurringTaskReminders(recurringId.toString());
+                                            }
+                                            await handleTaskStatusNotifications(taskToDelete);
+                                          },
+                                        ),
+                                      ),
+                                    );
                                   },
                                 ),
                               ],

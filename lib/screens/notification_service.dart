@@ -127,6 +127,7 @@ class NotificationService {
     required String body,
     required DateTime scheduledTime,
     String? payload,
+    DateTimeComponents? matchDateTimeComponents,
   }) async {
     if (scheduledTime.isBefore(DateTime.now())) {
       debugPrint('Notification $id was not scheduled because its time passed.');
@@ -141,6 +142,7 @@ class NotificationService {
       notificationDetails: _notificationDetails(),
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       payload: payload,
+      matchDateTimeComponents: matchDateTimeComponents,
     );
 
     debugPrint('Scheduled notification $id for $scheduledTime.');

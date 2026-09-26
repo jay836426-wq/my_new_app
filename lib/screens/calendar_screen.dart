@@ -202,10 +202,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
       // Preserve the workflow status for this date.
       recurringCopy['status'] = existingOccurrence?['status'] ?? 'Not Started';
 
-      // Preserve this occurrence's notification ID if one already exists.
-      if (existingOccurrence?['notificationId'] != null) {
-        recurringCopy['notificationId'] = existingOccurrence!['notificationId'];
-      }
+      // The notification ID belongs to the entire recurring series.
+      recurringCopy['notificationId'] = recurringTask['notificationId'];
 
       dayTasks.add(recurringCopy);
     }
