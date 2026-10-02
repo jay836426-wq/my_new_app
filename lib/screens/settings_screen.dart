@@ -343,7 +343,7 @@ class SettingsScreen extends StatelessWidget {
 
           const Center(
             child: Text(
-              'TrakOn v1.0',
+              'TrakOn v1.1',
               style: TextStyle(color: Colors.grey, fontSize: 14),
             ),
           ),
