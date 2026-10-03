@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -20,6 +21,75 @@ class _InsightsScreenState extends State<InsightsScreen> {
   String get prefix => '${FirebaseAuth.instance.currentUser!.uid}_';
   String dateKey(DateTime date) => '${date.year}-${date.month}-${date.day}';
 
+  String get currentUserId => FirebaseAuth.instance.currentUser!.uid;
+
+  DocumentReference<Map<String, dynamic>> get userCloudDocument {
+    return FirebaseFirestore.instance.collection('users').doc(currentUserId);
+  }
+
+  DocumentReference<Map<String, dynamic>> get userAppStateDocument {
+    return userCloudDocument.collection('appData').doc('state');
+  }
+
+  Future<void> saveTaskDayToCloud(
+    String date,
+    List<Map<String, dynamic>> taskList,
+  ) async {
+    try {
+      await userCloudDocument.collection('taskDays').doc(date).set({
+        'tasks': taskList,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } catch (error) {
+      debugPrint('Could not migrate task day to Firestore: $error');
+    }
+  }
+
+  Future<Map<String, List<Map<String, dynamic>>>> loadCloudTaskDays() async {
+    final result = <String, List<Map<String, dynamic>>>{};
+
+    try {
+      final snapshot = await userCloudDocument.collection('taskDays').get();
+
+      for (final doc in snapshot.docs) {
+        final cloudTasks = doc.data()['tasks'];
+        if (cloudTasks is! List) continue;
+
+        result[doc.id] = cloudTasks
+            .map((task) => Map<String, dynamic>.from(task as Map))
+            .toList();
+      }
+    } catch (error) {
+      debugPrint('Could not load task history from Firestore: $error');
+    }
+
+    return result;
+  }
+
+  Future<Map<String, dynamic>?> loadAppStateFromCloud() async {
+    try {
+      final snapshot = await userAppStateDocument.get();
+      return snapshot.data();
+    } catch (error) {
+      debugPrint('Could not load Insights state from Firestore: $error');
+      return null;
+    }
+  }
+
+  Future<void> saveAppStateFieldsToCloud(
+    Map<String, dynamic> fields,
+  ) async {
+    try {
+      await userAppStateDocument.set({
+        ...fields,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } catch (error) {
+      debugPrint('Could not save Insights state to Firestore: $error');
+    }
+  }
+
+
   @override
   void initState() {
     super.initState();
@@ -30,47 +100,131 @@ class _InsightsScreenState extends State<InsightsScreen> {
     final prefs = await SharedPreferences.getInstance();
     final today = dateKey(DateTime.now());
     final dates = <String, List<Map<String, dynamic>>>{};
+
+    // Load every locally cached task day and migrate it to Firestore.
     for (final key in prefs.getKeys()) {
       String? date;
+
       if (key == '${prefix}tasks') {
         date = today;
       } else if (key.startsWith('${prefix}tasks_')) {
         final suffix = key.substring('${prefix}tasks_'.length);
-        if (RegExp(r'^\d{4}-\d{1,2}-\d{1,2}$').hasMatch(suffix) && suffix != today) {
+
+        if (RegExp(r'^\d{4}-\d{1,2}-\d{1,2}$').hasMatch(suffix) &&
+            suffix != today) {
           date = suffix;
         }
       }
+
       if (date == null) continue;
+
       try {
         final raw = prefs.getString(key);
         if (raw == null) continue;
-        dates[date] = (jsonDecode(raw) as List)
-            .map((task) => Map<String, dynamic>.from(task as Map)).toList();
+
+        final localTasks = (jsonDecode(raw) as List)
+            .map((task) => Map<String, dynamic>.from(task as Map))
+            .toList();
+
+        dates[date] = localTasks;
+        await saveTaskDayToCloud(date, localTasks);
       } catch (_) {
         // Ignore invalid legacy entries without losing other days.
       }
     }
 
+    // Restore dates that are only in the cloud.
+    final cloudDates = await loadCloudTaskDays();
+
+    for (final entry in cloudDates.entries) {
+      if (dates.containsKey(entry.key)) continue;
+
+      dates[entry.key] = entry.value;
+
+      final localKey =
+          entry.key == today
+              ? '${prefix}tasks'
+              : '${prefix}tasks_${entry.key}';
+
+      await prefs.setString(localKey, jsonEncode(entry.value));
+    }
+
+    final cloudState = await loadAppStateFromCloud();
+
     var loadedGoals = <Map<String, dynamic>>[];
-    try {
-      final saved = prefs.getString('${prefix}goals');
-      if (saved != null) {
-        loadedGoals = (jsonDecode(saved) as List)
-            .map((goal) => Map<String, dynamic>.from(goal as Map)).toList();
+    final savedGoals = prefs.getString('${prefix}goals');
+
+    if (savedGoals != null) {
+      try {
+        loadedGoals = (jsonDecode(savedGoals) as List)
+            .map((goal) => Map<String, dynamic>.from(goal as Map))
+            .toList();
+
+        await saveAppStateFieldsToCloud({'goals': loadedGoals});
+      } catch (_) {}
+    } else {
+      final cloudGoals = cloudState?['goals'];
+
+      if (cloudGoals is List) {
+        loadedGoals = cloudGoals
+            .map((goal) => Map<String, dynamic>.from(goal as Map))
+            .toList();
+
+        await prefs.setString('${prefix}goals', jsonEncode(loadedGoals));
       }
-    } catch (_) {}
+    }
+
+    final localStreak = prefs.getInt('${prefix}streakCounter');
+    final cloudStreak = (cloudState?['streakCounter'] as num?)?.toInt();
+    final restoredStreak = localStreak ?? cloudStreak ?? 0;
+
+    await prefs.setInt('${prefix}streakCounter', restoredStreak);
+    await saveAppStateFieldsToCloud({'streakCounter': restoredStreak});
+
+    // Migrate or restore recurring templates.
+    final localRecurringText = prefs.getString('${prefix}recurringTasks');
+
+    if (localRecurringText != null) {
+      try {
+        final recurring = (jsonDecode(localRecurringText) as List)
+            .map((task) => Map<String, dynamic>.from(task as Map))
+            .toList();
+
+        await saveAppStateFieldsToCloud({'recurringTasks': recurring});
+      } catch (_) {}
+    } else {
+      final cloudRecurring = cloudState?['recurringTasks'];
+
+      if (cloudRecurring is List) {
+        final recurring = cloudRecurring
+            .map((task) => Map<String, dynamic>.from(task as Map))
+            .toList();
+
+        await prefs.setString(
+          '${prefix}recurringTasks',
+          jsonEncode(recurring),
+        );
+      }
+    }
+
     if (!mounted) return;
+
     setState(() {
-      tasksByDate..clear()..addAll(dates);
+      tasksByDate
+        ..clear()
+        ..addAll(dates);
+
       goals = loadedGoals;
-      streak = prefs.getInt('${prefix}streakCounter') ?? 0;
+      streak = restoredStreak;
       loading = false;
     });
   }
 
   Future<void> saveGoals() async {
     final prefs = await SharedPreferences.getInstance();
+
     await prefs.setString('${prefix}goals', jsonEncode(goals));
+    await saveAppStateFieldsToCloud({'goals': goals});
   }
 
   Future<void> editGoal([Map<String, dynamic>? existing]) async {

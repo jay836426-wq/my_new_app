@@ -376,7 +376,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       await userCloudDocument.collection('taskDays').doc(dateKey).set({
         'tasks': taskList,
         'updatedAt': FieldValue.serverTimestamp(),
-      });
+      }, SetOptions(merge: true));
     } catch (error) {
       debugPrint('Could not save tasks to Firestore: $error');
     }
@@ -405,6 +405,64 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           .toList();
     } catch (error) {
       debugPrint('Could not load tasks from Firestore: $error');
+      return null;
+    }
+  }
+
+
+  // Stores cloud-backed app state that is not tied to one task date.
+  DocumentReference<Map<String, dynamic>> get userAppStateDocument {
+    return userCloudDocument.collection('appData').doc('state');
+  }
+
+  Future<Map<String, dynamic>?> loadAppStateFromCloud() async {
+    try {
+      final snapshot = await userAppStateDocument.get();
+      return snapshot.data();
+    } catch (error) {
+      debugPrint('Could not load app state from Firestore: $error');
+      return null;
+    }
+  }
+
+  Future<void> saveAppStateFieldsToCloud(
+    Map<String, dynamic> fields,
+  ) async {
+    try {
+      await userAppStateDocument.set({
+        ...fields,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } catch (error) {
+      debugPrint('Could not save app state to Firestore: $error');
+    }
+  }
+
+  Future<void> saveDayCompletionToCloud(
+    String dateKey,
+    bool completed,
+  ) async {
+    try {
+      await userCloudDocument.collection('taskDays').doc(dateKey).set({
+        'dayCompleted': completed,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } catch (error) {
+      debugPrint('Could not save day completion to Firestore: $error');
+    }
+  }
+
+  Future<bool?> loadDayCompletionFromCloud(String dateKey) async {
+    try {
+      final snapshot =
+          await userCloudDocument.collection('taskDays').doc(dateKey).get();
+
+      if (!snapshot.exists) return null;
+
+      final value = snapshot.data()?['dayCompleted'];
+      return value is bool ? value : null;
+    } catch (error) {
+      debugPrint('Could not load day completion from Firestore: $error');
       return null;
     }
   }
@@ -517,6 +575,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     await prefs.setInt(userKey('streakCounter'), streakCounter);
     await prefs.setString(userKey('lastCompletedDate'), lastCompletedDate);
 
+    await saveDayCompletionToCloud(todayString, dayCompleted);
+    await saveAppStateFieldsToCloud({
+      'streakCounter': streakCounter,
+      'lastCompletedDate': lastCompletedDate,
+      'lastActiveDate': lastActiveDate,
+    });
+
     final notificationsEnabled =
         await NotificationPreferences.notificationsEnabled();
 
@@ -561,6 +626,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     await prefs.setInt(userKey('streakCounter'), streakCounter);
     await prefs.setString(userKey('lastCompletedDate'), lastCompletedDate);
 
+    await saveDayCompletionToCloud(todayString, dayCompleted);
+    await saveAppStateFieldsToCloud({
+      'streakCounter': streakCounter,
+      'lastCompletedDate': lastCompletedDate,
+      'lastActiveDate': lastActiveDate,
+    });
+
     if (!mounted) return;
     ScaffoldMessenger.of(context)
         .showSnackBar(const SnackBar(content: Text('Day status updated.')));
@@ -584,17 +656,36 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Future<void> loadGoals() async {
     final prefs = await SharedPreferences.getInstance();
     final saved = prefs.getString(userKey('goals'));
-    if (!mounted) return;
-    setState(() {
+
+    var loadedGoals = <Map<String, dynamic>>[];
+
+    if (saved != null) {
       try {
-        availableGoals = saved == null
-            ? []
-            : (jsonDecode(saved) as List)
-                  .map((goal) => Map<String, dynamic>.from(goal as Map))
-                  .toList();
+        loadedGoals = (jsonDecode(saved) as List)
+            .map((goal) => Map<String, dynamic>.from(goal as Map))
+            .toList();
+
+        await saveAppStateFieldsToCloud({'goals': loadedGoals});
       } catch (_) {
-        availableGoals = [];
+        loadedGoals = [];
       }
+    } else {
+      final cloudState = await loadAppStateFromCloud();
+      final cloudGoals = cloudState?['goals'];
+
+      if (cloudGoals is List) {
+        loadedGoals = cloudGoals
+            .map((goal) => Map<String, dynamic>.from(goal as Map))
+            .toList();
+
+        await prefs.setString(userKey('goals'), jsonEncode(loadedGoals));
+      }
+    }
+
+    if (!mounted) return;
+
+    setState(() {
+      availableGoals = loadedGoals;
     });
   }
 
@@ -975,18 +1066,40 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   // Loads all saved recurring-task templates.
   Future<List<Map<String, dynamic>>> loadRecurringTasks() async {
     final prefs = await SharedPreferences.getInstance();
-
     final savedRecurringTasks = prefs.getString(userKey('recurringTasks'));
 
-    if (savedRecurringTasks == null) {
-      return [];
+    if (savedRecurringTasks != null) {
+      try {
+        final List decodedTasks = jsonDecode(savedRecurringTasks);
+
+        final recurring = decodedTasks
+            .map((task) => Map<String, dynamic>.from(task as Map))
+            .toList();
+
+        await saveAppStateFieldsToCloud({'recurringTasks': recurring});
+        return recurring;
+      } catch (_) {
+        // Fall through to cloud restore.
+      }
     }
 
-    final List decodedTasks = jsonDecode(savedRecurringTasks);
+    final cloudState = await loadAppStateFromCloud();
+    final cloudRecurring = cloudState?['recurringTasks'];
 
-    return decodedTasks.map((task) {
-      return Map<String, dynamic>.from(task);
-    }).toList();
+    if (cloudRecurring is List) {
+      final recurring = cloudRecurring
+          .map((task) => Map<String, dynamic>.from(task as Map))
+          .toList();
+
+      await prefs.setString(
+        userKey('recurringTasks'),
+        jsonEncode(recurring),
+      );
+
+      return recurring;
+    }
+
+    return [];
   }
 
   // Saves the recurring-task template list.
@@ -999,6 +1112,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       userKey('recurringTasks'),
       jsonEncode(recurringTasks),
     );
+
+    await saveAppStateFieldsToCloud({
+      'recurringTasks': recurringTasks,
+    });
   }
 
   // Saves a newly created recurring task as a reusable template.
@@ -1120,6 +1237,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     await prefs.setString(userKey('lastActiveDate'), lastActiveDate);
     await prefs.setString(userKey('selectedTaskDate'), selectedTaskDate);
 
+    await saveDayCompletionToCloud(cloudDateKey, dayCompleted);
+    await saveAppStateFieldsToCloud({
+      'streakCounter': streakCounter,
+      'lastCompletedDate': lastCompletedDate,
+      'lastActiveDate': lastActiveDate,
+      'selectedTaskDate': selectedTaskDate,
+    });
+
     if (isViewingToday()) {
       await refreshDailyTaskNotifications();
     }
@@ -1167,21 +1292,65 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       }
     }
 
+    final cloudState = await loadAppStateFromCloud();
+    final cloudDayCompleted = await loadDayCompletionFromCloud(todayKey);
+
+    final localDayCompleted = prefs.getBool(userKey('dayCompleted_$todayKey'));
+    final localStreak = prefs.getInt(userKey('streakCounter'));
+    final localLastCompletedDate = prefs.getString(userKey('lastCompletedDate'));
+    final localLastActiveDate = prefs.getString(userKey('lastActiveDate'));
+
+    final restoredDayCompleted =
+        localDayCompleted ?? cloudDayCompleted ?? false;
+
+    final restoredStreak =
+        localStreak ?? (cloudState?['streakCounter'] as num?)?.toInt() ?? 0;
+
+    final restoredLastCompletedDate =
+        localLastCompletedDate ??
+        cloudState?['lastCompletedDate']?.toString() ??
+        '';
+
+    final restoredLastActiveDate =
+        localLastActiveDate ??
+        cloudState?['lastActiveDate']?.toString() ??
+        '';
+
+    await prefs.setBool(
+      userKey('dayCompleted_$todayKey'),
+      restoredDayCompleted,
+    );
+    await prefs.setInt(userKey('streakCounter'), restoredStreak);
+    await prefs.setString(
+      userKey('lastCompletedDate'),
+      restoredLastCompletedDate,
+    );
+    await prefs.setString(
+      userKey('lastActiveDate'),
+      restoredLastActiveDate,
+    );
+
     if (!mounted) return;
 
     setState(() {
       tasks = loadedTasks;
-      dayCompleted = prefs.getBool(userKey('dayCompleted_$todayKey')) ?? false;
-
-      streakCounter = prefs.getInt(userKey('streakCounter')) ?? 0;
-
-      lastCompletedDate = prefs.getString(userKey('lastCompletedDate')) ?? '';
-
-      lastActiveDate = prefs.getString(userKey('lastActiveDate')) ?? '';
+      dayCompleted = restoredDayCompleted;
+      streakCounter = restoredStreak;
+      lastCompletedDate = restoredLastCompletedDate;
+      lastActiveDate = restoredLastActiveDate;
       selectedFilter = 'All';
     });
 
     await prefs.setString(userKey('selectedTaskDate'), todayKey);
+
+    await saveAppStateFieldsToCloud({
+      'streakCounter': streakCounter,
+      'lastCompletedDate': lastCompletedDate,
+      'lastActiveDate': lastActiveDate,
+      'selectedTaskDate': todayKey,
+    });
+
+    await saveDayCompletionToCloud(todayKey, dayCompleted);
   }
 
   Future<void> checkForNewDay() async {
@@ -1194,6 +1363,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (lastActiveDate.isEmpty) {
       lastActiveDate = todayString;
       await prefs.setString(userKey('lastActiveDate'), lastActiveDate);
+      await saveAppStateFieldsToCloud({'lastActiveDate': lastActiveDate});
       return;
     }
 
@@ -1220,6 +1390,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         userKey('tasks_$lastActiveDate'),
         jsonEncode(previousDayTasks),
       );
+
+      await saveTaskDayToCloud(
+        lastActiveDate,
+        List<Map<String, dynamic>>.from(previousDayTasks),
+      );
     }
 
     // Keep only unfinished tasks
@@ -1240,6 +1415,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     await prefs.setString(userKey('lastActiveDate'), todayString);
 
     await prefs.setString(userKey('selectedTaskDate'), todayString);
+
+    await saveAppStateFieldsToCloud({
+      'lastActiveDate': todayString,
+      'selectedTaskDate': todayString,
+    });
 
     await prefs.setBool(userKey('dayCompleted_$todayString'), false);
 
@@ -1460,6 +1640,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           return Map<String, dynamic>.from(task);
         }),
       );
+    } else {
+      final cloudTasks = await loadTaskDayFromCloud(selectedTaskDate);
+
+      if (cloudTasks != null) {
+        savedTasks.addAll(cloudTasks);
+        await prefs.setString(taskKey, jsonEncode(cloudTasks));
+      }
     }
 
     final selectedDate = parseDateKey(selectedTaskDate);
@@ -1527,17 +1714,37 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
     if (!mounted) return;
 
+    final cloudDayCompleted =
+        await loadDayCompletionFromCloud(selectedTaskDate);
+
+    final restoredDayCompleted =
+        prefs.getBool(userKey('dayCompleted_$selectedTaskDate')) ??
+        cloudDayCompleted ??
+        false;
+
+    if (!mounted) return;
+
     setState(() {
       tasks = rebuiltTasks;
-
-      dayCompleted =
-          prefs.getBool(userKey('dayCompleted_$selectedTaskDate')) ?? false;
-
+      dayCompleted = restoredDayCompleted;
       selectedFilter = 'All';
     });
 
-    // Replace this day's saved list with the corrected version.
     await prefs.setString(taskKey, jsonEncode(rebuiltTasks));
+    await prefs.setBool(
+      userKey('dayCompleted_$selectedTaskDate'),
+      restoredDayCompleted,
+    );
+
+    await saveTaskDayToCloud(
+      selectedTaskDate,
+      List<Map<String, dynamic>>.from(rebuiltTasks),
+    );
+
+    await saveDayCompletionToCloud(
+      selectedTaskDate,
+      restoredDayCompleted,
+    );
   }
 
   // Loads the selected date shared between Home and Calendar

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class CalendarScreen extends StatefulWidget {
   const CalendarScreen({super.key});
@@ -48,6 +49,52 @@ class _CalendarScreenState extends State<CalendarScreen> {
     return '${currentUserId}_$key';
   }
 
+  DocumentReference<Map<String, dynamic>> get userCloudDocument {
+    return FirebaseFirestore.instance.collection('users').doc(currentUserId);
+  }
+
+  DocumentReference<Map<String, dynamic>> get userAppStateDocument {
+    return userCloudDocument.collection('appData').doc('state');
+  }
+
+  Future<List<Map<String, dynamic>>?> loadTaskDayFromCloud(
+    String dateKey,
+  ) async {
+    try {
+      final snapshot =
+          await userCloudDocument.collection('taskDays').doc(dateKey).get();
+
+      if (!snapshot.exists) return null;
+
+      final cloudTasks = snapshot.data()?['tasks'];
+      if (cloudTasks is! List) return null;
+
+      return cloudTasks
+          .map((task) => Map<String, dynamic>.from(task as Map))
+          .toList();
+    } catch (error) {
+      debugPrint('Could not load calendar tasks from Firestore: $error');
+      return null;
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> loadRecurringTasksFromCloud() async {
+    try {
+      final snapshot = await userAppStateDocument.get();
+      final cloudRecurring = snapshot.data()?['recurringTasks'];
+
+      if (cloudRecurring is! List) return [];
+
+      return cloudRecurring
+          .map((task) => Map<String, dynamic>.from(task as Map))
+          .toList();
+    } catch (error) {
+      debugPrint('Could not load recurring tasks from Firestore: $error');
+      return [];
+    }
+  }
+
+
   @override
   void initState() {
     super.initState();
@@ -74,21 +121,31 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }
 
-  // Loads the recurring task templates saved by HomeScreen.
+  // Loads recurring templates locally first, then restores from cloud.
   Future<List<Map<String, dynamic>>> loadRecurringTasks() async {
     final prefs = await SharedPreferences.getInstance();
-
     final savedRecurringTasks = prefs.getString(userKey('recurringTasks'));
 
-    if (savedRecurringTasks == null) {
-      return [];
+    if (savedRecurringTasks != null) {
+      try {
+        final List decodedTasks = jsonDecode(savedRecurringTasks);
+
+        return decodedTasks
+            .map((task) => Map<String, dynamic>.from(task as Map))
+            .toList();
+      } catch (_) {}
     }
 
-    final List decodedTasks = jsonDecode(savedRecurringTasks);
+    final cloudRecurring = await loadRecurringTasksFromCloud();
 
-    return decodedTasks.map((task) {
-      return Map<String, dynamic>.from(task);
-    }).toList();
+    if (cloudRecurring.isNotEmpty) {
+      await prefs.setString(
+        userKey('recurringTasks'),
+        jsonEncode(cloudRecurring),
+      );
+    }
+
+    return cloudRecurring;
   }
 
   // Checks whether a recurring task belongs on a specific date.
@@ -149,7 +206,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
     final savedTasks = <Map<String, dynamic>>[];
 
-    // Load anything already saved specifically for this date.
+    // Load local cache first. After a reinstall, restore the same date from
+    // Firestore and rebuild SharedPreferences.
     if (savedTasksText != null) {
       final List decodedTasks = jsonDecode(savedTasksText);
 
@@ -158,6 +216,13 @@ class _CalendarScreenState extends State<CalendarScreen> {
           return Map<String, dynamic>.from(task);
         }),
       );
+    } else {
+      final cloudTasks = await loadTaskDayFromCloud(dateKey);
+
+      if (cloudTasks != null) {
+        savedTasks.addAll(cloudTasks);
+        await prefs.setString(taskKey, jsonEncode(cloudTasks));
+      }
     }
 
     // Start with normal, non-recurring tasks.
