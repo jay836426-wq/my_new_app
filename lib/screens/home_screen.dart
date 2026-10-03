@@ -12,6 +12,7 @@ import 'notification_preferences.dart';
 import 'task_search_screen.dart';
 
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../utils/recurring_reminder_plan.dart';
 
@@ -352,6 +353,60 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   // currently authenticated Firebase user.
   String userKey(String key) {
     return '${currentUserId}_$key';
+  }
+
+  // ---------------------------------------------------------------------------
+  // FIRESTORE CLOUD BACKUP / RESTORE
+  // ---------------------------------------------------------------------------
+
+  // Points to the signed-in user's Firestore profile document. Task data is
+  // stored in a taskDays subcollection so it stays separate from profile fields.
+  DocumentReference<Map<String, dynamic>> get userCloudDocument {
+    return FirebaseFirestore.instance.collection('users').doc(currentUserId);
+  }
+
+  // Saves one day's complete task list to Firestore. Local SharedPreferences
+  // remains the fast/offline cache, while Firestore protects data across
+  // reinstalls and devices.
+  Future<void> saveTaskDayToCloud(
+    String dateKey,
+    List<Map<String, dynamic>> taskList,
+  ) async {
+    try {
+      await userCloudDocument.collection('taskDays').doc(dateKey).set({
+        'tasks': taskList,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    } catch (error) {
+      debugPrint('Could not save tasks to Firestore: $error');
+    }
+  }
+
+  // Loads one day's task list from Firestore. Returns null when no cloud backup
+  // exists yet, allowing the caller to fall back to local storage.
+  Future<List<Map<String, dynamic>>?> loadTaskDayFromCloud(
+    String dateKey,
+  ) async {
+    try {
+      final snapshot = await userCloudDocument
+          .collection('taskDays')
+          .doc(dateKey)
+          .get();
+
+      if (!snapshot.exists) return null;
+
+      final data = snapshot.data();
+      final cloudTasks = data?['tasks'];
+
+      if (cloudTasks is! List) return null;
+
+      return cloudTasks
+          .map((task) => Map<String, dynamic>.from(task as Map))
+          .toList();
+    } catch (error) {
+      debugPrint('Could not load tasks from Firestore: $error');
+      return null;
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -1044,6 +1099,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
     await prefs.setString(taskKey, encodedTasks);
 
+    // Mirror the same day's tasks to Firestore so they can be restored after
+    // reinstalling the app or signing in on another device.
+    final String cloudDateKey =
+        selectedTaskDate.isEmpty ? todayKey : selectedTaskDate;
+    await saveTaskDayToCloud(
+      cloudDateKey,
+      List<Map<String, dynamic>>.from(tasks),
+    );
+
     if (selectedTaskDate.isNotEmpty) {
       await prefs.setBool(
         userKey('dayCompleted_$selectedTaskDate'),
@@ -1084,6 +1148,23 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           return Map<String, dynamic>.from(task);
         }),
       );
+
+      // Existing users already have local data from earlier TrakOn versions.
+      // Back it up as soon as Home loads so they are protected even before
+      // making their next task change.
+      await saveTaskDayToCloud(
+        todayKey,
+        List<Map<String, dynamic>>.from(loadedTasks),
+      );
+    } else {
+      // A reinstall clears SharedPreferences. Restore today's task data from
+      // Firestore when a cloud backup exists, then rebuild the local cache.
+      final cloudTasks = await loadTaskDayFromCloud(todayKey);
+
+      if (cloudTasks != null) {
+        loadedTasks.addAll(cloudTasks);
+        await prefs.setString(userKey('tasks'), jsonEncode(cloudTasks));
+      }
     }
 
     if (!mounted) return;
