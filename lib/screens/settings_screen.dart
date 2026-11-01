@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:TrakOn/main.dart';
+
 import 'notification_settings_screen.dart';
+import 'notification_service.dart';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:in_app_review/in_app_review.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 
 class SettingsScreen extends StatelessWidget {
@@ -15,6 +17,11 @@ class SettingsScreen extends StatelessWidget {
   // Signs the user out of Firebase while preserving locally saved app data.
   Future<void> signOut(BuildContext context) async {
     try {
+      try {
+        await NotificationService.cancelAllNotifications();
+      } catch (error) {
+        debugPrint('Could not clear old notifications: $error');
+      }
       await FirebaseAuth.instance.signOut();
 
       final prefs = await SharedPreferences.getInstance();
@@ -343,7 +350,7 @@ class SettingsScreen extends StatelessWidget {
 
           const Center(
             child: Text(
-              'TrakOn v1.1',
+              'TrakOn v1.2',
               style: TextStyle(color: Colors.grey, fontSize: 14),
             ),
           ),

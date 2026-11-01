@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Version 1.1 highlights, displayed before the Home screen is mounted.
+/// Version 1.2 highlights, displayed before the Home screen is mounted.
 class WhatsNewScreen extends StatefulWidget {
   const WhatsNewScreen({super.key, required this.onFinished});
 
@@ -17,24 +17,25 @@ class _WhatsNewScreenState extends State<WhatsNewScreen> {
 
   static const _slides = [
     (
-      icon: Icons.task_alt,
-      title: 'Your tasks, more flexible',
+      icon: Icons.view_week_outlined,
+      title: 'Make room for what matters',
       description:
-          'Tap tasks to view their details, and undo accidental deletions.',
-      caption: 'Details when you need them. Undo when you need it.',
+          'Plan your days and weeks, set task durations, and spot overlapping time blocks.',
+      caption: 'A clearer plan for your time.',
     ),
     (
-      icon: Icons.insights,
-      title: 'See your progress',
-      description: 'Explore the improved statistics dashboard to track your productivity.',
-      caption: 'Every completed task moves you forward.',
+      icon: Icons.timer_outlined,
+      title: 'Focus, one step at a time',
+      description:
+          'Use the focus timer and break tasks into checkable subtasks. Set monthly, yearly, or custom repeat intervals.',
+      caption: 'Small steps. Steady progress.',
     ),
     (
-      icon: Icons.notifications_active_outlined,
-      title: 'Stay focused',
+      icon: Icons.restore_from_trash_outlined,
+      title: 'Keep your progress safe',
       description:
-          'Get priority-based reminders and fresh daily motivational quotes.',
-      caption: 'A little encouragement. A clearer focus.',
+          'Restore deleted tasks from Recently Deleted, choose weekly or long-term goals, and export your task history.',
+      caption: 'Your plans, with more control.',
     ),
   ];
 
@@ -75,7 +76,7 @@ class _WhatsNewScreenState extends State<WhatsNewScreen> {
                   children: [
                     const Expanded(
                       child: Text(
-                        'What’s new in 1.1',
+                        'What’s new in 1.2',
                         style: TextStyle(
                           color: Colors.greenAccent,
                           fontSize: 18,

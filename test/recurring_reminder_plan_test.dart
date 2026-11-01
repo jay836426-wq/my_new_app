@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import '../lib/utils/recurring_reminder_plan.dart';
+import 'package:TrakOn/utils/recurring_reminder_plan.dart';
 
 void main() {
   final now = DateTime(2026, 10, 2, 9); // Friday.

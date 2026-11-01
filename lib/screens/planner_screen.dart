@@ -1,0 +1,449 @@
+import '../services/account_planning_store.dart';
+import 'dart:convert';
+import 'dart:typed_data';
+
+import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
+
+import '../utils/planning_rules.dart';
+import 'home_screen.dart';
+import 'focus_timer_screen.dart';
+import 'recently_deleted_screen.dart';
+
+class PlannerScreen extends StatefulWidget {
+  const PlannerScreen({super.key, this.calendarMode = false});
+  final bool calendarMode;
+  @override
+  State<PlannerScreen> createState() => _PlannerScreenState();
+}
+
+class _PlannerScreenState extends State<PlannerScreen> {
+  DateTime _selected = dayOnly(DateTime.now());
+  late String _view;
+  Map<String, List<TaskData>> _days = {};
+  bool _loading = true;
+  String? _error;
+  int _request = 0;
+  @override
+  void initState() {
+    super.initState();
+    _view = widget.calendarMode ? 'Month' : 'Week';
+    load();
+  }
+
+  List<DateTime> get visibleDates {
+    final start = _view == 'Month'
+        ? DateTime(_selected.year, _selected.month, 1)
+        : _view == 'Week'
+        ? mondayOf(_selected)
+        : _selected;
+    final n = _view == 'Month'
+        ? DateTime(start.year, start.month + 1, 0).day
+        : _view == 'Week'
+        ? 7
+        : 1;
+    return List.generate(
+      n,
+      (i) => DateTime(start.year, start.month, start.day + i),
+    );
+  }
+
+  Future<void> load() async {
+    final request = ++_request;
+    if (mounted) setState(() => _loading = true);
+    try {
+      final store = await AccountPlanningStore.current();
+      await store.prepareToday();
+      final saved = await store.allSavedDays();
+      final templates = await store.listState('recurringTasks');
+      // Materialize visible days only. Empty calendar previews never overwrite history.
+      final result = <String, List<TaskData>>{};
+      for (final date in visibleDates) {
+        final key = dayKey(date);
+        result[key] = materializeDay(
+          saved: saved[key] ?? [],
+          templates: templates,
+          date: key,
+        );
+      }
+      if (mounted && request == _request) {
+        setState(() {
+          _days = result;
+          _loading = false;
+          _error = null;
+        });
+      }
+    } catch (e) {
+      if (mounted && request == _request) {
+        setState(() {
+          _error = 'Could not load the planner. Please retry.';
+          _loading = false;
+        });
+      }
+    }
+  }
+
+  void move(int delta) {
+    setState(() {
+      _selected = _view == 'Month'
+          ? DateTime(_selected.year, _selected.month + delta, 1)
+          : DateTime(
+              _selected.year,
+              _selected.month,
+              _selected.day + (_view == 'Week' ? 7 : 1) * delta,
+            );
+    });
+    load();
+  }
+
+  Future<void> manageDay([TaskData? task]) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => HomeScreen(
+          initialDate: dayKey(_selected),
+          initialTaskId: task == null ? null : taskIdentity(task),
+        ),
+      ),
+    );
+    if (mounted) await load();
+  }
+
+  Future<void> exportData() async {
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      builder: (c) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              title: const Text('Export visible dates as CSV'),
+              onTap: () => Navigator.pop(c, 'visible'),
+            ),
+            ListTile(
+              title: const Text('Export all saved history as CSV'),
+              onTap: () => Navigator.pop(c, 'all'),
+            ),
+            ListTile(
+              title: const Text('Export all saved history as JSON'),
+              onTap: () => Navigator.pop(c, 'json'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (choice == null || !mounted) return;
+    try {
+      final data = choice == 'visible'
+          ? _days
+          : await (await AccountPlanningStore.current()).allSavedDays();
+      final text = choice == 'json'
+          ? const JsonEncoder.withIndent('  ').convert({
+              'version': '1.2',
+              'exportedAt': DateTime.now().toIso8601String(),
+              'days': data,
+            })
+          : exportTasksCsv(data);
+      if (!mounted) return;
+      final box = context.findRenderObject() as RenderBox?;
+      await SharePlus.instance.share(
+        ShareParams(
+          title: 'TrakOn task export',
+          files: [
+            XFile.fromData(
+              Uint8List.fromList(utf8.encode(text)),
+              mimeType: choice == 'json' ? 'application/json' : 'text/csv',
+            ),
+          ],
+          fileNameOverrides: [
+            'TrakOn_${dayKey(DateTime.now())}.${choice == 'json' ? 'json' : 'csv'}',
+          ],
+          sharePositionOrigin: box == null
+              ? null
+              : box.localToGlobal(Offset.zero) & box.size,
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Export could not be shared. Please retry.'),
+          ),
+        );
+      }
+    }
+  }
+
+  Widget dayCell(DateTime date, {bool compact = false}) {
+    final tasks = _days[dayKey(date)] ?? [];
+    final done = tasks.where(isTaskComplete).length;
+    final selected = dayKey(date) == dayKey(_selected);
+    return InkWell(
+      onTap: () => setState(() => _selected = date),
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: EdgeInsets.all(compact ? 4 : 8),
+        decoration: BoxDecoration(
+          color: selected ? const Color(0xFF123525) : const Color(0xFF171A18),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: selected ? Colors.greenAccent : Colors.transparent,
+          ),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (!compact)
+              Text(
+                const [
+                  'Mon',
+                  'Tue',
+                  'Wed',
+                  'Thu',
+                  'Fri',
+                  'Sat',
+                  'Sun',
+                ][date.weekday - 1],
+                style: const TextStyle(fontSize: 11),
+              ),
+            Text(
+              '${date.day}',
+              style: TextStyle(
+                fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+                color: dayKey(date) == dayKey(DateTime.now())
+                    ? Colors.greenAccent
+                    : Colors.white,
+              ),
+            ),
+            if (tasks.isNotEmpty)
+              Icon(
+                done == tasks.length ? Icons.check_circle : Icons.circle,
+                size: compact ? 8 : 12,
+                color: done == tasks.length ? Colors.greenAccent : Colors.amber,
+              ),
+            if (!compact)
+              Text(
+                '$done/${tasks.length}',
+                style: const TextStyle(fontSize: 10),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final dates = visibleDates;
+    final tasks = List<TaskData>.from(_days[dayKey(_selected)] ?? [])
+      ..sort(
+        (a, b) => (timeMinutes(a['startTime']) ?? 1440).compareTo(
+          timeMinutes(b['startTime']) ?? 1440,
+        ),
+      );
+    final totalMinutes = tasks.fold<int>(
+      0,
+      (v, t) => v + (taskDuration(t) ?? 0),
+    );
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(widget.calendarMode ? 'Calendar' : 'Planner'),
+        actions: [
+          IconButton(
+            tooltip: 'Export tasks',
+            onPressed: _loading ? null : exportData,
+            icon: const Icon(Icons.ios_share),
+          ),
+          PopupMenuButton<String>(
+            onSelected: (v) async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute<void>(
+                  builder: (_) => v == 'focus'
+                      ? const FocusTimerScreen()
+                      : const RecentlyDeletedScreen(),
+                ),
+              );
+              if (mounted) load();
+            },
+            itemBuilder: (_) => const [
+              PopupMenuItem(value: 'focus', child: Text('Focus timer')),
+              PopupMenuItem(value: 'trash', child: Text('Recently Deleted')),
+            ],
+          ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _loading ? null : () => manageDay(),
+        icon: const Icon(Icons.edit_calendar),
+        label: const Text('Plan this day'),
+      ),
+      body: RefreshIndicator(
+        onRefresh: load,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
+          children: [
+            SegmentedButton<String>(
+              segments: const [
+                ButtonSegment(value: 'Day', label: Text('Day')),
+                ButtonSegment(value: 'Week', label: Text('Week')),
+                ButtonSegment(value: 'Month', label: Text('Month')),
+              ],
+              selected: {_view},
+              onSelectionChanged: (v) {
+                setState(() => _view = v.first);
+                load();
+              },
+            ),
+            Row(
+              children: [
+                IconButton(
+                  tooltip: 'Previous period',
+                  onPressed: () => move(-1),
+                  icon: const Icon(Icons.chevron_left),
+                ),
+                Expanded(
+                  child: TextButton(
+                    onPressed: () async {
+                      final date = await showDatePicker(
+                        context: context,
+                        initialDate: _selected,
+                        firstDate: DateTime(2000),
+                        lastDate: DateTime(2100),
+                      );
+                      if (date != null) {
+                        setState(() => _selected = date);
+                        load();
+                      }
+                    },
+                    child: Text(
+                      _view == 'Month'
+                          ? '${_selected.month}/${_selected.year}'
+                          : '${dates.first.month}/${dates.first.day} – ${dates.last.month}/${dates.last.day}',
+                    ),
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Next period',
+                  onPressed: () => move(1),
+                  icon: const Icon(Icons.chevron_right),
+                ),
+                TextButton(
+                  onPressed: () {
+                    setState(() => _selected = dayOnly(DateTime.now()));
+                    load();
+                  },
+                  child: const Text('Today'),
+                ),
+              ],
+            ),
+            if (_loading) const LinearProgressIndicator(),
+            if (_error != null) Text(_error!),
+            const SizedBox(height: 12),
+            if (_view == 'Week')
+              SizedBox(
+                height: 90,
+                child: Row(
+                  children: [
+                    for (final d in dates)
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.all(2),
+                          child: dayCell(d),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            if (_view == 'Month') ...[
+              Row(
+                children: [
+                  for (final name in ['M', 'T', 'W', 'T', 'F', 'S', 'S'])
+                    Expanded(child: Center(child: Text(name))),
+                ],
+              ),
+              const SizedBox(height: 8),
+              GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 7,
+                  mainAxisSpacing: 5,
+                  crossAxisSpacing: 5,
+                ),
+                itemCount: dates.first.weekday - 1 + dates.length,
+                itemBuilder: (_, i) {
+                  final offset = i - (dates.first.weekday - 1);
+                  return offset < 0
+                      ? const SizedBox.shrink()
+                      : dayCell(dates[offset], compact: true);
+                },
+              ),
+            ],
+            const SizedBox(height: 24),
+            Text(
+              '${_selected.month}/${_selected.day}/${_selected.year}',
+              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            ),
+            Text(
+              '${tasks.length} tasks • ${totalMinutes ~/ 60}h ${totalMinutes % 60}m planned',
+            ),
+            const SizedBox(height: 12),
+            if (tasks.isEmpty)
+              const Padding(
+                padding: EdgeInsets.all(24),
+                child: Text('A clear day. Tap “Plan this day” to add tasks.'),
+              ),
+            for (final task in tasks)
+              Card(
+                child: ListTile(
+                  onTap: () => manageDay(task),
+                  leading: Icon(
+                    isTaskComplete(task)
+                        ? Icons.check_circle
+                        : Icons.radio_button_unchecked,
+                    color: isTaskComplete(task)
+                        ? Colors.greenAccent
+                        : Colors.amber,
+                  ),
+                  title: Text(task['title']?.toString() ?? 'Task'),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${task['startTime'] ?? 'Unscheduled'}${task['endTime'] == null ? '' : ' – ${task['endTime']}'}${taskDuration(task) == null ? '' : ' • ${taskDuration(task)} min'}',
+                      ),
+                      if (taskSubtasks(task).isNotEmpty)
+                        Text(
+                          '${taskSubtasks(task).where((s) => s['completed'] == true).length}/${taskSubtasks(task).length} steps',
+                        ),
+                      if (tasks.any(
+                        (other) =>
+                            !identical(other, task) &&
+                            timeBlocksOverlap(task, other),
+                      ))
+                        const Text(
+                          'Overlapping time block',
+                          style: TextStyle(color: Colors.amber),
+                        ),
+                    ],
+                  ),
+                  trailing: IconButton(
+                    tooltip: 'Focus on this task',
+                    icon: const Icon(Icons.timer_outlined),
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute<void>(
+                        builder: (_) => FocusTimerScreen(
+                          taskTitle: task['title']?.toString(),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}

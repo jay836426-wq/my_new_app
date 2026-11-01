@@ -1,3 +1,5 @@
+import '../services/account_planning_store.dart';
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
 
@@ -15,12 +17,19 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../utils/recurring_reminder_plan.dart';
+import '../utils/planning_rules.dart';
+import '../services/planning_store.dart';
+import '../widgets/task_options_editor.dart';
+import 'recently_deleted_screen.dart';
+import 'focus_timer_screen.dart';
 
 // ---------------------------
 // Home Screen
 // ---------------------------
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  const HomeScreen({super.key, this.initialDate, this.initialTaskId});
+  final String? initialDate;
+  final String? initialTaskId;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -28,6 +37,10 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   bool _homeReady = false;
+  String? _loadError;
+  late PlanningStore _store;
+  Timer? _midnightTimer;
+  Future<void>? _dayChangeInFlight;
   Future<void> _recurringReminderUpdates = Future<void>.value();
   // List to store tasks
   List<Map<String, dynamic>> tasks = [];
@@ -339,15 +352,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   // Returns the Firebase UID for the currently signed-in TrakOn user.
   // Every user's local data is stored under their own UID so accounts
   // on the same device can never read each other's tasks.
-  String get currentUserId {
-    final user = FirebaseAuth.instance.currentUser;
-
-    if (user == null) {
-      throw StateError('No authenticated user is available.');
-    }
-
-    return user.uid;
-  }
+  late final String _ownerId;
+  String get currentUserId => _ownerId;
 
   // Creates a SharedPreferences key that belongs only to the
   // currently authenticated Firebase user.
@@ -409,7 +415,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
   }
 
-
   // Stores cloud-backed app state that is not tied to one task date.
   DocumentReference<Map<String, dynamic>> get userAppStateDocument {
     return userCloudDocument.collection('appData').doc('state');
@@ -425,9 +430,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
   }
 
-  Future<void> saveAppStateFieldsToCloud(
-    Map<String, dynamic> fields,
-  ) async {
+  Future<void> saveAppStateFieldsToCloud(Map<String, dynamic> fields) async {
     try {
       await userAppStateDocument.set({
         ...fields,
@@ -438,10 +441,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
   }
 
-  Future<void> saveDayCompletionToCloud(
-    String dateKey,
-    bool completed,
-  ) async {
+  Future<void> saveDayCompletionToCloud(String dateKey, bool completed) async {
     try {
       await userCloudDocument.collection('taskDays').doc(dateKey).set({
         'dayCompleted': completed,
@@ -454,8 +454,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Future<bool?> loadDayCompletionFromCloud(String dateKey) async {
     try {
-      final snapshot =
-          await userCloudDocument.collection('taskDays').doc(dateKey).get();
+      final snapshot = await userCloudDocument
+          .collection('taskDays')
+          .doc(dateKey)
+          .get();
 
       if (!snapshot.exists) return null;
 
@@ -550,7 +552,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
     final String todayString = '${today.year}-${today.month}-${today.day}';
 
-    final DateTime yesterday = today.subtract(const Duration(days: 1));
+    final DateTime yesterday = DateTime(today.year, today.month, today.day - 1);
 
     final String yesterdayString =
         '${yesterday.year}-${yesterday.month}-${yesterday.day}';
@@ -634,20 +636,26 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     });
 
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(const SnackBar(content: Text('Day status updated.')));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Day status updated.')));
   }
 
   // Runs when Home screen is first opened and loads the saved username
   @override
   void initState() {
     super.initState();
+    _ownerId = FirebaseAuth.instance.currentUser!.uid;
     WidgetsBinding.instance.addObserver(this);
 
     final now = DateTime.now();
 
     // Starts the weekly preview on the most recent Sunday
-    displayedWeekStart = now.subtract(Duration(days: now.weekday % 7));
+    displayedWeekStart = DateTime(
+      now.year,
+      now.month,
+      now.day - now.weekday % 7,
+    );
     initializeHomeScreen();
     loadGoals();
     loadUserName();
@@ -714,11 +722,43 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Future<void> initializeHomeScreen() async {
-    await loadTasks();
-    await checkForNewDay();
-    await checkStreakReset();
-    await refreshAllRecurringReminders();
-    _homeReady = true;
+    try {
+      await loadTasks();
+      await checkForNewDay();
+      if (!mounted) return;
+      if (widget.initialDate != null) {
+        selectedTaskDate = widget.initialDate!;
+        final selected = parseDay(selectedTaskDate);
+        displayedWeekStart = DateTime(
+          selected.year,
+          selected.month,
+          selected.day - selected.weekday % 7,
+        );
+      }
+      await loadTasksForSelectedDate();
+      await checkStreakReset();
+      if (!mounted) return;
+      setState(() {
+        _homeReady = true;
+        _loadError = null;
+      });
+      _scheduleMidnightRefresh();
+      try {
+        await refreshAllRecurringReminders();
+      } catch (error) {
+        debugPrint('Reminder refresh failed: $error');
+      }
+      if (mounted && widget.initialTaskId != null) {
+        final matches = tasks.where(
+          (t) => taskIdentity(t) == widget.initialTaskId,
+        );
+        if (matches.isNotEmpty) showTaskDetails(matches.first);
+      }
+    } catch (error) {
+      if (mounted) {
+        setState(() => _loadError = 'Could not load tasks. Please retry.');
+      }
+    }
   }
 
   @override
@@ -728,8 +768,25 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
   }
 
+  void _scheduleMidnightRefresh() {
+    _midnightTimer?.cancel();
+    final now = DateTime.now();
+    final nextDay = DateTime(now.year, now.month, now.day + 1);
+    _midnightTimer = Timer(nextDay.difference(now), () async {
+      if (!mounted || !_homeReady) return;
+      try {
+        await refreshRemindersOnResume();
+      } finally {
+        if (mounted) _scheduleMidnightRefresh();
+      }
+    });
+  }
+
   Future<void> refreshRemindersOnResume() async {
+    _scheduleMidnightRefresh();
     await checkForNewDay();
+    if (!mounted) return;
+    await checkStreakReset();
     if (!mounted) return;
     await refreshAllRecurringReminders();
     await refreshDailyTaskNotifications();
@@ -784,6 +841,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           onPressed: () async {
             if (selectedTaskDate != date || !tasks.contains(task)) return;
             setState(() {
+              task.remove('previousStatus');
               task['status'] = previousStatus;
               task['completed'] = previousStatus == 'Complete';
             });
@@ -795,132 +853,112 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
+  Future<void> undoTaskStatus(Map<String, dynamic> task) async {
+    final previous = task['previousStatus'];
+    if (previous is! String) return;
+    setState(() {
+      task.remove('previousStatus');
+      task['status'] = previous;
+      task['completed'] = previous == 'Complete';
+    });
+    await saveTasks();
+    await handleTaskStatusNotifications(task);
+  }
+
   bool _deletingTask = false;
 
   Future<void> deleteTaskWithUndo(Map<String, dynamic> task) async {
     if (_deletingTask || !tasks.contains(task)) return;
     _deletingTask = true;
-    final deletedDate = selectedTaskDate;
-    final ownerId = currentUserId;
-    final originalIndex = tasks.indexOf(task);
-    // Retain the complete task, including its ID, status, tags and times.
-    final deletedTask = Map<String, dynamic>.from(task);
-    final recurringId = task['recurringId'];
+    final date = selectedTaskDate;
     try {
-      final templates = await loadRecurringTasks();
-      final removedTemplates = recurringId == null
-          ? <Map<String, dynamic>>[]
-          : templates
-                .where((item) => item['recurringId'] == recurringId)
-                .map((item) => Map<String, dynamic>.from(item))
-                .toList();
-      if (!mounted || selectedTaskDate != deletedDate) return;
-      setState(() => tasks.remove(task));
-      // Persist deletion before any refresh can rebuild this series.
-      if (recurringId != null) {
-        templates.removeWhere((item) => item['recurringId'] == recurringId);
-        await saveRecurringTasks(templates);
-        await _recurringReminderUpdates;
-        await cancelRecurringReminders(deletedTask);
-      } else {
-        await cancelTaskReminders(deletedTask);
+      if (task['recurringId'] != null) {
+        final confirm = await showDialog<bool>(
+          context: context,
+          builder: (c) => AlertDialog(
+            title: const Text('Delete recurring series?'),
+            content: const Text(
+              'This stops this series from the selected date onward. Past history stays. You can restore it in Recently Deleted.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(c, false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(c, true),
+                child: const Text('Delete series'),
+              ),
+            ],
+          ),
+        );
+        if (confirm != true) return;
       }
-      final prefs = await SharedPreferences.getInstance();
-      // Anchor the write to the deleted date, even if the user navigates away.
-      // Read its current list if navigation has already saved that date.
-      if (selectedTaskDate == deletedDate) {
-        await prefs.setString(
-          getTaskStorageKey(deletedDate),
-          jsonEncode(tasks),
-        );
-        await refreshDailyTaskNotifications();
+      final entry = await _store.deleteTask(date, task);
+      if (task['recurringId'] != null) {
+        await _recurringReminderUpdates;
+        await cancelRecurringReminders(task);
+        await refreshAllRecurringReminders();
       } else {
-        final saved =
-            (jsonDecode(prefs.getString(getTaskStorageKey(deletedDate)) ?? '[]')
-                    as List)
-                .map((value) => Map<String, dynamic>.from(value as Map))
-                .toList();
-        saved.removeWhere(
-          (value) => value['notificationId'] == deletedTask['notificationId'],
-        );
-        await prefs.setString(
-          getTaskStorageKey(deletedDate),
-          jsonEncode(saved),
-        );
+        await cancelTaskReminders(task);
       }
       if (!mounted) return;
-      var restored = false;
+      await loadTasksForSelectedDate();
+      await refreshDailyTaskNotifications();
+      if (!mounted) return;
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           duration: const Duration(seconds: 8),
-          content: Text('Deleted "${deletedTask['title']}"'),
+          content: const Text('Task moved to Recently Deleted'),
           action: SnackBarAction(
             label: 'Undo',
             onPressed: () async {
-              if (restored || !mounted || currentUserId != ownerId) return;
-              restored = true;
-              final restoredTemplates = await loadRecurringTasks();
-              for (final template in removedTemplates) {
-                if (!restoredTemplates.any(
-                  (item) => item['recurringId'] == template['recurringId'],
-                )) {
-                  restoredTemplates.add(template);
+              try {
+                await _store.restoreDeleted(entry['id'].toString());
+                if (!mounted) return;
+                await loadTasksForSelectedDate();
+                await refreshAllRecurringReminders();
+                await handleTaskStatusNotifications(task);
+              } catch (_) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'Restore failed. The recovery copy is kept.',
+                      ),
+                    ),
+                  );
                 }
               }
-              if (removedTemplates.isNotEmpty)
-                await saveRecurringTasks(restoredTemplates);
-              final prefs = await SharedPreferences.getInstance();
-              final stored = selectedTaskDate == deletedDate
-                  ? List<Map<String, dynamic>>.from(tasks)
-                  : (jsonDecode(
-                          prefs.getString(getTaskStorageKey(deletedDate)) ??
-                              '[]',
-                        ) as List)
-                        .map((value) => Map<String, dynamic>.from(value as Map))
-                        .toList();
-              if (!stored.any(
-                (item) =>
-                    item['notificationId'] == deletedTask['notificationId'],
-              )) {
-                stored.insert(
-                  originalIndex.clamp(0, stored.length).toInt(),
-                  deletedTask,
-                );
-              }
-              await prefs.setString(
-                getTaskStorageKey(deletedDate),
-                jsonEncode(stored),
-              );
-              if (!mounted) return;
-              if (selectedTaskDate == deletedDate) {
-                setState(() => tasks = stored);
-              } else if (removedTemplates.isNotEmpty) {
-                // Regenerate the visible occurrence after restoring its series.
-                await loadTasksForSelectedDate();
-              }
-              await handleTaskStatusNotifications(deletedTask);
-              await refreshDailyTaskNotifications();
-              if (!mounted) return;
-              ScaffoldMessenger.of(context)
-                  .showSnackBar(const SnackBar(content: Text('Task restored')));
             },
           ),
         ),
       );
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Could not finish deletion. Check Recently Deleted before retrying.',
+            ),
+          ),
+        );
+      }
     } finally {
       _deletingTask = false;
     }
   }
 
   void showTaskDetails(Map<String, dynamic> task) {
+    final date = selectedTaskDate;
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: const Color(0xFF202020),
-      builder: (sheetContext) => SafeArea(
-        child: SingleChildScrollView(
-          child: Padding(
+      backgroundColor: const Color(0xFF181B1A),
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (sheetContext, update) => SafeArea(
+          child: SingleChildScrollView(
             padding: const EdgeInsets.all(24),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -929,60 +967,82 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 Text(
                   task['title']?.toString() ?? 'Task',
                   style: const TextStyle(
-                    color: Colors.white,
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                const SizedBox(height: 16),
-                if ((task['description']?.toString() ?? '').isNotEmpty) ...[
-                  Text(
-                    task['description'].toString(),
-                    style: const TextStyle(color: Colors.white70),
+                if ((task['description']?.toString() ?? '').isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    child: Text(task['description'].toString()),
                   ),
-                  const SizedBox(height: 16),
-                ],
-                Text(
-                  'Status: ${task['status'] ?? 'Not Started'}',
-                  style: const TextStyle(color: Colors.white70),
-                ),
-                Text(
-                  'Category: ${task['category'] ?? 'Personal'}',
-                  style: const TextStyle(color: Colors.white70),
-                ),
+                Text('Status: ${task['status'] ?? 'Not Started'}'),
+                Text('Category: ${task['category'] ?? 'Personal'}'),
                 if (task['priority'] != null)
-                  Text(
-                    'Priority: ${task['priority']}',
-                    style: const TextStyle(color: Colors.white70),
-                  ),
-                if (task['tags'] is List && (task['tags'] as List).isNotEmpty)
-                  Text(
-                    'Tags: ${(task['tags'] as List).join(', ')}',
-                    style: const TextStyle(color: Colors.white70),
-                  ),
+                  Text('Priority: ${task['priority']}'),
                 if (task['goalId'] != null)
-                  Text(
-                    'Goal: ${goalTitleFor(task['goalId'])}',
-                    style: const TextStyle(color: Colors.white70),
-                  ),
-                if (task['startTime'] != null || task['endTime'] != null)
-                  Text(
-                    'Time: ${task['startTime'] ?? '—'} – ${task['endTime'] ?? '—'}',
-                    style: const TextStyle(color: Colors.white70),
-                  ),
+                  Text('Goal: ${goalTitleFor(task['goalId'])}'),
+                if (task['tags'] is List)
+                  Text('Tags: ${(task['tags'] as List).join(', ')}'),
+                Text(
+                  'Time: ${task['startTime'] ?? 'Unscheduled'} – ${task['endTime'] ?? '—'}',
+                ),
+                if (taskDuration(task) != null)
+                  Text('Duration: ${taskDuration(task)} minutes'),
                 if (task['reminderTime'] != null)
-                  Text(
-                    'Reminder: ${task['reminderTime']}',
-                    style: const TextStyle(color: Colors.white70),
+                  Text('Reminder: ${task['reminderTime']}'),
+                const SizedBox(height: 16),
+                if (taskSubtasks(task).isNotEmpty)
+                  const Text(
+                    'Subtasks',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
-                const SizedBox(height: 20),
-                ElevatedButton.icon(
-                  onPressed: () {
-                    Navigator.pop(sheetContext);
-                    showEditTaskPopup(task);
-                  },
-                  icon: const Icon(Icons.edit),
-                  label: const Text('Edit task'),
+                for (final sub in taskSubtasks(task))
+                  CheckboxListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(sub['title']?.toString() ?? ''),
+                    value: sub['completed'] == true,
+                    onChanged: (done) async {
+                      if (selectedTaskDate != date) return;
+                      final subs = taskSubtasks(task);
+                      for (final item in subs) {
+                        if (item['id'] == sub['id']) {
+                          item['completed'] = done == true;
+                        }
+                      }
+                      setState(() => task['subtasks'] = subs);
+                      update(() {});
+                      await saveTasks();
+                    },
+                  ),
+                const SizedBox(height: 16),
+                Wrap(
+                  spacing: 12,
+                  children: [
+                    FilledButton.icon(
+                      onPressed: () {
+                        Navigator.pop(sheetContext);
+                        showEditTaskPopup(task);
+                      },
+                      icon: const Icon(Icons.edit),
+                      label: const Text('Edit task'),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(sheetContext);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute<void>(
+                            builder: (_) => FocusTimerScreen(
+                              taskTitle: task['title']?.toString(),
+                            ),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.timer_outlined),
+                      label: const Text('Focus'),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -1055,6 +1115,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    _midnightTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     taskController.dispose();
     descriptionController.dispose();
@@ -1064,61 +1125,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   // Loads all saved recurring-task templates.
-  Future<List<Map<String, dynamic>>> loadRecurringTasks() async {
-    final prefs = await SharedPreferences.getInstance();
-    final savedRecurringTasks = prefs.getString(userKey('recurringTasks'));
+  Future<List<Map<String, dynamic>>> loadRecurringTasks() async =>
+      _store.listState('recurringTasks');
 
-    if (savedRecurringTasks != null) {
-      try {
-        final List decodedTasks = jsonDecode(savedRecurringTasks);
-
-        final recurring = decodedTasks
-            .map((task) => Map<String, dynamic>.from(task as Map))
-            .toList();
-
-        await saveAppStateFieldsToCloud({'recurringTasks': recurring});
-        return recurring;
-      } catch (_) {
-        // Fall through to cloud restore.
-      }
-    }
-
-    final cloudState = await loadAppStateFromCloud();
-    final cloudRecurring = cloudState?['recurringTasks'];
-
-    if (cloudRecurring is List) {
-      final recurring = cloudRecurring
-          .map((task) => Map<String, dynamic>.from(task as Map))
-          .toList();
-
-      await prefs.setString(
-        userKey('recurringTasks'),
-        jsonEncode(recurring),
-      );
-
-      return recurring;
-    }
-
-    return [];
-  }
-
-  // Saves the recurring-task template list.
   Future<void> saveRecurringTasks(
     List<Map<String, dynamic>> recurringTasks,
   ) async {
-    final prefs = await SharedPreferences.getInstance();
-
-    await prefs.setString(
-      userKey('recurringTasks'),
-      jsonEncode(recurringTasks),
-    );
-
-    await saveAppStateFieldsToCloud({
-      'recurringTasks': recurringTasks,
-    });
+    await _store.saveState('recurringTasks', recurringTasks);
   }
 
-  // Saves a newly created recurring task as a reusable template.
   Future<void> addRecurringTaskTemplate(Map<String, dynamic> task) async {
     // "Never" tasks do not need a recurring template.
     if (task['repeat'] == null || task['repeat'] == 'Never') {
@@ -1140,6 +1155,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     // Recurring templates should always begin future
     // occurrences in the Not Started state.
     recurringTask['status'] = 'Not Started';
+    recurringTask['subtasks'] = taskSubtasks(
+      task,
+    ).map((s) => {...s, 'completed': false}).toList();
 
     recurringTasks.add(recurringTask);
 
@@ -1188,6 +1206,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       final updatedTemplate = Map<String, dynamic>.from(task);
 
       updatedTemplate['completed'] = false;
+      updatedTemplate['subtasks'] = taskSubtasks(
+        task,
+      ).map((s) => {...s, 'completed': false}).toList();
 
       // Future recurring occurrences should not inherit
       // the current occurrence's completed/in-progress state.
@@ -1201,277 +1222,113 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   // Saves the task list to local phone storage
   Future<void> saveTasks() async {
-    final prefs = await SharedPreferences.getInstance();
-
-    // Convert tasks list into a JSON string
-    final String encodedTasks = jsonEncode(tasks);
-
-    final String todayKey =
-        '${DateTime.now().year}-${DateTime.now().month}-${DateTime.now().day}';
-
-    final String taskKey =
-        (selectedTaskDate.isEmpty || selectedTaskDate == todayKey)
-        ? userKey('tasks')
-        : userKey('tasks_$selectedTaskDate');
-
-    await prefs.setString(taskKey, encodedTasks);
-
-    // Mirror the same day's tasks to Firestore so they can be restored after
-    // reinstalling the app or signing in on another device.
-    final String cloudDateKey =
-        selectedTaskDate.isEmpty ? todayKey : selectedTaskDate;
-    await saveTaskDayToCloud(
-      cloudDateKey,
-      List<Map<String, dynamic>>.from(tasks),
-    );
-
-    if (selectedTaskDate.isNotEmpty) {
-      await prefs.setBool(
-        userKey('dayCompleted_$selectedTaskDate'),
-        dayCompleted,
-      );
-    }
-
+    // Capture date and values before awaiting storage or network operations.
+    final date = selectedTaskDate.isEmpty
+        ? getDateKey(DateTime.now())
+        : selectedTaskDate;
+    final snapshot = tasks.map(copyTask).toList();
+    final completed = dayCompleted;
+    await _store.saveDay(date, snapshot);
+    final prefs = _store.prefs;
+    await prefs.setBool(userKey('dayCompleted_$date'), completed);
     await prefs.setInt(userKey('streakCounter'), streakCounter);
     await prefs.setString(userKey('lastCompletedDate'), lastCompletedDate);
-    await prefs.setString(userKey('lastActiveDate'), lastActiveDate);
-    await prefs.setString(userKey('selectedTaskDate'), selectedTaskDate);
-
-    await saveDayCompletionToCloud(cloudDateKey, dayCompleted);
+    await prefs.setString(userKey('selectedTaskDate'), date);
+    await saveDayCompletionToCloud(date, completed);
     await saveAppStateFieldsToCloud({
       'streakCounter': streakCounter,
       'lastCompletedDate': lastCompletedDate,
-      'lastActiveDate': lastActiveDate,
-      'selectedTaskDate': selectedTaskDate,
     });
-
-    if (isViewingToday()) {
-      await refreshDailyTaskNotifications();
-    }
+    if (mounted && isViewingToday()) await refreshDailyTaskNotifications();
   }
 
-  // Loads today's/current task storage and app settings
   Future<void> loadTasks() async {
-    final prefs = await SharedPreferences.getInstance();
-
-    final todayKey = getDateKey(DateTime.now());
-
-    // Always begin the Home screen on today's date.
-    // Do not restore a previously viewed past or future date here.
-    selectedTaskDate = todayKey;
-
-    // The main "tasks" key contains the active day's tasks.
-    final String? savedTasks = prefs.getString(userKey('tasks'));
-
-    final loadedTasks = <Map<String, dynamic>>[];
-
-    if (savedTasks != null) {
-      final List decodedTasks = jsonDecode(savedTasks);
-
-      loadedTasks.addAll(
-        decodedTasks.map((task) {
-          return Map<String, dynamic>.from(task);
-        }),
-      );
-
-      // Existing users already have local data from earlier TrakOn versions.
-      // Back it up as soon as Home loads so they are protected even before
-      // making their next task change.
-      await saveTaskDayToCloud(
-        todayKey,
-        List<Map<String, dynamic>>.from(loadedTasks),
-      );
-    } else {
-      // A reinstall clears SharedPreferences. Restore today's task data from
-      // Firestore when a cloud backup exists, then rebuild the local cache.
-      final cloudTasks = await loadTaskDayFromCloud(todayKey);
-
-      if (cloudTasks != null) {
-        loadedTasks.addAll(cloudTasks);
-        await prefs.setString(userKey('tasks'), jsonEncode(cloudTasks));
-      }
-    }
-
-    final cloudState = await loadAppStateFromCloud();
-    final cloudDayCompleted = await loadDayCompletionFromCloud(todayKey);
-
-    final localDayCompleted = prefs.getBool(userKey('dayCompleted_$todayKey'));
-    final localStreak = prefs.getInt(userKey('streakCounter'));
-    final localLastCompletedDate = prefs.getString(userKey('lastCompletedDate'));
-    final localLastActiveDate = prefs.getString(userKey('lastActiveDate'));
-
-    final restoredDayCompleted =
-        localDayCompleted ?? cloudDayCompleted ?? false;
-
-    final restoredStreak =
-        localStreak ?? (cloudState?['streakCounter'] as num?)?.toInt() ?? 0;
-
-    final restoredLastCompletedDate =
-        localLastCompletedDate ??
-        cloudState?['lastCompletedDate']?.toString() ??
-        '';
-
-    final restoredLastActiveDate =
-        localLastActiveDate ??
-        cloudState?['lastActiveDate']?.toString() ??
-        '';
-
-    await prefs.setBool(
-      userKey('dayCompleted_$todayKey'),
-      restoredDayCompleted,
-    );
-    await prefs.setInt(userKey('streakCounter'), restoredStreak);
-    await prefs.setString(
-      userKey('lastCompletedDate'),
-      restoredLastCompletedDate,
-    );
-    await prefs.setString(
-      userKey('lastActiveDate'),
-      restoredLastActiveDate,
-    );
-
+    _store = await AccountPlanningStore.current();
+    await _store.migrateLegacyCache();
+    final prefs = _store.prefs;
+    final cloudState = prefs.getInt(userKey('streakCounter')) == null
+        ? await loadAppStateFromCloud()
+        : null;
     if (!mounted) return;
-
     setState(() {
-      tasks = loadedTasks;
-      dayCompleted = restoredDayCompleted;
-      streakCounter = restoredStreak;
-      lastCompletedDate = restoredLastCompletedDate;
-      lastActiveDate = restoredLastActiveDate;
-      selectedFilter = 'All';
+      selectedTaskDate = getDateKey(DateTime.now());
+      tasks = [];
+      streakCounter =
+          prefs.getInt(userKey('streakCounter')) ??
+          (cloudState?['streakCounter'] as num?)?.toInt() ??
+          0;
+      lastCompletedDate =
+          prefs.getString(userKey('lastCompletedDate')) ??
+          cloudState?['lastCompletedDate']?.toString() ??
+          '';
+      lastActiveDate = prefs.getString(userKey('lastActiveDate')) ?? '';
     });
-
-    await prefs.setString(userKey('selectedTaskDate'), todayKey);
-
-    await saveAppStateFieldsToCloud({
-      'streakCounter': streakCounter,
-      'lastCompletedDate': lastCompletedDate,
-      'lastActiveDate': lastActiveDate,
-      'selectedTaskDate': todayKey,
-    });
-
-    await saveDayCompletionToCloud(todayKey, dayCompleted);
   }
 
   Future<void> checkForNewDay() async {
-    final prefs = await SharedPreferences.getInstance();
-
-    // Get the current date
-    final today = DateTime.now();
-    final todayString = getDateKey(today);
-
-    if (lastActiveDate.isEmpty) {
-      lastActiveDate = todayString;
-      await prefs.setString(userKey('lastActiveDate'), lastActiveDate);
-      await saveAppStateFieldsToCloud({'lastActiveDate': lastActiveDate});
-      return;
-    }
-
-    if (lastActiveDate == todayString) return;
-
-    // Read the active day's tasks directly from storage.
-    // Do not rely on whichever calendar date happens to be displayed.
-    final savedPreviousTasks = prefs.getString(userKey('tasks'));
-
-    final previousDayTasks = <Map<String, dynamic>>[];
-
-    if (savedPreviousTasks != null) {
-      final List decodedTasks = jsonDecode(savedPreviousTasks);
-
-      previousDayTasks.addAll(
-        decodedTasks.map((task) {
-          return Map<String, dynamic>.from(task);
-        }),
-      );
-    }
-
-    if (previousDayTasks.isNotEmpty) {
-      await prefs.setString(
-        userKey('tasks_$lastActiveDate'),
-        jsonEncode(previousDayTasks),
-      );
-
-      await saveTaskDayToCloud(
-        lastActiveDate,
-        List<Map<String, dynamic>>.from(previousDayTasks),
-      );
-    }
-
-    // Keep only unfinished tasks
-    final incompleteTasks = previousDayTasks
-        .where((task) {
-          return task['completed'] != true;
-        })
-        .map((task) {
-          return Map<String, dynamic>.from(task);
-        })
-        .toList();
-
-    setState(() {
-      dayCompleted = false;
-      lastActiveDate = todayString;
-      selectedTaskDate = todayString;
-    });
-    await prefs.setString(userKey('lastActiveDate'), todayString);
-
-    await prefs.setString(userKey('selectedTaskDate'), todayString);
-
-    await saveAppStateFieldsToCloud({
-      'lastActiveDate': todayString,
-      'selectedTaskDate': todayString,
-    });
-
-    await prefs.setBool(userKey('dayCompleted_$todayString'), false);
-
-    // Check whether tasks were already planned for today
-    final plannedTodayTasks = prefs.getString(userKey('tasks_$todayString'));
-
-    if (plannedTodayTasks != null) {
-      // Move today's previously planned tasks into the main current-day key
-      await prefs.setString(userKey('tasks'), plannedTodayTasks);
-
-      // Remove the dated copy after moving it
-      await prefs.remove(userKey('tasks_$todayString'));
-    } else {
-      // Prevent yesterday's tasks from appearing as today's tasks
-      await prefs.remove(userKey('tasks'));
-    }
-
-    // Load the correct tasks for the new current day
-    await loadTasksForSelectedDate();
-
-    if (!mounted || incompleteTasks.isEmpty) return;
-
-    final shouldCarryOver = await showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Carry Over Tasks?'),
-          content: Text(
-            'You have ${incompleteTasks.length} unfinished '
-            '${incompleteTasks.length == 1 ? 'task' : 'tasks'} from yesterday.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Skip'),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Carry Over'),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (shouldCarryOver == true) {
-      await carryOverIncompleteTasks(incompleteTasks);
+    final pending = _dayChangeInFlight;
+    if (pending != null) return pending;
+    final update = _performDayChange();
+    _dayChangeInFlight = update;
+    try {
+      await update;
+    } finally {
+      _dayChangeInFlight = null;
     }
   }
 
-  // Carries unfinished tasks from the previous day into today
+  Future<void> _performDayChange() async {
+    final previous = _store.prefs.getString(userKey('lastActiveDate'));
+    await _store.prepareToday();
+    if (!mounted) return;
+    final today = getDateKey(DateTime.now());
+    if (previous != today) {
+      setState(() {
+        lastActiveDate = today;
+        selectedTaskDate = today;
+        dayCompleted = false;
+      });
+      await loadTasksForSelectedDate();
+    }
+    final carry = _store.carryOver.map(copyTask).toList();
+    final from = _store.previousDate;
+    if (carry.isEmpty || !mounted) return;
+    final accept = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (c) => AlertDialog(
+        title: const Text('Carry over unfinished tasks?'),
+        content: Text(
+          '${carry.length} unfinished tasks from $from. Recurring tasks follow their own schedule.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(c, false),
+            child: const Text('Skip'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(c, true),
+            child: const Text('Carry Over'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted) return;
+    if (accept == true) {
+      // Carry into today even if Home was opened for a future calendar date.
+      final todayTasks = await _store.readDay(today);
+      for (final task in carry) {
+        if (!todayTasks.any((t) => taskIdentity(t) == taskIdentity(task))) {
+          todayTasks.add(copyTask(task)..['date'] = today);
+        }
+      }
+      await _store.saveDay(today, todayTasks);
+      if (selectedTaskDate == today) await loadTasksForSelectedDate();
+    }
+    await _store.prefs.remove(userKey('pendingCarryOverV12'));
+    _store.carryOver = [];
+  }
+
   Future<void> carryOverIncompleteTasks(
     List<Map<String, dynamic>> incompleteTasks,
   ) async {
@@ -1505,7 +1362,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final DateTime today = DateTime.now();
     final String todayString = '${today.year}-${today.month}-${today.day}';
 
-    final DateTime yesterday = today.subtract(const Duration(days: 1));
+    final DateTime yesterday = DateTime(today.year, today.month, today.day - 1);
     final String yesterdayString =
         '${yesterday.year}-${yesterday.month}-${yesterday.day}';
 
@@ -1546,54 +1403,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   // Checks whether a recurring task belongs on a specific date.
-  bool recurringTaskRunsOnDate(Map<String, dynamic> task, DateTime date) {
-    final repeat = task['repeat'] ?? 'Never';
+  bool recurringTaskRunsOnDate(Map<String, dynamic> task, DateTime date) =>
+      taskRunsOnDate(task, date);
 
-    final startDateText = task['startDate'] ?? task['date'];
-
-    if (startDateText == null) {
-      return false;
-    }
-
-    final startDate = parseDateKey(startDateText);
-
-    final selectedDateOnly = DateTime(date.year, date.month, date.day);
-
-    final startDateOnly = DateTime(
-      startDate.year,
-      startDate.month,
-      startDate.day,
-    );
-
-    // Recurring tasks should never appear before
-    // the date on which the series began.
-    if (selectedDateOnly.isBefore(startDateOnly)) {
-      return false;
-    }
-
-    switch (repeat) {
-      case 'Daily':
-        return true;
-
-      case 'Weekdays':
-        return date.weekday >= DateTime.monday &&
-            date.weekday <= DateTime.friday;
-
-      case 'Weekly':
-        // Repeat on the same weekday as the original task.
-        return date.weekday == startDate.weekday;
-
-      case 'Specific Days':
-        final repeatDays = List<int>.from(task['repeatDays'] ?? []);
-
-        return repeatDays.contains(date.weekday);
-
-      default:
-        return false;
-    }
-  }
-
-  // Returns the full month and year (e.g. July 2026)
   String getMonthYearLabel(DateTime date) {
     const months = [
       'January',
@@ -1614,140 +1426,24 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   // Returns the correct storage key for the selected date
-  String getTaskStorageKey(String dateKey) {
-    final today = DateTime.now();
-    final todayKey = getDateKey(today);
+  String getTaskStorageKey(String dateKey) => userKey('tasks_$dateKey');
 
-    return dateKey == todayKey ? userKey('tasks') : userKey('tasks_$dateKey');
-  }
-
-  // Loads the selected day's normal tasks and rebuilds
-  // recurring occurrences from the latest recurring templates.
   Future<void> loadTasksForSelectedDate() async {
-    final prefs = await SharedPreferences.getInstance();
-
-    final taskKey = getTaskStorageKey(selectedTaskDate);
-
-    final savedTasksText = prefs.getString(taskKey);
-
-    final savedTasks = <Map<String, dynamic>>[];
-
-    if (savedTasksText != null) {
-      final List decoded = jsonDecode(savedTasksText);
-
-      savedTasks.addAll(
-        decoded.map((task) {
-          return Map<String, dynamic>.from(task);
-        }),
-      );
-    } else {
-      final cloudTasks = await loadTaskDayFromCloud(selectedTaskDate);
-
-      if (cloudTasks != null) {
-        savedTasks.addAll(cloudTasks);
-        await prefs.setString(taskKey, jsonEncode(cloudTasks));
-      }
-    }
-
-    final selectedDate = parseDateKey(selectedTaskDate);
-
-    final recurringTemplates = await loadRecurringTasks();
-
-    // Keep normal, non-recurring tasks exactly as they are.
-    final rebuiltTasks = savedTasks
-        .where((task) {
-          return task['recurringId'] == null;
-        })
-        .map((task) {
-          return Map<String, dynamic>.from(task);
-        })
-        .toList();
-
-    for (final template in recurringTemplates) {
-      // Only generate the task if its CURRENT repeat
-      // rules say it belongs on this date.
-      if (!recurringTaskRunsOnDate(template, selectedDate)) {
-        continue;
-      }
-
-      final recurringId = template['recurringId'];
-
-      // Look for a previously saved occurrence so we can
-      // preserve things such as completion status.
-      Map<String, dynamic>? existingOccurrence;
-
-      for (final savedTask in savedTasks) {
-        if (savedTask['recurringId'] == recurringId) {
-          existingOccurrence = savedTask;
-          break;
-        }
-      }
-
-      // Start with the newest series/template information.
-      final occurrence = Map<String, dynamic>.from(template);
-
-      occurrence['date'] = selectedTaskDate;
-
-      // Keep the description only on the original task.
-      // Future recurring copies keep the task name but start
-      // with a blank description.
-      final recurringStartDate =
-          template['startDate']?.toString() ?? template['date']?.toString();
-
-      if (selectedTaskDate != recurringStartDate) {
-        occurrence['description'] = '';
-      }
-
-      // Preserve completion status for this specific day.
-      occurrence['completed'] = existingOccurrence?['completed'] ?? false;
-
-      // Preserve this day's saved workflow status when one exists.
-      // Otherwise, a new recurring occurrence begins as Not Started.
-      occurrence['status'] = existingOccurrence?['status'] ?? 'Not Started';
-
-      // All occurrences use the series ID so edits and deletion can cancel
-      // every repeating reminder for that series.
-      occurrence['notificationId'] = template['notificationId'];
-
-      rebuiltTasks.add(occurrence);
-    }
-
-    if (!mounted) return;
-
-    final cloudDayCompleted =
-        await loadDayCompletionFromCloud(selectedTaskDate);
-
-    final restoredDayCompleted =
-        prefs.getBool(userKey('dayCompleted_$selectedTaskDate')) ??
-        cloudDayCompleted ??
+    final date = selectedTaskDate;
+    final rebuilt = await _store.readDay(date);
+    final completed =
+        _store.prefs.getBool(userKey('dayCompleted_$date')) ??
+        await loadDayCompletionFromCloud(date) ??
         false;
-
-    if (!mounted) return;
-
+    if (!mounted || selectedTaskDate != date) return;
     setState(() {
-      tasks = rebuiltTasks;
-      dayCompleted = restoredDayCompleted;
+      tasks = rebuilt;
+      dayCompleted =
+          completed && rebuilt.isNotEmpty && rebuilt.every(isTaskComplete);
       selectedFilter = 'All';
     });
-
-    await prefs.setString(taskKey, jsonEncode(rebuiltTasks));
-    await prefs.setBool(
-      userKey('dayCompleted_$selectedTaskDate'),
-      restoredDayCompleted,
-    );
-
-    await saveTaskDayToCloud(
-      selectedTaskDate,
-      List<Map<String, dynamic>>.from(rebuiltTasks),
-    );
-
-    await saveDayCompletionToCloud(
-      selectedTaskDate,
-      restoredDayCompleted,
-    );
   }
 
-  // Loads the selected date shared between Home and Calendar
   Future<void> loadSelectedTaskDateFromPrefs() async {
     final prefs = await SharedPreferences.getInstance();
 
@@ -2035,8 +1731,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Future<void> rebuildRecurringReminders(Map<String, dynamic> template) async {
     if (!await NotificationPreferences.notificationsEnabled() ||
-        !await NotificationPreferences.taskRemindersEnabled())
+        !await NotificationPreferences.taskRemindersEnabled()) {
       return;
+    }
     final base = template['notificationId'];
     if (base is! int) return;
     final prefs = await SharedPreferences.getInstance();
@@ -2048,13 +1745,21 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final first = start.isAfter(today) ? start : today;
     final occurrences = <String, Map<String, dynamic>>{};
     // Read persisted status for future dates as well as today.
-    for (var day = 0; day < 49; day++) {
-      final date = DateTime(first.year, first.month, first.day + day);
-      final key = getDateKey(date);
-      final saved =
-          jsonDecode(prefs.getString(getTaskStorageKey(key)) ?? '[]') as List;
+    for (final storageKey in prefs.getKeys()) {
+      if (!storageKey.startsWith(userKey('tasks_'))) continue;
+      final key = storageKey.substring(userKey('tasks_').length);
+      DateTime date;
+      try {
+        date = parseDay(key);
+      } catch (_) {
+        continue;
+      }
+      if (date.isBefore(first)) continue;
+      final saved = jsonDecode(prefs.getString(storageKey) ?? '[]') as List;
       for (final value in saved) {
-        if (value is Map && value['recurringId'] == template['recurringId']) {
+        if (value is Map &&
+            value['recurringId'] == template['recurringId'] &&
+            (value['date'] == null || value['date'] == key)) {
           occurrences[key] = Map<String, dynamic>.from(value);
           break;
         }
@@ -2233,8 +1938,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
 
     if (!await NotificationPreferences.notificationsEnabled() ||
-        !await NotificationPreferences.taskRemindersEnabled())
+        !await NotificationPreferences.taskRemindersEnabled()) {
       return;
+    }
 
     final notificationId = task['notificationId'];
 
@@ -2324,44 +2030,36 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   // Converts a saved reminder time (ex: "2:30 PM") back into a TimeOfDay object
   TimeOfDay? parseReminderTime(String? reminderText) {
-    // If no reminder exists, return nothing
-    if (reminderText == null || reminderText.trim().isEmpty) {
-      return null;
-    }
-
-    // Extract the hour, minute, and AM/PM using a regular expression
-    final match = RegExp(
-      r'^(\d{1,2}):(\d{2})\s*(AM|PM)$',
-      caseSensitive: false,
-    ).firstMatch(reminderText.trim());
-
-    // If the reminder format is invalid, return nothing
-    if (match == null) {
-      return null;
-    }
-
-    // Read the hour and minute from the saved reminder
-    int hour = int.parse(match.group(1)!);
-    final minute = int.parse(match.group(2)!);
-
-    // Store whether the reminder is AM or PM
-    final period = match.group(3)!.toUpperCase();
-
-    // Convert PM time into 24-hour format (except for 12 PM)
-    if (period == 'PM' && hour != 12) {
-      hour += 12;
-    }
-
-    // Convert 12 AM into midnight (0:00)
-    if (period == 'AM' && hour == 12) {
-      hour = 0;
-    }
-
-    // Return the converted reminder time
-    return TimeOfDay(hour: hour, minute: minute);
+    final minutes = timeMinutes(reminderText);
+    return minutes == null
+        ? null
+        : TimeOfDay(hour: minutes ~/ 60, minute: minutes % 60);
   }
 
+  Future<void> openRecentlyDeleted() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute<void>(builder: (_) => const RecentlyDeletedScreen()),
+    );
+    if (!mounted) return;
+    await loadTasksForSelectedDate();
+    await refreshAllRecurringReminders();
+    for (final task in tasks) {
+      if (task['recurringId'] == null) {
+        await handleTaskStatusNotifications(task);
+      }
+    }
+    await refreshDailyTaskNotifications();
+  }
+
+  String? taskTimeLabel(TimeOfDay? time) =>
+      time == null ? null : minutesLabel(time.hour * 60 + time.minute);
+
   void showAddTaskPopup() {
+    Map<String, dynamic> extraOptions = {
+      'subtasks': <Map<String, dynamic>>[],
+      'repeatInterval': 1,
+    };
     showDialog(
       context: context,
       builder: (context) {
@@ -2402,6 +2100,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       ),
 
                       const SizedBox(height: 16),
+                      TaskOptionsEditor(
+                        value: extraOptions,
+                        repeat: selectedRepeat,
+                        onChanged: (value) => extraOptions = value,
+                      ),
                       TextField(
                         controller: tagsController,
                         style: const TextStyle(color: Colors.white),
@@ -2510,6 +2213,22 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           DropdownMenuItem(
                             value: 'Weekly',
                             child: Text('Repeat: Weekly'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'Monthly',
+                            child: Text('Repeat: Monthly'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'Yearly',
+                            child: Text('Repeat: Yearly'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'Every N Days',
+                            child: Text('Repeat: Every N Days'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'Every N Weeks',
+                            child: Text('Repeat: Every N Weeks'),
                           ),
                           DropdownMenuItem(
                             value: 'Specific Days',
@@ -2943,6 +2662,24 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 ElevatedButton(
                   onPressed: () async {
                     final newTaskTitle = taskController.text.trim();
+                    final candidate = <String, dynamic>{
+                      ...extraOptions,
+                      'title': newTaskTitle,
+                      'startDate': selectedTaskDate,
+                      'date': selectedTaskDate,
+                      'repeat': selectedRepeat,
+                      'repeatDays': selectedRepeatDays.toList(),
+                      'startTime': taskTimeLabel(selectedStartTime),
+                      'endTime': taskTimeLabel(selectedEndTime),
+                    };
+                    final error = validatePlanningTask(candidate);
+                    if (error != null) {
+                      ScaffoldMessenger.of(
+                        context,
+                      ).showSnackBar(SnackBar(content: Text(error)));
+                      return;
+                    }
+                    applyDuration(candidate);
 
                     // Validate the optional scheduled time window.
                     // If both times are set, End Time must be after Start Time.
@@ -2973,9 +2710,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     final notificationId = createNotificationId();
 
                     final newTask = <String, dynamic>{
+                      ...extraOptions,
                       'title': newTaskTitle,
                       'description': descriptionController.text.trim(),
-                      'completed': false,
+                      'completed': selectedStatus == 'Complete',
                       'category': selectedCategory,
                       'tags': tagsController.text
                           .split(',')
@@ -2989,16 +2727,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       'priority': selectedPriority,
 
                       // Optional scheduled time window.
-                      'startTime': selectedStartTime?.format(context),
-                      'endTime': selectedEndTime?.format(context),
+                      'startTime': taskTimeLabel(selectedStartTime),
+                      'endTime': candidate['endTime'],
 
                       // New tasks begin as Not Started.
                       'status': selectedStatus,
 
                       // Optional normal reminder.
-                      'reminderTime': selectedReminderTime?.format(context),
+                      'reminderTime': taskTimeLabel(selectedReminderTime),
 
                       // Stable notification ID for this task.
+                      'id': DateTime.now().microsecondsSinceEpoch.toString(),
                       'notificationId': notificationId,
 
                       // Date for this specific task occurrence.
@@ -3094,6 +2833,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final editTagsController = TextEditingController(
       text: task['tags'] is List ? (task['tags'] as List).join(', ') : '',
     );
+    Map<String, dynamic> extraOptions = {
+      'subtasks': taskSubtasks(task).map(copyTask).toList(),
+      'durationMinutes': taskDuration(task),
+      'repeatInterval': task['repeatInterval'] ?? 1,
+      'repeatUntil': task['repeatUntil'],
+    };
     String? editGoalId = task['goalId']?.toString();
     String editCategory = task['category'] ?? selectedCategory;
     String? editPriority = task['priority'];
@@ -3153,6 +2898,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       ),
 
                       const SizedBox(height: 16),
+                      TaskOptionsEditor(
+                        value: extraOptions,
+                        repeat: editRepeat,
+                        onChanged: (value) => extraOptions = value,
+                      ),
                       TextField(
                         controller: editTagsController,
                         style: const TextStyle(color: Colors.white),
@@ -3277,6 +3027,22 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           DropdownMenuItem(
                             value: 'Weekly',
                             child: Text('Repeat: Weekly'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'Monthly',
+                            child: Text('Repeat: Monthly'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'Yearly',
+                            child: Text('Repeat: Yearly'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'Every N Days',
+                            child: Text('Repeat: Every N Days'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'Every N Weeks',
+                            child: Text('Repeat: Every N Weeks'),
                           ),
                           DropdownMenuItem(
                             value: 'Specific Days',
@@ -3713,6 +3479,23 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 ElevatedButton(
                   onPressed: () async {
                     final updatedTitle = editController.text.trim();
+                    final candidate = <String, dynamic>{
+                      ...task,
+                      ...extraOptions,
+                      'title': updatedTitle,
+                      'repeat': editRepeat,
+                      'repeatDays': editRepeatDays.toList(),
+                      'startTime': editStartTime,
+                      'endTime': editEndTime,
+                    };
+                    final error = validatePlanningTask(candidate);
+                    if (error != null) {
+                      ScaffoldMessenger.of(
+                        context,
+                      ).showSnackBar(SnackBar(content: Text(error)));
+                      return;
+                    }
+                    applyDuration(candidate);
                     // Validate the edited scheduled time window.
                     final parsedStartTime = parseReminderTime(editStartTime);
 
@@ -3749,6 +3532,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
                     // Update the task immediately.
                     setState(() {
+                      if (task['status'] != editStatus) {
+                        task['previousStatus'] =
+                            task['status'] ?? 'Not Started';
+                      }
+                      task.addAll(extraOptions);
                       task['title'] = updatedTitle;
                       task['description'] = editDescriptionController.text
                           .trim();
@@ -3766,10 +3554,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
                       // Save the task's optional scheduled window.
                       task['startTime'] = editStartTime;
-                      task['endTime'] = editEndTime;
+                      task['endTime'] = candidate['endTime'];
 
                       // Keep the task's existing workflow status.
                       task['status'] = editStatus;
+                      task['completed'] = editStatus == 'Complete';
                       task['repeat'] = editRepeat;
                       task['repeatDays'] = editRepeatDays.toList();
                     });
@@ -3835,6 +3624,26 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
+    if (!_homeReady) {
+      return Scaffold(
+        backgroundColor: Colors.black,
+        appBar: AppBar(title: const Text('TrakOn')),
+        body: Center(
+          child: _loadError == null
+              ? const CircularProgressIndicator()
+              : Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(_loadError!),
+                    TextButton(
+                      onPressed: initializeHomeScreen,
+                      child: const Text('Retry'),
+                    ),
+                  ],
+                ),
+        ),
+      );
+    }
     final int completedTasks = tasks
         .where((task) => task['completed'] == true)
         .length;
@@ -3852,8 +3661,21 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         title: const Text('TrakOn'),
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
-        automaticallyImplyLeading: false,
+        automaticallyImplyLeading: widget.initialDate != null,
         actions: [
+          IconButton(
+            tooltip: 'Focus timer',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute<void>(builder: (_) => const FocusTimerScreen()),
+            ),
+            icon: const Icon(Icons.timer_outlined),
+          ),
+          IconButton(
+            tooltip: 'Recently Deleted',
+            onPressed: openRecentlyDeleted,
+            icon: const Icon(Icons.restore_from_trash_outlined),
+          ),
           IconButton(
             onPressed: openTaskSearch,
             icon: const Icon(Icons.search),
@@ -4450,6 +4272,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                 final statusDate = selectedTaskDate;
 
                                 setState(() {
+                                  task['previousStatus'] = currentStatus;
                                   if (currentStatus == 'Complete') {
                                     // Reopen a completed task.
                                     task['status'] = 'Not Started';
@@ -4608,6 +4431,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                       }
 
                                       setState(() {
+                                        task['previousStatus'] = currentStatus;
                                         // Update the workflow status.
                                         task['status'] = nextStatus;
 
@@ -4760,6 +4584,19 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                       size: 22,
                                     ),
                                   ),
+                                ),
+                                IconButton(
+                                  tooltip: 'Undo last status change',
+                                  visualDensity: VisualDensity.compact,
+                                  constraints: const BoxConstraints(
+                                    minWidth: 34,
+                                    minHeight: 34,
+                                  ),
+                                  padding: EdgeInsets.zero,
+                                  icon: const Icon(Icons.undo, size: 20),
+                                  onPressed: task['previousStatus'] is String
+                                      ? () => undoTaskStatus(task)
+                                      : null,
                                 ),
                                 IconButton(
                                   visualDensity: VisualDensity.compact,

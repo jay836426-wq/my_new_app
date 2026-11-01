@@ -1,3 +1,5 @@
+import 'planning_rules.dart';
+
 /// A dated reminder belonging to one occurrence of a recurring task.
 class RecurringReminder {
   const RecurringReminder({
@@ -22,34 +24,10 @@ DateTime _dateFromKey(String key) {
 }
 
 DateTime? _timeOnDate(dynamic value, DateTime date) {
-  if (value is! String) return null;
-  final match = RegExp(
-    r'^(\d{1,2}):(\d{2})\s*(AM|PM)$',
-    caseSensitive: false,
-  ).firstMatch(value.trim());
-  if (match == null) return null;
-  var hour = int.parse(match.group(1)!);
-  final minute = int.parse(match.group(2)!);
-  if (hour < 1 || hour > 12 || minute > 59) return null;
-  hour %= 12;
-  if (match.group(3)!.toUpperCase() == 'PM') hour += 12;
-  return DateTime(date.year, date.month, date.day, hour, minute);
-}
-
-bool _runsOnDate(Map<String, dynamic> template, DateTime date, DateTime start) {
-  if (date.isBefore(start)) return false;
-  switch (template['repeat']) {
-    case 'Daily':
-      return true;
-    case 'Weekdays':
-      return date.weekday <= DateTime.friday;
-    case 'Weekly':
-      return date.weekday == start.weekday;
-    case 'Specific Days':
-      return (template['repeatDays'] as List? ?? []).contains(date.weekday);
-    default:
-      return false;
-  }
+  final minutes = timeMinutes(value);
+  return minutes == null
+      ? null
+      : DateTime(date.year, date.month, date.day, minutes ~/ 60, minutes % 60);
 }
 
 /// Uses dated, one-shot requests so completing an occurrence can actually
@@ -69,9 +47,9 @@ List<RecurringReminder> buildRecurringReminderPlan({
   final plan = <RecurringReminder>[];
   var slot = 0;
 
-  // Seven weekly occurrences fit within 49 days. Bound invalid repeat rules.
-  for (var searched = 0; searched < 49 && slot < 7; searched++) {
-    if (_runsOnDate(template, date, start)) {
+  // Bound long-interval rules while looking for up to seven occurrences.
+  for (var searched = 0; searched < 3660 && slot < 7; searched++) {
+    if (taskRunsOnDate(template, date)) {
       final occurrence = occurrences[reminderDateKey(date)];
       final status = occurrence?['completed'] == true
           ? 'Complete'

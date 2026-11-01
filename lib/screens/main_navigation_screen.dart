@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:TrakOn/screens/calendar_screen.dart';
 
 import 'home_screen.dart';
+import 'planner_screen.dart';
 import 'insights_screen.dart';
 //import 'calendar_screen.dart';
 import 'settings_screen.dart';
@@ -23,7 +24,7 @@ class MainNavigationScreen extends StatefulWidget {
 
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int selectedIndex = 0;
-  static const String _release = '1.1';
+  static const String _release = '1.2';
   late final String _whatsNewKey;
   bool _checkingWhatsNew = true;
   bool _showWhatsNew = false;
@@ -61,6 +62,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
   final List<Widget> screens = const [
     HomeScreen(),
+    PlannerScreen(),
     CalendarScreen(),
     InsightsScreen(),
     SettingsScreen(),
@@ -97,14 +99,15 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
           BottomNavigationBarItem(
+            icon: Icon(Icons.view_week_outlined),
+            label: 'Plan',
+          ),
+          BottomNavigationBarItem(
             icon: Icon(Icons.calendar_month),
             label: 'Calendar',
           ),
           BottomNavigationBarItem(icon: Icon(Icons.bar_chart), label: 'Stats'),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.settings),
-            label: 'Settings',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'Account'),
         ],
       ),
     );
