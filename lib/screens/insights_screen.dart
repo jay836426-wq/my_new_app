@@ -165,7 +165,7 @@ class _InsightsScreenState extends State<InsightsScreen> {
                     ),
                     DropdownMenuItem(
                       value: 'Weekly',
-                      child: Text('Weekly (Mon–Sun)'),
+                      child: Text('Weekly (Sun–Sat)'),
                     ),
                   ],
                   onChanged: (v) => update(() => period = v ?? 'Long-term'),
@@ -173,7 +173,7 @@ class _InsightsScreenState extends State<InsightsScreen> {
                 const SizedBox(height: 12),
                 Text(
                   period == 'Weekly'
-                      ? 'Progress starts a new period every Monday. Task history stays intact.'
+                      ? 'Progress starts a new period every Sunday. Task history stays intact.'
                       : 'Count linked task completions until you reset this goal.',
                 ),
               ],
@@ -338,7 +338,7 @@ class _InsightsScreenState extends State<InsightsScreen> {
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
-    final weekStart = mondayOf(now);
+    final weekStart = sundayOf(now);
     final week = List.generate(
       7,
       (index) =>
@@ -367,7 +367,7 @@ class _InsightsScreenState extends State<InsightsScreen> {
     }
     final categoryNames = categories.keys.toList()
       ..sort((a, b) => categories[b]!.length.compareTo(categories[a]!.length));
-    const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const labels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
     return Scaffold(
       backgroundColor: Colors.black,

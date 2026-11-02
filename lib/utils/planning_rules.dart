@@ -249,7 +249,7 @@ int goalProgress(
   Map<String, List<TaskData>> history,
   DateTime now,
 ) {
-  final start = goal['period'] == 'Weekly' ? mondayOf(now) : null;
+  final start = goal['period'] == 'Weekly' ? sundayOf(now) : null;
   final end = start == null
       ? null
       : DateTime(start.year, start.month, start.day + 7);
@@ -328,4 +328,38 @@ String exportTasksCsv(Map<String, List<TaskData>> days) {
     }
   }
   return '${rows.map((r) => r.map(_csvCell).join(',')).join('\r\n')}\r\n';
+}
+
+DateTime calendarDay(DateTime date, int offset) =>
+    DateTime(date.year, date.month, date.day + offset);
+DateTime sundayOf(DateTime date) => calendarDay(date, -(date.weekday % 7));
+(DateTime, DateTime) exportRange(DateTime selected, String period) {
+  if (period == 'Week') {
+    final start = sundayOf(selected);
+    return (start, calendarDay(start, 7));
+  }
+  if (period == 'Month') {
+    return (
+      DateTime(selected.year, selected.month),
+      DateTime(selected.year, selected.month + 1),
+    );
+  }
+  if (period == 'Year') {
+    return (DateTime(selected.year), DateTime(selected.year + 1));
+  }
+  throw ArgumentError('Unknown export period');
+}
+
+DateTime nextCheckInTime(
+  DateTime now,
+  int hour,
+  int minute, {
+  bool saturday = false,
+}) {
+  var next = DateTime(now.year, now.month, now.day, hour, minute);
+  while (!next.isAfter(now) ||
+      (saturday && next.weekday != DateTime.saturday)) {
+    next = DateTime(next.year, next.month, next.day + 1, hour, minute);
+  }
+  return next;
 }

@@ -105,7 +105,8 @@ class _FocusTimerScreenState extends State<FocusTimerScreen>
       try {
         await NotificationService.cancelNotification(_notificationId);
         if (clock.running &&
-            await NotificationPreferences.notificationsEnabled()) {
+            await NotificationPreferences.notificationsEnabled() &&
+            (_store!.prefs.getBool(_store!.key('v12_focusAlert')) ?? true)) {
           await NotificationService.scheduleNotification(
             id: _notificationId,
             title: clock.mode == 'Focus'

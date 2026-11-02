@@ -1,3 +1,6 @@
+import 'mood_check_in_screen.dart';
+import 'check_in_settings_screen.dart';
+import '../services/check_in_service.dart';
 import '../services/account_planning_store.dart';
 import 'dart:async';
 import 'dart:convert';
@@ -327,6 +330,26 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     'Keep making choices that support the life you want.',
     'You are building something with every thoughtful step.',
     'Your next small win is worth starting.',
+    "One small task can turn your whole day around.",
+    "You don’t need a perfect day to make progress.",
+    "Make the next step small enough to start.",
+    "Your pace can change. Your progress still counts.",
+    "A fresh start can happen at any hour.",
+    "Give yourself credit for the things nobody sees.",
+    "Today’s effort is something tomorrow can build on.",
+    "Do one thing your future self will appreciate.",
+    "A missed day doesn’t erase the work you’ve done.",
+    "You can feel unsure and still take the next step.",
+    "Leave room in your plans for being human.",
+    "Start with what matters most, even for five minutes.",
+    "Rest can be part of a productive day.",
+    "Let your checklist guide you, not judge you.",
+    "Some days, showing up takes the most effort.",
+    "Choose a goal that feels like yours.",
+    "You’re allowed to adjust the plan as you learn.",
+    "Finishing one thing is a good place to begin.",
+    "Build a routine you can return to after a hard day.",
+    "Track the progress. Notice the effort. Keep going.",
   ];
 
   // Stores dynamic username for login
@@ -707,7 +730,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     setState(() {
       selectedTaskDate = result.date;
       final date = parseDateKey(result.date);
-      displayedWeekStart = date.subtract(Duration(days: date.weekday % 7));
+      displayedWeekStart = sundayOf(date);
       searchController.clear();
       searchQuery = '';
     });
@@ -743,6 +766,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         _loadError = null;
       });
       _scheduleMidnightRefresh();
+      try {
+        await CheckInService.apply(_store);
+      } catch (error) {
+        debugPrint('Could not refresh optional check-ins: $error');
+      }
       try {
         await refreshAllRecurringReminders();
       } catch (error) {
@@ -3663,6 +3691,27 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         foregroundColor: Colors.white,
         automaticallyImplyLeading: widget.initialDate != null,
         actions: [
+          PopupMenuButton<String>(
+            tooltip: 'More tools',
+            onSelected: (value) async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute<void>(
+                  builder: (_) => value == 'mood'
+                      ? const MoodCheckInScreen()
+                      : const CheckInSettingsScreen(),
+                ),
+              );
+              if (mounted) setState(() {});
+            },
+            itemBuilder: (_) => const [
+              PopupMenuItem(value: 'mood', child: Text('Mood check-in')),
+              PopupMenuItem(
+                value: 'alerts',
+                child: Text('Reminders & check-ins'),
+              ),
+            ],
+          ),
           IconButton(
             tooltip: 'Focus timer',
             onPressed: () => Navigator.push(
@@ -3757,6 +3806,20 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
               const SizedBox(height: 32),
 
+              if (_store.prefs.getBool(_store.key('v12_moodPrompt')) == true)
+                Card(
+                  child: ListTile(
+                    title: const Text('How are you feeling today?'),
+                    subtitle: const Text('Optional mood check-in'),
+                    trailing: const Icon(Icons.mood),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute<void>(
+                        builder: (_) => const MoodCheckInScreen(),
+                      ),
+                    ),
+                  ),
+                ),
               // Daily motivational quote card
               Container(
                 width: double.infinity,
@@ -3965,8 +4028,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         IconButton(
                           onPressed: () {
                             setState(() {
-                              displayedWeekStart = displayedWeekStart.subtract(
-                                const Duration(days: 7),
+                              displayedWeekStart = calendarDay(
+                                displayedWeekStart,
+                                -7,
                               );
                             });
                           },
@@ -3979,8 +4043,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         Text(
                           '${displayedWeekStart.month}/${displayedWeekStart.day}'
                           ' - '
-                          '${displayedWeekStart.add(const Duration(days: 6)).month}/'
-                          '${displayedWeekStart.add(const Duration(days: 6)).day}',
+                          '${calendarDay(displayedWeekStart, 6).month}/'
+                          '${calendarDay(displayedWeekStart, 6).day}',
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 15,
@@ -3991,8 +4055,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         IconButton(
                           onPressed: () {
                             setState(() {
-                              displayedWeekStart = displayedWeekStart.add(
-                                const Duration(days: 7),
+                              displayedWeekStart = calendarDay(
+                                displayedWeekStart,
+                                7,
                               );
                             });
                           },
@@ -4010,9 +4075,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       height: 110,
                       child: Row(
                         children: List.generate(7, (index) {
-                          final date = displayedWeekStart.add(
-                            Duration(days: index),
-                          );
+                          final date = calendarDay(displayedWeekStart, index);
                           final dateKey = getDateKey(date);
                           final todayKey = getDateKey(DateTime.now());
 

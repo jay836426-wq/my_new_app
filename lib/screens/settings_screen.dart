@@ -1,8 +1,8 @@
+import 'check_in_settings_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:TrakOn/main.dart';
 
-import 'notification_settings_screen.dart';
 import 'notification_service.dart';
 
 import 'package:firebase_auth/firebase_auth.dart';
@@ -141,7 +141,7 @@ class SettingsScreen extends StatelessWidget {
             icon: Icons.notifications_outlined,
             title: '🔔 Notifications',
             onTap: () {
-              openPage(context, const NotificationSettingsScreen());
+              openPage(context, const CheckInSettingsScreen());
             },
           ),
 

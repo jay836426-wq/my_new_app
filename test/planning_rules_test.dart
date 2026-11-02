@@ -314,25 +314,25 @@ void main() {
       ],
     };
     test(
-      'Weekly counts Monday through Sunday and excludes future',
+      'Weekly counts Sunday through Saturday and excludes future',
       () => expect(
         goalProgress(
           {'id': 'g', 'period': 'Weekly'},
           history,
           DateTime(2026, 11, 1),
         ),
-        2,
+        1,
       ),
     );
     test(
-      'A new Monday starts a new weekly period',
+      'Monday remains in the Sunday-starting week',
       () => expect(
         goalProgress(
           {'id': 'g', 'period': 'Weekly'},
           history,
           DateTime(2026, 11, 2),
         ),
-        1,
+        2,
       ),
     );
     test(

@@ -1,9 +1,7 @@
+import 'task_export_screen.dart';
 import '../services/account_planning_store.dart';
-import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
-import 'package:share_plus/share_plus.dart';
 
 import '../utils/planning_rules.dart';
 import 'home_screen.dart';
@@ -35,7 +33,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
     final start = _view == 'Month'
         ? DateTime(_selected.year, _selected.month, 1)
         : _view == 'Week'
-        ? mondayOf(_selected)
+        ? sundayOf(_selected)
         : _selected;
     final n = _view == 'Month'
         ? DateTime(start.year, start.month + 1, 0).day
@@ -109,68 +107,12 @@ class _PlannerScreenState extends State<PlannerScreen> {
   }
 
   Future<void> exportData() async {
-    final choice = await showModalBottomSheet<String>(
-      context: context,
-      builder: (c) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              title: const Text('Export visible dates as CSV'),
-              onTap: () => Navigator.pop(c, 'visible'),
-            ),
-            ListTile(
-              title: const Text('Export all saved history as CSV'),
-              onTap: () => Navigator.pop(c, 'all'),
-            ),
-            ListTile(
-              title: const Text('Export all saved history as JSON'),
-              onTap: () => Navigator.pop(c, 'json'),
-            ),
-          ],
-        ),
+    await Navigator.push(
+      context,
+      MaterialPageRoute<void>(
+        builder: (_) => TaskExportScreen(selected: _selected),
       ),
     );
-    if (choice == null || !mounted) return;
-    try {
-      final data = choice == 'visible'
-          ? _days
-          : await (await AccountPlanningStore.current()).allSavedDays();
-      final text = choice == 'json'
-          ? const JsonEncoder.withIndent('  ').convert({
-              'version': '1.2',
-              'exportedAt': DateTime.now().toIso8601String(),
-              'days': data,
-            })
-          : exportTasksCsv(data);
-      if (!mounted) return;
-      final box = context.findRenderObject() as RenderBox?;
-      await SharePlus.instance.share(
-        ShareParams(
-          title: 'TrakOn task export',
-          files: [
-            XFile.fromData(
-              Uint8List.fromList(utf8.encode(text)),
-              mimeType: choice == 'json' ? 'application/json' : 'text/csv',
-            ),
-          ],
-          fileNameOverrides: [
-            'TrakOn_${dayKey(DateTime.now())}.${choice == 'json' ? 'json' : 'csv'}',
-          ],
-          sharePositionOrigin: box == null
-              ? null
-              : box.localToGlobal(Offset.zero) & box.size,
-        ),
-      );
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Export could not be shared. Please retry.'),
-          ),
-        );
-      }
-    }
   }
 
   Widget dayCell(DateTime date, {bool compact = false}) {
@@ -357,7 +299,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
             if (_view == 'Month') ...[
               Row(
                 children: [
-                  for (final name in ['M', 'T', 'W', 'T', 'F', 'S', 'S'])
+                  for (final name in ['S', 'M', 'T', 'W', 'T', 'F', 'S'])
                     Expanded(child: Center(child: Text(name))),
                 ],
               ),
@@ -370,9 +312,9 @@ class _PlannerScreenState extends State<PlannerScreen> {
                   mainAxisSpacing: 5,
                   crossAxisSpacing: 5,
                 ),
-                itemCount: dates.first.weekday - 1 + dates.length,
+                itemCount: dates.first.weekday % 7 + dates.length,
                 itemBuilder: (_, i) {
-                  final offset = i - (dates.first.weekday - 1);
+                  final offset = i - (dates.first.weekday % 7);
                   return offset < 0
                       ? const SizedBox.shrink()
                       : dayCell(dates[offset], compact: true);
