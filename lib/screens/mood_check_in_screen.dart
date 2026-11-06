@@ -1,5 +1,9 @@
 import 'dart:convert';
+
+import '../services/check_in_service.dart';
+
 import 'package:flutter/material.dart';
+
 import '../services/account_planning_store.dart';
 import '../services/planning_store.dart';
 import '../utils/planning_rules.dart';
@@ -52,6 +56,22 @@ class _MoodCheckInScreenState extends State<MoodCheckInScreen> {
     super.dispose();
   }
 
+  Future<void> refreshAlerts() async {
+    try {
+      await CheckInService.refreshMood(_store!);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Mood history saved. Reminder update failed; reopen reminders to retry.',
+            ),
+          ),
+        );
+      }
+    }
+  }
+
   Future<void> save() async {
     if (_mood == null) return;
     setState(() => _saving = true);
@@ -71,11 +91,11 @@ class _MoodCheckInScreenState extends State<MoodCheckInScreen> {
       )) {
         throw StateError('Save failed');
       }
+      await refreshAlerts();
       if (mounted) {
         setState(() => _entries = updated);
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Today’s mood saved')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Today’s mood saved')));
       }
     } catch (_) {
       if (mounted) {
@@ -98,7 +118,16 @@ class _MoodCheckInScreenState extends State<MoodCheckInScreen> {
       )) {
         throw StateError('Delete failed');
       }
-      if (mounted) setState(() => _entries = updated);
+      await refreshAlerts();
+      if (mounted) {
+        setState(() {
+          _entries = updated;
+          if (date == dayKey(DateTime.now())) {
+            _mood = null;
+            _note.clear();
+          }
+        });
+      }
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

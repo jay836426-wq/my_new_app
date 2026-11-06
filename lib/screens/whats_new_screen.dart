@@ -19,23 +19,38 @@ class _WhatsNewScreenState extends State<WhatsNewScreen> {
     (
       icon: Icons.view_week_outlined,
       title: 'Make room for what matters',
-      description:
-          'Plan your days and weeks, set task durations, and spot overlapping time blocks.',
+      description: 'Plan your days and weeks, set task durations, and spot overlapping time blocks.',
       caption: 'A clearer plan for your time.',
     ),
     (
       icon: Icons.timer_outlined,
       title: 'Focus, one step at a time',
-      description:
-          'Use the focus timer and break tasks into checkable subtasks. Set monthly, yearly, or custom repeat intervals.',
+      description: 'Use the focus timer and break tasks into checkable subtasks. Set monthly, yearly, or custom repeat intervals.',
       caption: 'Small steps. Steady progress.',
     ),
     (
       icon: Icons.restore_from_trash_outlined,
       title: 'Keep your progress safe',
-      description:
-          'Restore deleted tasks from Recently Deleted, choose weekly or long-term goals, and export your task history.',
+      description: 'Restore deleted tasks from Recently Deleted, choose weekly or long-term goals, and export your task history.',
       caption: 'Your plans, with more control.',
+    ),
+    (
+      icon: Icons.mood,
+      title: 'Make space for you',
+      description: 'Save a daily mood and optional note. See today’s check-in on Home, edit it, and explore your mood history on this device.',
+      caption: 'Your day is more than a checklist.',
+    ),
+    (
+      icon: Icons.notifications_active_outlined,
+      title: 'Reminders on your terms',
+      description: 'Choose planning, goal, weekly review, mood and focus alerts. On iPhone, scroll to choose a time. Saving a mood cancels that day’s pending check-in reminder.',
+      caption: 'Optional reminders. More control.',
+    ),
+    (
+      icon: Icons.ios_share,
+      title: 'See the bigger picture',
+      description: 'Weeks run Sunday–Saturday. Review your Calendar productivity card and export a week, month or year as PDF, Excel, CSV or JSON.',
+      caption: 'Keep a copy of your progress.',
     ),
   ];
 

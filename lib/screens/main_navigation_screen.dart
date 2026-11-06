@@ -24,7 +24,7 @@ class MainNavigationScreen extends StatefulWidget {
 
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int selectedIndex = 0;
-  static const String _release = '1.2';
+  static const String _release = '1.2-build10';
   late final String _whatsNewKey;
   bool _checkingWhatsNew = true;
   bool _showWhatsNew = false;

@@ -1,7 +1,9 @@
+import '../widgets/home_mood_card.dart';
 import 'mood_check_in_screen.dart';
 import 'check_in_settings_screen.dart';
 import '../services/check_in_service.dart';
 import '../services/account_planning_store.dart';
+
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
@@ -818,6 +820,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (!mounted) return;
     await refreshAllRecurringReminders();
     await refreshDailyTaskNotifications();
+    try {
+      await CheckInService.refreshMood(_store);
+    } catch (e) {
+      debugPrint('Mood reminder refresh failed: $e');
+    }
+    if (mounted) setState(() {});
   }
 
   // Calculates the user's current streak
@@ -1272,6 +1280,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Future<void> loadTasks() async {
     _store = await AccountPlanningStore.current();
+    if (_store.prefs.getBool(_store.key('homeMoodCardBuild10')) != true) {
+      if (!await _store.prefs.setBool(_store.key('v12_moodPrompt'), true)) {
+        throw StateError('Could not enable mood card');
+      }
+      await _store.prefs.setBool(_store.key('homeMoodCardBuild10'), true);
+    }
     await _store.migrateLegacyCache();
     final prefs = _store.prefs;
     final cloudState = prefs.getInt(userKey('streakCounter')) == null
@@ -3650,6 +3664,88 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     await saveTasks();
   }
 
+  Future<void> _openTools() async {
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF181B19),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (context) => SafeArea(
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Text(
+                    'Your daily tools',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.mood, color: Colors.greenAccent),
+                  title: const Text(
+                    'Mood check-in',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                  subtitle: const Text(
+                    'Reflect on today and view your history',
+                    style: TextStyle(color: Colors.white70),
+                  ),
+                  trailing: const Icon(
+                    Icons.chevron_right,
+                    color: Colors.white54,
+                  ),
+                  onTap: () => Navigator.pop(context, 'mood'),
+                ),
+                const Divider(color: Colors.white12),
+                ListTile(
+                  leading: const Icon(
+                    Icons.notifications_outlined,
+                    color: Colors.greenAccent,
+                  ),
+                  title: const Text(
+                    'Reminders & check-ins',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                  subtitle: const Text(
+                    'Choose what to hear about and when',
+                    style: TextStyle(color: Colors.white70),
+                  ),
+                  trailing: const Icon(
+                    Icons.chevron_right,
+                    color: Colors.white54,
+                  ),
+                  onTap: () => Navigator.pop(context, 'alerts'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    if (choice == null || !mounted) return;
+    await Navigator.push(
+      context,
+      MaterialPageRoute<void>(
+        builder: (_) => choice == 'mood'
+            ? const MoodCheckInScreen()
+            : const CheckInSettingsScreen(),
+      ),
+    );
+    if (mounted) setState(() {});
+  }
+
   @override
   Widget build(BuildContext context) {
     if (!_homeReady) {
@@ -3691,26 +3787,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         foregroundColor: Colors.white,
         automaticallyImplyLeading: widget.initialDate != null,
         actions: [
-          PopupMenuButton<String>(
+          IconButton(
             tooltip: 'More tools',
-            onSelected: (value) async {
-              await Navigator.push(
-                context,
-                MaterialPageRoute<void>(
-                  builder: (_) => value == 'mood'
-                      ? const MoodCheckInScreen()
-                      : const CheckInSettingsScreen(),
-                ),
-              );
-              if (mounted) setState(() {});
-            },
-            itemBuilder: (_) => const [
-              PopupMenuItem(value: 'mood', child: Text('Mood check-in')),
-              PopupMenuItem(
-                value: 'alerts',
-                child: Text('Reminders & check-ins'),
-              ),
-            ],
+            icon: const Icon(Icons.more_horiz),
+            onPressed: _openTools,
           ),
           IconButton(
             tooltip: 'Focus timer',
@@ -3806,19 +3886,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
               const SizedBox(height: 32),
 
-              if (_store.prefs.getBool(_store.key('v12_moodPrompt')) == true)
-                Card(
-                  child: ListTile(
-                    title: const Text('How are you feeling today?'),
-                    subtitle: const Text('Optional mood check-in'),
-                    trailing: const Icon(Icons.mood),
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute<void>(
-                        builder: (_) => const MoodCheckInScreen(),
-                      ),
-                    ),
-                  ),
+              if (_store.prefs.getBool(_store.key('v12_moodPrompt')) ?? true)
+                HomeMoodCard(
+                  store: _store,
+                  onChanged: () {
+                    if (mounted) setState(() {});
+                  },
                 ),
               // Daily motivational quote card
               Container(

@@ -20,6 +20,11 @@ void main() {
     expect(find.text('Focus, one step at a time'), findsOneWidget);
     await tester.tap(find.text('Next'));
     await tester.pumpAndSettle();
+    for (var i = 0; i < 3; i++) {
+      await tester.tap(find.text('Next'));
+      await tester.pumpAndSettle();
+    }
+    expect(find.text('See the bigger picture'), findsOneWidget);
     await tester.tap(find.text('Let’s go'));
     await tester.pumpAndSettle();
     expect(finished, 1);

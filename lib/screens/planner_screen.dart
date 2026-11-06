@@ -173,6 +173,74 @@ class _PlannerScreenState extends State<PlannerScreen> {
     );
   }
 
+  Widget _productivityCard() {
+    final all = visibleDates
+        .expand((d) => _days[dayKey(d)] ?? <TaskData>[])
+        .toList();
+    final done = all.where(isTaskComplete).length;
+    final active = all
+        .where((t) => !isTaskComplete(t) && t['status'] == 'In Progress')
+        .length;
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFF15241D),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Productivity',
+            style: TextStyle(
+              color: Colors.greenAccent,
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          Text(
+            '$_view summary • ${visibleDates.first.month}/${visibleDates.first.day} – ${visibleDates.last.month}/${visibleDates.last.day}',
+            style: const TextStyle(color: Colors.white70),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            all.isEmpty
+                ? 'No tasks planned for this period'
+                : '${(done / all.length * 100).round()}% complete',
+            style: const TextStyle(color: Colors.white, fontSize: 20),
+          ),
+          const SizedBox(height: 10),
+          LinearProgressIndicator(
+            value: all.isEmpty ? 0 : done / all.length,
+            color: Colors.greenAccent,
+            backgroundColor: Colors.white12,
+            minHeight: 8,
+            borderRadius: BorderRadius.circular(4),
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 16,
+            runSpacing: 8,
+            children: [
+              Text(
+                '$done completed',
+                style: const TextStyle(color: Colors.greenAccent),
+              ),
+              Text(
+                '$active in progress',
+                style: const TextStyle(color: Colors.amber),
+              ),
+              Text(
+                '${all.length - done - active} to do',
+                style: const TextStyle(color: Colors.white70),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final dates = visibleDates;
@@ -320,6 +388,10 @@ class _PlannerScreenState extends State<PlannerScreen> {
                       : dayCell(dates[offset], compact: true);
                 },
               ),
+            ],
+            if (widget.calendarMode && !_loading && _error == null) ...[
+              const SizedBox(height: 20),
+              _productivityCard(),
             ],
             const SizedBox(height: 24),
             Text(

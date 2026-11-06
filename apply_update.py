@@ -16,6 +16,8 @@ if not (project/'pubspec.yaml').is_file():
     parser.error('Choose the project folder that contains pubspec.yaml.')
 if 'name: TrakOn' not in (project/'pubspec.yaml').read_text():
     parser.error('This update expects the TrakOn package. No files were changed.')
+if not (project/'lib/services/planning_store.dart').is_file():
+    parser.error('This is a partial update for your existing build 9 project, not a complete app. No files changed.')
 manifest=json.loads((bundle/'FILES.json').read_text())
 for entry in manifest:
     path=Path(entry['path'])
@@ -24,7 +26,14 @@ for entry in manifest:
     source=bundle/path
     if hashlib.sha256(source.read_bytes()).hexdigest()!=entry['sha256']:
         parser.error('An update file changed or is incomplete: '+str(path))
-backup=project.parent/('TrakOn_before_1_2_'+datetime.now().strftime('%Y%m%d_%H%M%S_%f'))
+# Protect newer edits rather than silently overwriting them.
+for entry in manifest:
+    current=project/entry['path']
+    if current.is_file():
+        digest=hashlib.sha256(current.read_bytes()).hexdigest()
+        if digest not in {entry['base_sha256'],entry['sha256']}:
+            parser.error('This file differs from the tested build 9 source: '+entry['path']+'. Keep your edits and review this file individually. No files changed.')
+backup=project.parent/('TrakOn_before_build10_'+datetime.now().strftime('%Y%m%d_%H%M%S_%f'))
 backup.mkdir()
 records=[]
 for entry in manifest:

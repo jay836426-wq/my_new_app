@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
+
 import '../services/account_planning_store.dart';
 import '../services/planning_store.dart';
 import '../services/check_in_service.dart';
@@ -65,15 +67,65 @@ class _CheckInSettingsScreenState extends State<CheckInSettingsScreen> {
   Future<void> time(String type) async {
     final store = _store!;
     final name = CheckInService.pref(type);
-    final selected = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay(
-        hour:
-            store.prefs.getInt(store.key('${name}Hour')) ??
-            (type == 'planning' ? 9 : 18),
-        minute: store.prefs.getInt(store.key('${name}Minute')) ?? 0,
-      ),
+    final initial = TimeOfDay(
+      hour:
+          store.prefs.getInt(store.key('${name}Hour')) ??
+          (type == 'planning' ? 9 : 18),
+      minute: store.prefs.getInt(store.key('${name}Minute')) ?? 0,
     );
+    TimeOfDay? selected;
+    if (Theme.of(context).platform == TargetPlatform.iOS) {
+      var pending = initial;
+      selected = await showCupertinoModalPopup<TimeOfDay>(
+        context: context,
+        builder: (sheetContext) => CupertinoTheme(
+          data: CupertinoThemeData(brightness: Theme.of(context).brightness),
+          child: Container(
+            color: Theme.of(context).colorScheme.surface,
+            child: SafeArea(
+              top: false,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      CupertinoButton(
+                        onPressed: () => Navigator.pop(sheetContext),
+                        child: const Text('Cancel'),
+                      ),
+                      CupertinoButton(
+                        onPressed: () => Navigator.pop(sheetContext, pending),
+                        child: const Text('Done'),
+                      ),
+                    ],
+                  ),
+                  SizedBox(
+                    height: 216,
+                    child: CupertinoDatePicker(
+                      mode: CupertinoDatePickerMode.time,
+                      use24hFormat: MediaQuery.of(context)
+                          .alwaysUse24HourFormat,
+                      initialDateTime: DateTime(
+                        2026,
+                        1,
+                        1,
+                        initial.hour,
+                        initial.minute,
+                      ),
+                      onDateTimeChanged: (d) =>
+                          pending = TimeOfDay(hour: d.hour, minute: d.minute),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    } else {
+      selected = await showTimePicker(context: context, initialTime: initial);
+    }
     if (selected == null || !mounted) return;
     setState(() => _busy = true);
     try {
@@ -178,7 +230,7 @@ class _CheckInSettingsScreenState extends State<CheckInSettingsScreen> {
                 SwitchListTile(
                   title: const Text('Show mood check-in on Home'),
                   subtitle: const Text('Optional; no notification required'),
-                  value: s.prefs.getBool(s.key('v12_moodPrompt')) ?? false,
+                  value: s.prefs.getBool(s.key('v12_moodPrompt')) ?? true,
                   onChanged: _busy ? null : (v) => change('v12_moodPrompt', v),
                 ),
               ],
