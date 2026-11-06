@@ -173,69 +173,134 @@ class _PlannerScreenState extends State<PlannerScreen> {
     );
   }
 
-  Widget _productivityCard() {
-    final all = visibleDates
-        .expand((d) => _days[dayKey(d)] ?? <TaskData>[])
-        .toList();
-    final done = all.where(isTaskComplete).length;
-    final active = all
-        .where((t) => !isTaskComplete(t) && t['status'] == 'In Progress')
-        .length;
-    return Container(
-      padding: const EdgeInsets.all(20),
+  Widget _productivityCard(List<TaskData> tasks) {
+    final done = tasks.where(isTaskComplete).length;
+    final remaining = tasks.length - done;
+    final today = dayKey(_selected) == dayKey(DateTime.now());
+    Widget count(String label, int value, Color color) => Container(
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF15241D),
-        borderRadius: BorderRadius.circular(20),
+        color: Colors.white.withValues(alpha: .06),
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Productivity',
+          Text(label, style: const TextStyle(color: Colors.white70)),
+          const SizedBox(height: 8),
+          Text(
+            '$value',
             style: TextStyle(
-              color: Colors.greenAccent,
-              fontSize: 22,
+              color: color,
+              fontSize: 30,
               fontWeight: FontWeight.bold,
             ),
           ),
+        ],
+      ),
+    );
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFF191B1A),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.white12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
           Text(
-            '$_view summary • ${visibleDates.first.month}/${visibleDates.first.day} – ${visibleDates.last.month}/${visibleDates.last.day}',
-            style: const TextStyle(color: Colors.white70),
+            '${_selected.month}/${_selected.day}/${_selected.year}',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 26,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            today ? 'TODAY' : 'SELECTED DAY',
+            style: const TextStyle(
+              color: Colors.greenAccent,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 1.4,
+            ),
+          ),
+          const SizedBox(height: 20),
+          Text(
+            today ? 'Today’s productivity' : 'Daily productivity',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 22,
+              fontWeight: FontWeight.w600,
+            ),
           ),
           const SizedBox(height: 16),
-          Text(
-            all.isEmpty
-                ? 'No tasks planned for this period'
-                : '${(done / all.length * 100).round()}% complete',
-            style: const TextStyle(color: Colors.white, fontSize: 20),
-          ),
-          const SizedBox(height: 10),
-          LinearProgressIndicator(
-            value: all.isEmpty ? 0 : done / all.length,
-            color: Colors.greenAccent,
-            backgroundColor: Colors.white12,
-            minHeight: 8,
-            borderRadius: BorderRadius.circular(4),
-          ),
-          const SizedBox(height: 14),
-          Wrap(
-            spacing: 16,
-            runSpacing: 8,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                '$done completed',
-                style: const TextStyle(color: Colors.greenAccent),
-              ),
-              Text(
-                '$active in progress',
-                style: const TextStyle(color: Colors.amber),
-              ),
-              Text(
-                '${all.length - done - active} to do',
-                style: const TextStyle(color: Colors.white70),
-              ),
+              Expanded(child: count('Completed', done, Colors.greenAccent)),
+              const SizedBox(width: 12),
+              Expanded(child: count('Remaining', remaining, Colors.white)),
             ],
           ),
+          const SizedBox(height: 18),
+          LinearProgressIndicator(
+            value: tasks.isEmpty ? 0 : done / tasks.length,
+            color: Colors.greenAccent,
+            backgroundColor: Colors.white12,
+            minHeight: 6,
+            borderRadius: BorderRadius.circular(3),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            tasks.isEmpty
+                ? 'No tasks planned'
+                : '$done of ${tasks.length} completed',
+            style: const TextStyle(color: Colors.white60),
+          ),
+          const SizedBox(height: 12),
+          if (tasks.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 12),
+              child: Text(
+                'A clear day. Tap “Plan this day” to add tasks.',
+                style: TextStyle(color: Colors.white70),
+              ),
+            ),
+          for (final task in tasks)
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              onTap: () => manageDay(task),
+              leading: Icon(
+                isTaskComplete(task)
+                    ? Icons.check_circle
+                    : task['status'] == 'In Progress'
+                    ? Icons.timelapse
+                    : Icons.radio_button_unchecked,
+                color: isTaskComplete(task)
+                    ? Colors.greenAccent
+                    : task['status'] == 'In Progress'
+                    ? Colors.amber
+                    : Colors.white38,
+              ),
+              title: Text(
+                task['title']?.toString() ?? 'Task',
+                style: TextStyle(
+                  color: isTaskComplete(task) ? Colors.white60 : Colors.white,
+                ),
+              ),
+              subtitle: Text(
+                isTaskComplete(task)
+                    ? 'Completed'
+                    : task['status'] == 'In Progress'
+                    ? 'In progress'
+                    : 'Not started',
+                style: const TextStyle(color: Colors.white54),
+              ),
+              trailing: const Icon(Icons.chevron_right, color: Colors.white38),
+            ),
         ],
       ),
     );
@@ -391,70 +456,75 @@ class _PlannerScreenState extends State<PlannerScreen> {
             ],
             if (widget.calendarMode && !_loading && _error == null) ...[
               const SizedBox(height: 20),
-              _productivityCard(),
+              _productivityCard(tasks),
             ],
-            const SizedBox(height: 24),
-            Text(
-              '${_selected.month}/${_selected.day}/${_selected.year}',
-              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-            ),
-            Text(
-              '${tasks.length} tasks • ${totalMinutes ~/ 60}h ${totalMinutes % 60}m planned',
-            ),
-            const SizedBox(height: 12),
-            if (tasks.isEmpty)
-              const Padding(
-                padding: EdgeInsets.all(24),
-                child: Text('A clear day. Tap “Plan this day” to add tasks.'),
+            if (!widget.calendarMode) ...[
+              const SizedBox(height: 24),
+              Text(
+                '${_selected.month}/${_selected.day}/${_selected.year}',
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-            for (final task in tasks)
-              Card(
-                child: ListTile(
-                  onTap: () => manageDay(task),
-                  leading: Icon(
-                    isTaskComplete(task)
-                        ? Icons.check_circle
-                        : Icons.radio_button_unchecked,
-                    color: isTaskComplete(task)
-                        ? Colors.greenAccent
-                        : Colors.amber,
-                  ),
-                  title: Text(task['title']?.toString() ?? 'Task'),
-                  subtitle: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '${task['startTime'] ?? 'Unscheduled'}${task['endTime'] == null ? '' : ' – ${task['endTime']}'}${taskDuration(task) == null ? '' : ' • ${taskDuration(task)} min'}',
-                      ),
-                      if (taskSubtasks(task).isNotEmpty)
+              Text(
+                '${tasks.length} tasks • ${totalMinutes ~/ 60}h ${totalMinutes % 60}m planned',
+              ),
+              const SizedBox(height: 12),
+              if (tasks.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.all(24),
+                  child: Text('A clear day. Tap “Plan this day” to add tasks.'),
+                ),
+              for (final task in tasks)
+                Card(
+                  child: ListTile(
+                    onTap: () => manageDay(task),
+                    leading: Icon(
+                      isTaskComplete(task)
+                          ? Icons.check_circle
+                          : Icons.radio_button_unchecked,
+                      color: isTaskComplete(task)
+                          ? Colors.greenAccent
+                          : Colors.amber,
+                    ),
+                    title: Text(task['title']?.toString() ?? 'Task'),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                         Text(
-                          '${taskSubtasks(task).where((s) => s['completed'] == true).length}/${taskSubtasks(task).length} steps',
+                          '${task['startTime'] ?? 'Unscheduled'}${task['endTime'] == null ? '' : ' – ${task['endTime']}'}${taskDuration(task) == null ? '' : ' • ${taskDuration(task)} min'}',
                         ),
-                      if (tasks.any(
-                        (other) =>
-                            !identical(other, task) &&
-                            timeBlocksOverlap(task, other),
-                      ))
-                        const Text(
-                          'Overlapping time block',
-                          style: TextStyle(color: Colors.amber),
-                        ),
-                    ],
-                  ),
-                  trailing: IconButton(
-                    tooltip: 'Focus on this task',
-                    icon: const Icon(Icons.timer_outlined),
-                    onPressed: () => Navigator.push(
-                      context,
-                      MaterialPageRoute<void>(
-                        builder: (_) => FocusTimerScreen(
-                          taskTitle: task['title']?.toString(),
+                        if (taskSubtasks(task).isNotEmpty)
+                          Text(
+                            '${taskSubtasks(task).where((s) => s['completed'] == true).length}/${taskSubtasks(task).length} steps',
+                          ),
+                        if (tasks.any(
+                          (other) =>
+                              !identical(other, task) &&
+                              timeBlocksOverlap(task, other),
+                        ))
+                          const Text(
+                            'Overlapping time block',
+                            style: TextStyle(color: Colors.amber),
+                          ),
+                      ],
+                    ),
+                    trailing: IconButton(
+                      tooltip: 'Focus on this task',
+                      icon: const Icon(Icons.timer_outlined),
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute<void>(
+                          builder: (_) => FocusTimerScreen(
+                            taskTitle: task['title']?.toString(),
+                          ),
                         ),
                       ),
                     ),
                   ),
                 ),
-              ),
+            ],
           ],
         ),
       ),
