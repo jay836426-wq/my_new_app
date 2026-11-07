@@ -1,3 +1,5 @@
+import 'tutorial_screen.dart';
+import 'whats_new_screen.dart';
 import 'check_in_settings_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -115,109 +117,197 @@ class SettingsScreen extends StatelessWidget {
     Navigator.push(context, MaterialPageRoute(builder: (context) => page));
   }
 
+  Widget _group(String title, List<Widget> children) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      SettingsSectionTitle(title: title),
+      Container(
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(
+          color: const Color(0xFF191C1A),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.white10),
+        ),
+        child: Column(children: children),
+      ),
+    ],
+  );
+
   @override
   Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+    final name = user?.displayName?.trim();
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        title: const Text('⚙️ Settings'),
+        title: const Text('Account'),
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
       ),
       body: ListView(
-        padding: const EdgeInsets.only(bottom: 30),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
         children: [
-          const SettingsSectionTitle(title: 'GENERAL'),
-
-          SettingsTile(
-            icon: Icons.person,
-            title: '👤 Account',
-            onTap: () {
-              openPage(context, const AccountSettingsScreen());
-            },
-          ),
-
-          SettingsTile(
-            icon: Icons.notifications_outlined,
-            title: '🔔 Notifications',
-            onTap: () {
-              openPage(context, const CheckInSettingsScreen());
-            },
-          ),
-
-          const SettingsDivider(),
-
-          const SettingsSectionTitle(title: 'SUPPORT & INFORMATION'),
-
-          SettingsTile(
-            icon: Icons.help_outline,
-            title: '🛟 Support',
-            onTap: () {
-              openPage(context, const SupportScreen());
-            },
-          ),
-
-          SettingsTile(
-            icon: Icons.lock_outline,
-            title: '🔒 Privacy',
-            onTap: () {
-              openPage(context, const PrivacyScreen());
-            },
-          ),
-
-          SettingsTile(
-            icon: Icons.description_outlined,
-            title: '📜 Terms & Conditions',
-            onTap: () {
-              openPage(context, const TermsScreen());
-            },
-          ),
-
-          SettingsTile(
-            icon: Icons.info_outline,
-            title: 'ℹ️ About TrakOn',
-            onTap: () {
-              openPage(context, const AboutTrakOnScreen());
-            },
-          ),
-
-          const SettingsDivider(),
-
-          const SettingsSectionTitle(title: 'TRAKON'),
-
-          SettingsTile(
-            icon: Icons.ios_share_outlined,
-            title: '📤 Share TrakOn',
-            onTap: () async {
-              await SharePlus.instance.share(
-                ShareParams(
-                  title: 'TrakOn',
-                  subject: 'Check out TrakOn',
-                  text:
-                      'Check out TrakOn — a simple productivity app for tracking tasks, '
-                      'staying focused, and building consistency.\n\n'
-                      'Track. Focus. Achieve.\n\n'
-                      'Download TrakOn: https://apps.apple.com/app/id6804818478',
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: const Color(0xFF10281F),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(
+                color: Colors.greenAccent.withValues(alpha: .2),
+              ),
+            ),
+            child: Row(
+              children: [
+                const CircleAvatar(
+                  radius: 28,
+                  backgroundColor: Color(0xFF204533),
+                  child: Icon(
+                    Icons.person,
+                    color: Colors.greenAccent,
+                    size: 34,
+                  ),
                 ),
-              );
-            },
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        name == null || name.isEmpty ? 'Your account' : name,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        user?.email ??
+                            user?.phoneNumber ??
+                            'Manage your TrakOn profile',
+                        style: const TextStyle(color: Colors.white70),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
-
-          SettingsTile(
-            icon: Icons.star_outline,
-            title: '⭐ Rate TrakOn',
-            onTap: () async {
-              final reviewUrl = Uri.parse(
-                'https://apps.apple.com/app/id6804818478?action=write-review',
-              );
-
-              try {
-                final launched = await launchUrl(
-                  reviewUrl,
-                  mode: LaunchMode.externalApplication,
+          _group('PROFILE', [
+            SettingsTile(
+              icon: Icons.person,
+              title: 'Account',
+              onTap: () {
+                openPage(context, const AccountSettingsScreen());
+              },
+            ),
+          ]),
+          _group('PREFERENCES', [
+            SettingsTile(
+              icon: Icons.notifications_outlined,
+              title: 'Notifications & reminders',
+              onTap: () {
+                openPage(context, const CheckInSettingsScreen());
+              },
+            ),
+          ]),
+          _group('HELP', [
+            SettingsTile(
+              icon: Icons.help_outline,
+              title: 'Support',
+              onTap: () {
+                openPage(context, const SupportScreen());
+              },
+            ),
+            SettingsTile(
+              icon: Icons.school_outlined,
+              title: 'Tutorial',
+              onTap: () => openPage(context, const TutorialScreen()),
+            ),
+            SettingsTile(
+              icon: Icons.auto_awesome_outlined,
+              title: 'What’s New',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute<void>(
+                    builder: (pageContext) => WhatsNewScreen(
+                      onFinished: () async {
+                        Navigator.pop(pageContext);
+                      },
+                    ),
+                  ),
+                );
+              },
+            ),
+          ]),
+          _group('ABOUT & LEGAL', [
+            SettingsTile(
+              icon: Icons.info_outline,
+              title: 'About TrakOn',
+              onTap: () {
+                openPage(context, const AboutTrakOnScreen());
+              },
+            ),
+            SettingsTile(
+              icon: Icons.lock_outline,
+              title: 'Privacy',
+              onTap: () {
+                openPage(context, const PrivacyScreen());
+              },
+            ),
+            SettingsTile(
+              icon: Icons.description_outlined,
+              title: 'Terms & Conditions',
+              onTap: () {
+                openPage(context, const TermsScreen());
+              },
+            ),
+          ]),
+          _group('SHARE & RATE', [
+            SettingsTile(
+              icon: Icons.ios_share_outlined,
+              title: 'Share TrakOn',
+              onTap: () async {
+                await SharePlus.instance.share(
+                  ShareParams(
+                    title: 'TrakOn',
+                    subject: 'Check out TrakOn',
+                    text:
+                        'Check out TrakOn — a simple productivity app for tracking tasks, '
+                        'staying focused, and building consistency.\n\n'
+                        'Track. Focus. Achieve.\n\n'
+                        'Download TrakOn: https://apps.apple.com/app/id6804818478',
+                  ),
+                );
+              },
+            ),
+            SettingsTile(
+              icon: Icons.star_outline,
+              title: 'Rate TrakOn',
+              onTap: () async {
+                final reviewUrl = Uri.parse(
+                  'https://apps.apple.com/app/id6804818478?action=write-review',
                 );
 
-                if (!launched && context.mounted) {
+                try {
+                  final launched = await launchUrl(
+                    reviewUrl,
+                    mode: LaunchMode.externalApplication,
+                  );
+
+                  if (!launched && context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Ratings will be available when TrakOn is released on the App Store.',
+                        ),
+                      ),
+                    );
+                  }
+                } catch (_) {
+                  if (!context.mounted) return;
+
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
                       content: Text(
@@ -226,141 +316,127 @@ class SettingsScreen extends StatelessWidget {
                     ),
                   );
                 }
-              } catch (_) {
-                if (!context.mounted) return;
-
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                      'Ratings will be available when TrakOn is released on the App Store.',
-                    ),
-                  ),
+              },
+            ),
+          ]),
+          _group('ACCOUNT ACTIONS', [
+            ListTile(
+              leading: const Icon(Icons.logout, color: Colors.redAccent),
+              title: const Text(
+                'Sign Out',
+                style: TextStyle(color: Colors.redAccent),
+              ),
+              onTap: () async {
+                final bool? confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (dialogContext) {
+                    return AlertDialog(
+                      backgroundColor: Colors.grey[900],
+                      title: const Text(
+                        'Sign Out',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                      content: const Text(
+                        'Are you sure you want to sign out?',
+                        style: TextStyle(color: Colors.white70),
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () {
+                            Navigator.pop(dialogContext, false);
+                          },
+                          child: const Text(
+                            'Cancel',
+                            style: TextStyle(color: Colors.white70),
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            Navigator.pop(dialogContext, true);
+                          },
+                          child: const Text(
+                            'Sign Out',
+                            style: TextStyle(color: Colors.redAccent),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
                 );
-              }
-            },
-          ),
-          const SettingsDivider(),
 
-          const SettingsSectionTitle(title: 'ACCOUNT ACTIONS'),
-
-          ListTile(
-            leading: const Icon(Icons.logout, color: Colors.redAccent),
-            title: const Text(
-              '🚪 Sign Out',
-              style: TextStyle(color: Colors.redAccent),
+                if (confirm == true && context.mounted) {
+                  await signOut(context);
+                }
+              },
             ),
-            onTap: () async {
-              final bool? confirm = await showDialog<bool>(
-                context: context,
-                builder: (dialogContext) {
-                  return AlertDialog(
-                    backgroundColor: Colors.grey[900],
-                    title: const Text(
-                      'Sign Out',
-                      style: TextStyle(color: Colors.white),
-                    ),
-                    content: const Text(
-                      'Are you sure you want to sign out?',
-                      style: TextStyle(color: Colors.white70),
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed: () {
-                          Navigator.pop(dialogContext, false);
-                        },
-                        child: const Text(
-                          'Cancel',
-                          style: TextStyle(color: Colors.white70),
-                        ),
+            ListTile(
+              leading: const Icon(
+                Icons.delete_outline,
+                color: Colors.redAccent,
+              ),
+              title: const Text(
+                'Delete Account',
+                style: TextStyle(color: Colors.redAccent),
+              ),
+              onTap: () async {
+                final bool? confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (dialogContext) {
+                    return AlertDialog(
+                      backgroundColor: Colors.grey[900],
+                      title: const Text(
+                        'Delete Account',
+                        style: TextStyle(color: Colors.white),
                       ),
-                      TextButton(
-                        onPressed: () {
-                          Navigator.pop(dialogContext, true);
-                        },
-                        child: const Text(
-                          'Sign Out',
-                          style: TextStyle(color: Colors.redAccent),
-                        ),
+                      content: const Text(
+                        'Are you sure you want to delete your account?\n\n'
+                        'This will permanently delete your TrakOn account, locally saved tasks, '
+                        'preferences, streaks, and account information.\n\n'
+                        'This action cannot be undone.',
+                        style: TextStyle(color: Colors.white70, height: 1.4),
                       ),
-                    ],
-                  );
-                },
-              );
+                      actions: [
+                        TextButton(
+                          onPressed: () {
+                            Navigator.pop(dialogContext, false);
+                          },
+                          child: const Text(
+                            'Cancel',
+                            style: TextStyle(color: Colors.white70),
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            Navigator.pop(dialogContext, true);
+                          },
+                          child: const Text(
+                            'Delete Account',
+                            style: TextStyle(color: Colors.redAccent),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                );
 
-              if (confirm == true && context.mounted) {
-                await signOut(context);
-              }
-            },
-          ),
-
-          ListTile(
-            leading: const Icon(Icons.delete_outline, color: Colors.redAccent),
-            title: const Text(
-              '🗑️ Delete Account',
-              style: TextStyle(color: Colors.redAccent),
+                if (confirm == true && context.mounted) {
+                  await deleteAccount(context);
+                }
+              },
             ),
-            onTap: () async {
-              final bool? confirm = await showDialog<bool>(
-                context: context,
-                builder: (dialogContext) {
-                  return AlertDialog(
-                    backgroundColor: Colors.grey[900],
-                    title: const Text(
-                      'Delete Account',
-                      style: TextStyle(color: Colors.white),
-                    ),
-                    content: const Text(
-                      'Are you sure you want to delete your account?\n\n'
-                      'This will permanently delete your TrakOn account, locally saved tasks, '
-                      'preferences, streaks, and account information.\n\n'
-                      'This action cannot be undone.',
-                      style: TextStyle(color: Colors.white70, height: 1.4),
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed: () {
-                          Navigator.pop(dialogContext, false);
-                        },
-                        child: const Text(
-                          'Cancel',
-                          style: TextStyle(color: Colors.white70),
-                        ),
-                      ),
-                      TextButton(
-                        onPressed: () {
-                          Navigator.pop(dialogContext, true);
-                        },
-                        child: const Text(
-                          'Delete Account',
-                          style: TextStyle(color: Colors.redAccent),
-                        ),
-                      ),
-                    ],
-                  );
-                },
-              );
-
-              if (confirm == true && context.mounted) {
-                await deleteAccount(context);
-              }
-            },
-          ),
-
-          const SizedBox(height: 30),
-
+          ]),
+          const SizedBox(height: 28),
           const Center(
             child: Text(
-              'TrakOn v1.2',
-              style: TextStyle(color: Colors.grey, fontSize: 14),
+              'TrakOn 1.2.1',
+              style: TextStyle(color: Colors.white60),
             ),
           ),
-
-          const SizedBox(height: 8),
-
+          const SizedBox(height: 6),
           const Center(
             child: Text(
               'Track. Focus. Achieve.',
-              style: TextStyle(color: Colors.white38, fontSize: 12),
+              style: TextStyle(color: Colors.white38),
             ),
           ),
         ],
@@ -385,7 +461,14 @@ class SettingsTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      leading: Icon(icon, color: Colors.white),
+      leading: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: Colors.greenAccent.withValues(alpha: .08),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Icon(icon, color: Colors.greenAccent, size: 22),
+      ),
       title: Text(title, style: const TextStyle(color: Colors.white)),
       trailing: const Icon(Icons.chevron_right, color: Colors.grey),
       onTap: onTap,

@@ -1,3 +1,5 @@
+import '../services/engagement_service.dart';
+import 'goal_achievements_screen.dart';
 import '../services/account_planning_store.dart';
 
 import '../utils/planning_rules.dart';
@@ -102,6 +104,11 @@ class _InsightsScreenState extends State<InsightsScreen> {
       await store.prepareToday();
       final dates = await store.allSavedDays();
       final loadedGoals = await store.listState('goals');
+      try {
+        await EngagementService.refresh(store, historySnapshot: dates);
+      } catch (e) {
+        debugPrint('Optional recognition failed: $e');
+      }
       final restoredStreak = store.prefs.getInt('${prefix}streakCounter') ?? 0;
       if (!mounted) return;
       setState(() {
@@ -123,8 +130,15 @@ class _InsightsScreenState extends State<InsightsScreen> {
     }
   }
 
-  Future<void> saveGoals() async =>
-      (await AccountPlanningStore.current()).saveState('goals', goals);
+  Future<void> saveGoals() async {
+    final store = await AccountPlanningStore.current();
+    await store.saveState('goals', goals);
+    try {
+      await EngagementService.refresh(store, historySnapshot: tasksByDate);
+    } catch (e) {
+      debugPrint('Goal recognition refresh failed: $e');
+    }
+  }
 
   Future<void> editGoal([Map<String, dynamic>? existing]) async {
     final name = TextEditingController(
@@ -134,6 +148,9 @@ class _InsightsScreenState extends State<InsightsScreen> {
       text: existing?['target']?.toString() ?? '5',
     );
     var period = existing?['period']?.toString() ?? 'Long-term';
+    DateTime? targetDate = existing?['targetDate'] is String
+        ? parseDay(existing!['targetDate'])
+        : null;
     final result = await showDialog<Map<String, dynamic>>(
       context: context,
       builder: (c) => StatefulBuilder(
@@ -159,6 +176,7 @@ class _InsightsScreenState extends State<InsightsScreen> {
                   initialValue: period,
                   decoration: const InputDecoration(labelText: 'Goal period'),
                   items: const [
+                    DropdownMenuItem(value: 'Monthly', child: Text('Monthly')),
                     DropdownMenuItem(
                       value: 'Long-term',
                       child: Text('Long-term'),
@@ -170,10 +188,37 @@ class _InsightsScreenState extends State<InsightsScreen> {
                   ],
                   onChanged: (v) => update(() => period = v ?? 'Long-term'),
                 ),
+                if (period == 'Long-term')
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Optional target date'),
+                    subtitle: Text(
+                      targetDate == null ? 'No deadline' : dayKey(targetDate!),
+                    ),
+                    trailing: targetDate == null
+                        ? const Icon(Icons.event)
+                        : IconButton(
+                            icon: const Icon(Icons.clear),
+                            onPressed: () => update(() => targetDate = null),
+                          ),
+                    onTap: () async {
+                      final selected = await showDatePicker(
+                        context: c,
+                        initialDate: targetDate ?? DateTime.now(),
+                        firstDate: DateTime(2000),
+                        lastDate: DateTime(2100),
+                      );
+                      if (selected != null && c.mounted) {
+                        update(() => targetDate = selected);
+                      }
+                    },
+                  ),
                 const SizedBox(height: 12),
                 Text(
                   period == 'Weekly'
                       ? 'Progress starts a new period every Sunday. Task history stays intact.'
+                      : period == 'Monthly'
+                      ? 'Progress starts a new period on the first of each month. History stays intact.'
                       : 'Count linked task completions until you reset this goal.',
                 ),
               ],
@@ -197,6 +242,9 @@ class _InsightsScreenState extends State<InsightsScreen> {
                   'title': name.text.trim(),
                   'target': count,
                   'period': period,
+                  'targetDate': period == 'Long-term' && targetDate != null
+                      ? dayKey(targetDate!)
+                      : null,
                 });
               },
               child: const Text('Save'),
@@ -242,6 +290,16 @@ class _InsightsScreenState extends State<InsightsScreen> {
       ),
     );
     if (confirmed != true || !mounted) return;
+    try {
+      await EngagementService.refresh(
+        await AccountPlanningStore.current(),
+        notifications: false,
+        historySnapshot: tasksByDate,
+      );
+    } catch (e) {
+      debugPrint('Could not archive achievements: $e');
+      return;
+    }
     setState(() {
       goal['resetBaseline'] = goalResetBaseline(goal, tasksByDate);
       goal['resetAt'] = DateTime.now().toIso8601String();
@@ -599,6 +657,16 @@ class _InsightsScreenState extends State<InsightsScreen> {
                   style: const TextStyle(color: Colors.white54, fontSize: 12),
                 ),
                 const SizedBox(height: 12),
+                TextButton.icon(
+                  icon: const Icon(Icons.emoji_events_outlined),
+                  label: const Text('View achievement history'),
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute<void>(
+                      builder: (_) => const GoalAchievementsScreen(),
+                    ),
+                  ),
+                ),
                 if (goals.isEmpty)
                   const Text(
                     'Add a goal, then link tasks to it when creating or editing them.',
@@ -643,6 +711,11 @@ class _InsightsScreenState extends State<InsightsScreen> {
                                 '${goal['period'] ?? 'Long-term'} • $count of $target linked tasks completed',
                                 style: const TextStyle(color: Colors.white70),
                               ),
+                              if (goal['targetDate'] is String)
+                                Text(
+                                  'Target: ${goal['targetDate']}',
+                                  style: const TextStyle(color: Colors.white60),
+                                ),
                               const SizedBox(height: 6),
                               LinearProgressIndicator(
                                 value: (count / target)

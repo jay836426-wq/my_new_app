@@ -1,3 +1,5 @@
+import '../utils/motivational_quotes.dart';
+import '../services/engagement_service.dart';
 import '../widgets/home_mood_card.dart';
 import 'mood_check_in_screen.dart';
 import 'check_in_settings_screen.dart';
@@ -77,282 +79,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   String selectedFilter = 'All';
 
   // List of daily motivational quotes
-  final List<String> motivationalQuotes = [
-    'Small progress is still progress.',
-    'Stay focused. Your goals are worth it.',
-    'Discipline today creates freedom tomorrow.',
-    'You do not have to be perfect. Just keep moving.',
-    'Success starts with showing up.',
-    'One task at a time. One day at a time.',
-    'Your future is built by what you do today.',
-    'Keep going. You are closer than you think.',
-    'Consistency beats motivation.',
-    'Focus on progress, not perfection.',
-    'Dream big. Start small. Act now.',
-    'Every task completed is a step forward.',
-    'The hardest part is getting started.',
-    'Great things take time.',
-    'You are stronger than yesterday.',
-    'Win the day.',
-    'Progress compounds over time.',
-    'Your habits shape your future.',
-    'Keep promises to yourself.',
-    'Action beats intention.',
-    'Believe in your ability to grow.',
-    'Do something today your future self will thank you for.',
-    'A little progress every day adds up.',
-    'Stay patient and trust the process.',
-    'Success is built on consistency.',
-    'The only bad workout is the one you did not do.',
-    'Start where you are. Use what you have.',
-    'Momentum starts with one step.',
-    'Hard work always leaves a mark.',
-    'Be better than yesterday.',
-    'Success comes from daily discipline.',
-    'Done is better than perfect.',
-    'Every accomplishment begins with a decision to try.',
-    'Focus creates results.',
-    'You are capable of amazing things.',
-    'Do not stop until you are proud.',
-    'Your only competition is who you were yesterday.',
-    'Keep your eyes on the goal.',
-    'Little victories lead to big wins.',
-    'Every day is a new opportunity.',
-    'Build the life you want one task at a time.',
-    'The effort you make today pays off tomorrow.',
-    'Stay committed even when motivation fades.',
-    'Progress requires patience.',
-    'Your consistency will become your success.',
-    'Take the next step. Then another.',
-    'Success is earned, not given.',
-    'Finish what you started.',
-    'Keep moving forward.',
-    'To learn to succeed, you must learn how to fail.',
-    'The moment you give up is the moment you let someone else win.',
-    'Don’t count the days, make the days count.',
-    'Success begins with one decision.',
-    'Stay hungry for improvement.',
-    'Every step forward matters.',
-    'Discipline outlasts motivation.',
-    'Make today count.',
-    'Growth happens outside your comfort zone.',
-    'The best investment is in yourself.',
-    'Choose progress over excuses.',
-    'Your dreams deserve your effort.',
-    'One more rep. One more task. One more win.',
-    'Build habits that build your future.',
-    'The grind is temporary. The results are lasting.',
-    'Turn your goals into daily actions.',
-    'Stay consistent when no one is watching.',
-    'Nothing changes if nothing changes.',
-    'Show up even on the hard days.',
-    'You become what you repeatedly do.',
-    'Small victories create big transformations.',
-    'Keep your standards high.',
-    'The work you avoid is often the work you need most.',
-    'Progress starts with action.',
-    'Your future self is counting on you.',
-    'Every day is another chance to improve.',
-    'Keep building, even if it is one brick at a time.',
-    'Greatness is earned daily.',
-    'Trust your journey.',
-    'Make discipline your superpower.',
-    'Push through the discomfort.',
-    'Stay committed to your vision.',
-    "Today's effort becomes tomorrow's success.",
-    'The only shortcut is consistency.',
-    'Be proud of every step you take.',
-    'Focus on what you can control.',
-    'Hard work compounds over time.',
-    'Do something today that scares you.',
-    'Winners master the basics.',
-    'Every challenge is an opportunity to grow.',
-    'Stay patient. Progress is happening.',
-    'Outwork your excuses.',
-    'Success is a collection of small wins.',
-    'Keep climbing. The view is worth it.',
-    'Believe in your potential.',
-    'Turn setbacks into comebacks.',
-    'One disciplined day leads to another.',
-    'Do the work even when you do not feel like it.',
-    'Nothing worthwhile comes easy.',
-    'Keep improving your best.',
-    'Momentum comes from action.',
-    'Do not let fear make your decisions.',
-    'Success rewards consistency.',
-    'The first step changes everything.',
-    'Train your mind to stay focused.',
-    'Keep chasing excellence.',
-    'You are capable of more than you realize.',
-    'The strongest habits create the strongest future.',
-    'Make progress impossible to ignore.',
-    'Keep your promises to yourself.',
-    'Your goals deserve your best effort.',
-    'Every day is Day One.',
-    'Stay focused on your purpose.',
-    'The process creates the outcome.',
-    'Discipline wins when motivation disappears.',
-    'Keep learning. Keep growing.',
-    'Success favors those who prepare.',
-    'Never settle for average.',
-    'The best time to start is now.',
-    'Your effort is never wasted.',
-    'One positive choice changes your day.',
-    'The climb builds your character.',
-    'Push yourself because no one else can do it for you.',
-    'Stay strong through the struggle.',
-    'Growth is built one decision at a time.',
-    'Keep aiming higher.',
-    'The finish line belongs to those who keep moving.',
-    'Every task completed builds confidence.',
-    'Be relentless in your pursuit of improvement.',
-    'Take pride in your discipline.',
-    'Your consistency is your competitive advantage.',
-    'The goal is progress, not perfection.',
-    'Every accomplishment starts with belief.',
-    'You are writing your future today.',
-    'Focus creates momentum.',
-    'Hard days build stronger people.',
-    'Keep your eyes on the bigger picture.',
-    'Your actions define your future.',
-    'Be the person your goals require.',
-    'Keep earning your confidence.',
-    'You are stronger than your excuses.',
-    'Every hour invested matters.',
-    'Stay committed to becoming better.',
-    'Do not fear slow progress.',
-    "The next level demands today's effort.",
-    'Consistency creates confidence.',
-    'Win your morning, win your day.',
-    'Take action before you feel ready.',
-    'Every challenge strengthens your character.',
-    'Keep moving even when progress feels slow.',
-    'Great achievements start with small actions.',
-    'Success follows preparation.',
-    'You are one decision away from a better future.',
-    'Finish strong every day.',
-    "Today's discipline creates tomorrow's opportunities.",
-    'A clear next step is more useful than a perfect plan.',
-    'Give your most important task a place in your day.',
-    'Start with five minutes and see where it takes you.',
-    'You can begin again without starting from zero.',
-    'A focused minute is a minute well spent.',
-    'Leave room in your day for what matters to you.',
-    'Make the next step small enough to take today.',
-    'Your pace can change while your direction stays steady.',
-    'A plan becomes useful when you put it into practice.',
-    'Let a small win set the tone for your day.',
-    'Write it down, then take one step toward it.',
-    'Return to your goal as often as you need to.',
-    'A fresh start can happen in the middle of the day.',
-    'Choose one thing to finish before choosing the next.',
-    'Give yourself credit for the work you actually did.',
-    'A quieter day can still be a productive day.',
-    'Make time for the habits you want to keep.',
-    'You can do meaningful work in small pockets of time.',
-    'Let your calendar reflect your priorities.',
-    'Checking in with yourself is part of making progress.',
-    'Your next action does not need to be a big one.',
-    'Protect a little time for your biggest goal.',
-    'Keep your plan simple enough to follow.',
-    'Getting back on track is a skill you can practice.',
-    'The task in front of you deserves your attention.',
-    'Build a routine that fits the life you have.',
-    'A realistic plan is a strong foundation.',
-    'Celebrate the steps you used to put off.',
-    'Set a direction, then give yourself time to move.',
-    'You do not need a perfect morning to have a good day.',
-    'One finished task can clear space in your mind.',
-    'Let your next choice support what matters most.',
-    'Make a little room for learning today.',
-    'A thoughtful pause can help you choose your next step.',
-    'Keep going at a pace you can sustain.',
-    'Let a clear priority guide a busy day.',
-    'You are allowed to adjust the plan and keep the goal.',
-    'A useful habit starts with something repeatable.',
-    'There is value in finishing the simple things.',
-    'Turn one someday into something you do today.',
-    'You can be ambitious and patient at the same time.',
-    'Give your attention to the step you can take now.',
-    'Make your goals easier to act on, one detail at a time.',
-    'A small promise kept can strengthen your confidence.',
-    'You have permission to start before everything is ready.',
-    'Look for the next useful action, not the perfect moment.',
-    'Good routines leave space for real life.',
-    'A little preparation can make tomorrow easier.',
-    'Choose a task that moves your day forward.',
-    'Take a breath, check your plan, and begin.',
-    'Time spent practicing is time spent growing.',
-    'Let completed tasks remind you of what you can do.',
-    'You can make progress without doing everything at once.',
-    'A steady rhythm is built one day at a time.',
-    'Work toward a day you can feel good about.',
-    'Focus is something you can return to.',
-    'Make the important things easier to remember.',
-    'Break a big goal into a step you can finish.',
-    'The next chapter begins with the next action.',
-    'Leave yourself a clear starting point for tomorrow.',
-    'You can learn from a missed day and move forward.',
-    'A manageable task is an invitation to begin.',
-    'Give your ideas a chance by taking action.',
-    'Let your effort match your priorities.',
-    'Keep a little space for the unexpected.',
-    'Build confidence through promises you can keep.',
-    'Make today a little easier for your future self.',
-    'A clear list can turn worry into a next step.',
-    'Your progress deserves attention, even when it is quiet.',
-    'Finish one thing with care today.',
-    'Create a routine you can return to after a busy week.',
-    'Your goals can grow as you learn.',
-    'Small steps are easier to repeat than giant leaps.',
-    'Bring your attention back to what you chose to do.',
-    'A new day is a chance to practice again.',
-    'Plan for the energy you have, then take a useful step.',
-    'You can change your approach without giving up.',
-    'A good system helps you show up on ordinary days.',
-    'Notice what worked and do a little more of it.',
-    'Progress includes learning how to begin again.',
-    'Give yourself a task you can complete with confidence.',
-    'Keep your next step visible.',
-    'Choose a little action over a little more hesitation.',
-    'You can simplify the plan and still move forward.',
-    'Your attention is worth protecting.',
-    'Set aside a moment to recognize a win.',
-    'Make room for both effort and recovery.',
-    'A useful day begins with an intentional choice.',
-    'Let your goals guide you without rushing you.',
-    'You can make a difference in the time you have.',
-    'Move one important task from planned to done.',
-    'A flexible plan is easier to keep using.',
-    'Create momentum with something you can finish now.',
-    'Start again with what you have learned.',
-    'The work you finish today gives tomorrow a clearer start.',
-    'Give your day one clear intention.',
-    'A little order can make space for a little creativity.',
-    'Keep making choices that support the life you want.',
-    'You are building something with every thoughtful step.',
-    'Your next small win is worth starting.',
-    "One small task can turn your whole day around.",
-    "You don’t need a perfect day to make progress.",
-    "Make the next step small enough to start.",
-    "Your pace can change. Your progress still counts.",
-    "A fresh start can happen at any hour.",
-    "Give yourself credit for the things nobody sees.",
-    "Today’s effort is something tomorrow can build on.",
-    "Do one thing your future self will appreciate.",
-    "A missed day doesn’t erase the work you’ve done.",
-    "You can feel unsure and still take the next step.",
-    "Leave room in your plans for being human.",
-    "Start with what matters most, even for five minutes.",
-    "Rest can be part of a productive day.",
-    "Let your checklist guide you, not judge you.",
-    "Some days, showing up takes the most effort.",
-    "Choose a goal that feels like yours.",
-    "You’re allowed to adjust the plan as you learn.",
-    "Finishing one thing is a good place to begin.",
-    "Build a routine you can return to after a hard day.",
-    "Track the progress. Notice the effort. Keep going.",
-  ];
 
   // Stores dynamic username for login
   String userName = 'User';
@@ -770,6 +496,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       _scheduleMidnightRefresh();
       try {
         await CheckInService.apply(_store);
+        await _refreshEngagement();
       } catch (error) {
         debugPrint('Could not refresh optional check-ins: $error');
       }
@@ -825,6 +552,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     } catch (e) {
       debugPrint('Mood reminder refresh failed: $e');
     }
+    await _refreshEngagement();
     if (mounted) setState(() {});
   }
 
@@ -941,6 +669,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       if (!mounted) return;
       await loadTasksForSelectedDate();
       await refreshDailyTaskNotifications();
+      await _refreshEngagement();
       if (!mounted) return;
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
@@ -955,6 +684,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 if (!mounted) return;
                 await loadTasksForSelectedDate();
                 await refreshAllRecurringReminders();
+                await _refreshEngagement();
                 await handleTaskStatusNotifications(task);
               } catch (_) {
                 if (mounted) {
@@ -986,6 +716,128 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
   }
 
+  Future<void> _refreshEngagement() async {
+    try {
+      await EngagementService.refresh(_store);
+    } catch (e) {
+      debugPrint('Optional encouragement refresh failed: $e');
+    }
+  }
+
+  final Set<String> _statusActions = {};
+  Future<void> _setTaskStatus(TaskData task, String status) async {
+    final id = taskIdentity(task);
+    if (_statusActions.contains(id) || !tasks.contains(task)) return;
+    setState(() {
+      _statusActions.add(id);
+      task['previousStatus'] = task['status'] ?? 'Not Started';
+      task['status'] = status;
+      task['completed'] = status == 'Complete';
+    });
+    try {
+      await saveTasks();
+      await handleTaskStatusNotifications(task);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Could not finish saving. Please reopen this task and retry.',
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _statusActions.remove(id));
+    }
+  }
+
+  Widget _activeTasksCard() {
+    final active = tasks
+        .where((t) => !isTaskComplete(t) && t['status'] == 'In Progress')
+        .toList();
+    if (active.isEmpty || !isViewingToday()) return const SizedBox.shrink();
+    return Container(
+      margin: const EdgeInsets.only(bottom: 24),
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: const Color(0xFF2A2111),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.amber.withValues(alpha: .3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'IN PROGRESS',
+            style: TextStyle(
+              color: Colors.amber,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1.2,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'One step at a time. Keep going when you are ready.',
+            style: TextStyle(color: Colors.white70),
+          ),
+          for (final task in active) ...[
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(
+                Icons.play_circle_outline,
+                color: Colors.amber,
+              ),
+              title: Text(
+                task['title']?.toString() ?? 'Task',
+                style: const TextStyle(color: Colors.white),
+              ),
+              subtitle: Text(
+                taskSubtasks(task).isEmpty
+                    ? 'In progress'
+                    : '${taskSubtasks(task).where((s) => s['completed'] == true).length} of ${taskSubtasks(task).length} steps completed',
+                style: const TextStyle(color: Colors.white70),
+              ),
+              onTap: () => showTaskDetails(task),
+            ),
+            Wrap(
+              spacing: 8,
+              runSpacing: 4,
+              children: [
+                TextButton.icon(
+                  icon: const Icon(Icons.timer_outlined),
+                  label: const Text('Continue focusing'),
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute<void>(
+                      builder: (_) => FocusTimerScreen(
+                        taskTitle: task['title']?.toString(),
+                      ),
+                    ),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () => showTaskDetails(task),
+                  child: Text(
+                    taskSubtasks(task).isEmpty
+                        ? 'View details'
+                        : 'Update subtasks',
+                  ),
+                ),
+                TextButton(
+                  onPressed: _statusActions.contains(taskIdentity(task))
+                      ? null
+                      : () => _setTaskStatus(task, 'Complete'),
+                  child: const Text('Mark complete'),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   void showTaskDetails(Map<String, dynamic> task) {
     final date = selectedTaskDate;
     showModalBottomSheet<void>(
@@ -1013,6 +865,49 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     child: Text(task['description'].toString()),
                   ),
                 Text('Status: ${task['status'] ?? 'Not Started'}'),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    if (!isTaskComplete(task))
+                      FilledButton.icon(
+                        icon: Icon(
+                          task['status'] == 'In Progress'
+                              ? Icons.check
+                              : Icons.play_arrow,
+                        ),
+                        label: Text(
+                          task['status'] == 'In Progress'
+                              ? 'Mark complete'
+                              : 'Start task',
+                        ),
+                        onPressed: _statusActions.contains(taskIdentity(task))
+                            ? null
+                            : () async {
+                                if (selectedTaskDate != date) return;
+                                await _setTaskStatus(
+                                  task,
+                                  task['status'] == 'In Progress'
+                                      ? 'Complete'
+                                      : 'In Progress',
+                                );
+                                if (sheetContext.mounted) update(() {});
+                              },
+                      ),
+                    if (task['status'] == 'In Progress')
+                      TextButton(
+                        onPressed: _statusActions.contains(taskIdentity(task))
+                            ? null
+                            : () async {
+                                if (selectedTaskDate != date) return;
+                                await _setTaskStatus(task, 'Not Started');
+                                if (sheetContext.mounted) update(() {});
+                              },
+                        child: const Text('Return to Not started'),
+                      ),
+                  ],
+                ),
                 Text('Category: ${task['category'] ?? 'Personal'}'),
                 if (task['priority'] != null)
                   Text('Priority: ${task['priority']}'),
@@ -1138,15 +1033,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         ? DateTime.now()
         : parseDateKey(selectedTaskDate);
 
-    final dayNumber = DateTime.utc(
-      selectedDate.year,
-      selectedDate.month,
-      selectedDate.day,
-    ).difference(DateTime.utc(2020, 1, 1)).inDays;
-
-    final quoteIndex = dayNumber % motivationalQuotes.length;
-
-    return motivationalQuotes[quoteIndex];
+    return quoteForDay(selectedDate);
   }
 
   @override
@@ -1276,6 +1163,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       'lastCompletedDate': lastCompletedDate,
     });
     if (mounted && isViewingToday()) await refreshDailyTaskNotifications();
+    await _refreshEngagement();
   }
 
   Future<void> loadTasks() async {
@@ -3893,6 +3781,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     if (mounted) setState(() {});
                   },
                 ),
+              _activeTasksCard(),
               // Daily motivational quote card
               Container(
                 width: double.infinity,

@@ -1,3 +1,5 @@
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest.dart' as tz;
@@ -104,6 +106,19 @@ class NotificationService {
     return safeTaskId * 100;
   }
 
+  static Future<bool> _replacedByEncouragement(int id) async {
+    if (id != motivationalNotificationId && id != streakNotificationId) {
+      return false;
+    }
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return false;
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool('${uid}_engagementEnabled') != true) return false;
+    return id == motivationalNotificationId
+        ? prefs.getBool('${uid}_engagementMorning') == true
+        : (prefs.getBool('${uid}_engagementRecognition') ?? true);
+  }
+
   // Shows a notification immediately.
   static Future<void> showNotification({
     required int id,
@@ -111,6 +126,7 @@ class NotificationService {
     required String body,
     String? payload,
   }) async {
+    if (await _replacedByEncouragement(id)) return;
     await notificationsPlugin.show(
       id: id,
       title: title,
@@ -129,6 +145,10 @@ class NotificationService {
     String? payload,
     DateTimeComponents? matchDateTimeComponents,
   }) async {
+    if (await _replacedByEncouragement(id)) {
+      await cancelNotification(id);
+      return;
+    }
     if (scheduledTime.isBefore(DateTime.now())) {
       debugPrint('Notification $id was not scheduled because its time passed.');
       return;
@@ -324,6 +344,7 @@ class NotificationService {
         'Small progress is still progress. Stay focused and keep moving.',
   }) async {
     await notificationsPlugin.cancel(id: motivationalNotificationId);
+    if (await _replacedByEncouragement(motivationalNotificationId)) return;
 
     final tz.TZDateTime now = tz.TZDateTime.now(tz.local);
 

@@ -249,9 +249,15 @@ int goalProgress(
   Map<String, List<TaskData>> history,
   DateTime now,
 ) {
-  final start = goal['period'] == 'Weekly' ? sundayOf(now) : null;
+  final start = goal['period'] == 'Weekly'
+      ? sundayOf(now)
+      : goal['period'] == 'Monthly'
+      ? DateTime(now.year, now.month, 1)
+      : null;
   final end = start == null
       ? null
+      : goal['period'] == 'Monthly'
+      ? DateTime(start.year, start.month + 1, 1)
       : DateTime(start.year, start.month, start.day + 7);
   final baseline = (goal['resetBaseline'] as Map? ?? {})
       .cast<String, dynamic>();

@@ -1,3 +1,5 @@
+import 'encouragement_settings_screen.dart';
+import '../services/engagement_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 
@@ -51,6 +53,7 @@ class _CheckInSettingsScreenState extends State<CheckInSettingsScreen> {
         }
       }
       await CheckInService.apply(_store!);
+      await EngagementService.refresh(_store!);
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -104,8 +107,9 @@ class _CheckInSettingsScreenState extends State<CheckInSettingsScreen> {
                     height: 216,
                     child: CupertinoDatePicker(
                       mode: CupertinoDatePickerMode.time,
-                      use24hFormat: MediaQuery.of(context)
-                          .alwaysUse24HourFormat,
+                      use24hFormat: MediaQuery.of(
+                        context,
+                      ).alwaysUse24HourFormat,
                       initialDateTime: DateTime(
                         2026,
                         1,
@@ -176,8 +180,29 @@ class _CheckInSettingsScreenState extends State<CheckInSettingsScreen> {
                     );
                     if (mounted) {
                       await CheckInService.apply(s);
+                      await EngagementService.refresh(s);
                       setState(() {});
                     }
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(
+                    Icons.auto_awesome_outlined,
+                    color: Colors.greenAccent,
+                  ),
+                  title: const Text('Motivation, recognition & task check-ins'),
+                  subtitle: const Text(
+                    'Morning quotes, progress celebrations and quiet hours',
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () async {
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute<void>(
+                        builder: (_) => const EncouragementSettingsScreen(),
+                      ),
+                    );
+                    if (mounted) setState(() {});
                   },
                 ),
                 const Padding(
