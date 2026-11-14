@@ -154,16 +154,7 @@ class _FocusTimerScreenState extends State<FocusTimerScreen>
     String body,
   ) async {
     final plugin = NotificationService.notificationsPlugin;
-    final before = await plugin.pendingNotificationRequests();
-    if (before.length >= 60) {
-      // Make room using only the optional encouragement planner's reserved IDs.
-      // Never discard scheduled task, mood or another timer alert here.
-      for (final pending in before) {
-        if (pending.id >= 9010000 && pending.id <= 9010040) {
-          await NotificationService.cancelNotification(pending.id);
-        }
-      }
-    }
+    // The shared scheduler reserves timer space without deleting check-ins.
     await NotificationService.scheduleNotification(
       id: id,
       title: title,

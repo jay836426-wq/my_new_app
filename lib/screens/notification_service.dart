@@ -1,3 +1,7 @@
+import 'dart:convert';
+
+import '../utils/notification_queue.dart';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/foundation.dart';
@@ -154,16 +158,18 @@ class NotificationService {
       return;
     }
 
-    await notificationsPlugin.zonedSchedule(
-      id: id,
-      title: title,
-      body: body,
-      scheduledDate: tz.TZDateTime.from(scheduledTime, tz.local),
-      notificationDetails: _notificationDetails(),
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      payload: payload,
-      matchDateTimeComponents: matchDateTimeComponents,
-    );
+    await _queueUpdate(() async {
+      await _loadQueue();
+      _planned[id] = PlannedAlert(
+        id: id,
+        title: title,
+        body: body,
+        at: scheduledTime,
+        payload: payload,
+        repeat: matchDateTimeComponents?.name,
+      );
+      await _reconcileQueue(changedId: id);
+    });
 
     debugPrint('Scheduled notification $id for $scheduledTime.');
   }
@@ -242,11 +248,11 @@ class NotificationService {
 
     // Cancels the normal reminder and up to 10 repeated reminders.
     for (int offset = 0; offset <= 10; offset++) {
-      await notificationsPlugin.cancel(id: baseId + offset);
+      await cancelNotification(baseId + offset);
     }
 
     // Cancels the missed-task reminder.
-    await notificationsPlugin.cancel(id: baseId + 20);
+    await cancelNotification(baseId + 20);
 
     debugPrint('Cancelled notifications for task $taskId.');
   }
@@ -263,7 +269,7 @@ class NotificationService {
     required DateTime scheduledTime,
     required int remainingTaskCount,
   }) async {
-    await notificationsPlugin.cancel(id: dailySummaryNotificationId);
+    await cancelNotification(dailySummaryNotificationId);
 
     if (remainingTaskCount <= 0) {
       debugPrint('Daily summary was not scheduled because no tasks remain.');
@@ -291,7 +297,7 @@ class NotificationService {
     required DateTime scheduledTime,
     required int remainingTaskCount,
   }) async {
-    await notificationsPlugin.cancel(id: endOfDayNotificationId);
+    await cancelNotification(endOfDayNotificationId);
 
     if (remainingTaskCount <= 0) {
       debugPrint(
@@ -343,7 +349,7 @@ class NotificationService {
     String message =
         'Small progress is still progress. Stay focused and keep moving.',
   }) async {
-    await notificationsPlugin.cancel(id: motivationalNotificationId);
+    await cancelNotification(motivationalNotificationId);
     if (await _replacedByEncouragement(motivationalNotificationId)) return;
 
     final tz.TZDateTime now = tz.TZDateTime.now(tz.local);
@@ -362,17 +368,11 @@ class NotificationService {
       nextNotification = nextNotification.add(const Duration(days: 1));
     }
 
-    await notificationsPlugin.zonedSchedule(
+    await scheduleNotification(
       id: motivationalNotificationId,
       title: 'Your TrakOn Motivation',
       body: message,
-      scheduledDate: nextNotification,
-      notificationDetails: _notificationDetails(
-        channelId: 'motivation_channel',
-        channelName: 'Motivational Notifications',
-        channelDescription: 'Daily motivation and productivity messages',
-      ),
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      scheduledTime: nextNotification,
       matchDateTimeComponents: DateTimeComponents.time,
       payload: 'motivation',
     );
@@ -384,7 +384,7 @@ class NotificationService {
 
   // Cancels the recurring motivational notification.
   static Future<void> cancelDailyMotivationalNotification() async {
-    await notificationsPlugin.cancel(id: motivationalNotificationId);
+    await cancelNotification(motivationalNotificationId);
   }
 
   // ---------------------------------------------------------------------------
@@ -409,9 +409,9 @@ class NotificationService {
   // Shows a notification when every task for the day is complete.
   static Future<void> showDayCompletedNotification() async {
     // An end-of-day reminder is no longer needed.
-    await notificationsPlugin.cancel(id: dailySummaryNotificationId);
+    await cancelNotification(dailySummaryNotificationId);
 
-    await notificationsPlugin.cancel(id: endOfDayNotificationId);
+    await cancelNotification(endOfDayNotificationId);
 
     await showNotification(
       id: dayCompletedNotificationId,
@@ -487,13 +487,117 @@ class NotificationService {
     return notificationsPlugin.pendingNotificationRequests();
   }
 
-  // Cancels one specific notification.
-  static Future<void> cancelNotification(int id) async {
-    await notificationsPlugin.cancel(id: id);
+  static const _queueKey = 'notificationPlansV15';
+  static final Map<int, PlannedAlert> _planned = {};
+  static Future<void> _queueTail = Future.value();
+  static bool _queueLoaded = false;
+  static Future<void> _queueUpdate(Future<void> Function() action) {
+    final next = _queueTail.catchError((Object _) {}).then((_) => action());
+    _queueTail = next;
+    return next;
   }
 
-  // Cancels every pending notification.
-  static Future<void> cancelAllNotifications() async {
-    await notificationsPlugin.cancelAll();
+  static Future<void> _loadQueue() async {
+    if (_queueLoaded) return;
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_queueKey);
+    if (raw != null) {
+      for (final v in jsonDecode(raw) as List) {
+        final a = PlannedAlert.fromJson(Map<String, dynamic>.from(v as Map));
+        _planned[a.id] = a;
+      }
+    }
+    _queueLoaded = true;
   }
+
+  static Future<void> _reconcileQueue({int? changedId}) async {
+    final now = DateTime.now();
+    final native = await notificationsPlugin.pendingNotificationRequests();
+    final nativeIds = native.map((a) => a.id).toSet();
+    final expired = _planned.values
+        .where((a) => a.repeat == null && !a.at.isAfter(now))
+        .map((a) => a.id)
+        .toList();
+    for (final id in expired) {
+      // Cancel only if still pending; leave already-delivered banners alone.
+      if (nativeIds.contains(id)) await notificationsPlugin.cancel(id: id);
+      _planned.remove(id);
+    }
+    final unknown = nativeIds
+        .where((id) => !_planned.containsKey(id) && !expired.contains(id))
+        .length;
+    final selected = chooseQueuedAlerts(
+      _planned.values.toList(),
+      now,
+      unknownCount: unknown,
+    );
+    final wanted = selected.map((a) => a.id).toSet();
+    for (final id in nativeIds) {
+      if (_planned.containsKey(id) && !wanted.contains(id)) {
+        await notificationsPlugin.cancel(id: id);
+      }
+    }
+    final prefs = await SharedPreferences.getInstance();
+    if (!await prefs.setString(
+      _queueKey,
+      jsonEncode(_planned.values.map((a) => a.toJson()).toList()),
+    )) {
+      throw StateError('Could not save notification schedule');
+    }
+    for (final a in selected) {
+      if (nativeIds.contains(a.id) && a.id != changedId) continue;
+      // Replacement is required when an existing reminder changes time/body.
+      final component = a.repeat == null
+          ? null
+          : DateTimeComponents.values.byName(a.repeat!);
+      var at = a.at;
+      if (component != null && !at.isAfter(now)) {
+        final local = at.toLocal();
+        var day = DateTime(
+          now.year,
+          now.month,
+          now.day,
+          local.hour,
+          local.minute,
+        );
+        while (!day.isAfter(now) ||
+            component == DateTimeComponents.dayOfWeekAndTime &&
+                day.weekday != local.weekday) {
+          day = DateTime(
+            day.year,
+            day.month,
+            day.day + 1,
+            local.hour,
+            local.minute,
+          );
+        }
+        at = day;
+      }
+      await notificationsPlugin.zonedSchedule(
+        id: a.id,
+        title: a.title,
+        body: a.body,
+        scheduledDate: tz.TZDateTime.from(at, tz.local),
+        notificationDetails: _notificationDetails(),
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        payload: a.payload,
+        matchDateTimeComponents: component,
+      );
+    }
+  }
+
+  static Future<void> cancelNotification(int id) => _queueUpdate(() async {
+    await _loadQueue();
+    _planned.remove(id);
+    await notificationsPlugin.cancel(id: id);
+    await _reconcileQueue();
+  });
+
+  static Future<void> cancelAllNotifications() => _queueUpdate(() async {
+    await _loadQueue();
+    _planned.clear();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_queueKey);
+    await notificationsPlugin.cancelAll();
+  });
 }

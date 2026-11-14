@@ -206,12 +206,8 @@ class EngagementService {
       (key, value) => DateTime.tryParse(value.toString())?.isAfter(now) ?? true,
     );
     var id = base;
-    var capacity =
-        (50 -
-                (await NotificationService.notificationsPlugin
-                        .pendingNotificationRequests())
-                    .length)
-            .clamp(0, 50);
+    // Plan candidates here; the shared native queue reserves check-in space.
+    var capacity = 39;
 
     final used = <String, int>{};
     int usedOn(String day) =>
@@ -343,7 +339,7 @@ class EngagementService {
               : 'Your evening reflection',
           body: body,
           scheduledTime: at,
-          payload: 'encouragement',
+          payload: 'encouragement:$kind',
         );
         used[key] = usedOn(key) + 1;
         capacity--;

@@ -495,6 +495,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       });
       _scheduleMidnightRefresh();
       try {
+        // Remove legacy unbounded recurring requests before sharing queue space.
+        for (final template in await loadRecurringTasks()) {
+          await cancelRecurringReminders(template);
+        }
         await CheckInService.apply(_store);
         await _refreshEngagement();
       } catch (error) {
