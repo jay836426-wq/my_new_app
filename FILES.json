@@ -1,62 +1,32 @@
 [
   {
-    "path": "lib/screens/check_in_settings_screen.dart",
-    "sha256": "0530de0932c3ab58f0b3bf4d9ce02972e312b8e88b499577db63ab6e4e93a305",
-    "base_sha256": "1cb2c313a7b7cd20d89bf704e0849b1d4bb3a7544ef753a06196febf38858ddd"
+    "path": "lib/screens/focus_timer_screen.dart",
+    "before": "b034fb1e13ef9895a6833378a8008e07c888c19f88d07e57fefacd96b585864f",
+    "after": "921e861abc9b4035bea2fedb44c2b67c3c74ba0e0912596d279acc3c20033236"
   },
   {
     "path": "lib/screens/home_screen.dart",
-    "sha256": "4597cb2591a049277d24c73039a93d3ca67bce1ed8fcbfb498fa7e2c46c149a2",
-    "base_sha256": "b838ceee42081be4786dedca9704804ae317325a11da1b56148f6db747a0bfde"
+    "before": "dbdc03df24e20b646a364b963fb97b31c0e540b004ce90b84d6964ca5e04aaaf",
+    "after": "b0f0d637a1b43224c873de9f65b1e0e083c64b518f7f54e57aa2f36241f57751"
   },
   {
-    "path": "lib/screens/main_navigation_screen.dart",
-    "sha256": "5546cde0ef9eabaf8fa0582e508643cd59e3cd61730d0f7d05ddc90bd9f396f2",
-    "base_sha256": "44969612f6ea22d131d20326dc3dcde54282a58c8553f9c481558cc5c6e15cd3"
+    "path": "lib/screens/notification_service.dart",
+    "before": "7af686e07f9c2aabd8506b7c56751611b7e58d2fcee1cac058abdfde78b16a27",
+    "after": "794128926032dff1c1dd023795d5b98d03bccfea1320d63011c86736deb6fb0e"
   },
   {
-    "path": "lib/screens/mood_check_in_screen.dart",
-    "sha256": "798e655a0a670265be839bfe9bf9c60c84ec5696c267156e8bc24b402eaf3fb7",
-    "base_sha256": "3675c0b5632f58901f8f46a4e90e04efee0e801aab1ca912337e5fbe1fe62ca1"
+    "path": "lib/services/engagement_service.dart",
+    "before": "bc67eb2e7f0c8fd1fbb4080c79a59520a5e5aa19ae73d31067eedd9261e7a3e0",
+    "after": "9433b9d8111db96d5c96257ef9e493dc1cfbc2c96f2fe29d037d905a59014123"
   },
   {
-    "path": "lib/screens/planner_screen.dart",
-    "sha256": "0b751ce404b502fbffeea05e09a746963852b9a5e34b7c9f8eb75cdbe0ea3816",
-    "base_sha256": "4004607e425b3cf92b248c671c68d1199606c213883970bf079fdb54fa849248"
+    "path": "lib/utils/notification_queue.dart",
+    "before": null,
+    "after": "44d7f1ca61872bec4769b9e7eefa112f91329148de200466faeb378371c06390"
   },
   {
-    "path": "lib/screens/whats_new_screen.dart",
-    "sha256": "4653e004fb9a5f41b2988614c446c5ee2bb536e1bbb8980fedcaab45f41543fe",
-    "base_sha256": "a863a57a6ac324b77685b779ad25594b55ac3c520f4d9308711a28d7c8648b2b"
-  },
-  {
-    "path": "lib/services/check_in_service.dart",
-    "sha256": "8ad33749a39e34796aed68437bc0c526874a65c2998998f26c9212b3be111da5",
-    "base_sha256": "a053ced64f7e8de2aae7dff8de45a5952a0d59df19e461be5865e6e8ada6646b"
-  },
-  {
-    "path": "lib/utils/mood_rules.dart",
-    "sha256": "1e7c8995a45749b1e7b759d420a1e8f16d860b1124564feb04277557272d5c0b",
-    "base_sha256": null
-  },
-  {
-    "path": "lib/widgets/home_mood_card.dart",
-    "sha256": "b373d8ec8cb69a828c29fe5d219cefceada2467378f5bc8d43ed41d80b349b54",
-    "base_sha256": null
-  },
-  {
-    "path": "pubspec.yaml",
-    "sha256": "ee8f95781da29e30713d0273d500813b4ef3643ffd237b491fb26aa08ba2149e",
-    "base_sha256": "0464b458e8c2a8eb4dbcfc99a4e35090ad9b185fe42167ef1ab910007821b62c"
-  },
-  {
-    "path": "test/mood_rules_test.dart",
-    "sha256": "25b49f03dc98ae3dfb5cd9875ced6e59e5f03993a5914476a26aa8b002866f12",
-    "base_sha256": null
-  },
-  {
-    "path": "test/widget_test.dart",
-    "sha256": "99fe82b50aacc07dbf53d485f9bebf31e53be2368894498387d7a977b2fb6ce0",
-    "base_sha256": "670375bbf25ae88ef8570080289beaed0a3e4168324bc9fa265042f31ed69bdf"
+    "path": "test/notification_queue_test.dart",
+    "before": null,
+    "after": "490b3d072213e0e0f897410126e693956eff415d349a7a7fe5dbfee230065c22"
   }
 ]
