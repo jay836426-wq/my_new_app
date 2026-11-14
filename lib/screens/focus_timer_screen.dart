@@ -3,6 +3,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../services/planning_store.dart';
 import '../utils/focus_clock.dart';
@@ -24,6 +25,9 @@ class _FocusTimerScreenState extends State<FocusTimerScreen>
   Timer? _timer;
   bool _busy = false;
   String? _error;
+  String? _alertStatus;
+  String? _completion;
+  bool _foreground = true;
   @override
   void initState() {
     super.initState();
@@ -45,7 +49,9 @@ class _FocusTimerScreenState extends State<FocusTimerScreen>
       }
       _store = store;
       _clock = clock;
-      clock.finishIfExpired(DateTime.now());
+      if (clock.finishIfExpired(DateTime.now())) {
+        _completion = '${clock.mode} complete';
+      }
       await persist();
       if (!mounted) return;
       setState(() {});
@@ -68,6 +74,11 @@ class _FocusTimerScreenState extends State<FocusTimerScreen>
   void tick() {
     if (!mounted || _clock == null || _busy) return;
     if (_clock!.finishIfExpired(DateTime.now())) {
+      _completion = '${_clock!.mode} complete';
+      if (_foreground) {
+        SystemSound.play(SystemSoundType.alert);
+        HapticFeedback.heavyImpact();
+      }
       persist().catchError((Object e) {
         if (mounted) setState(() => _error = 'Could not save this session.');
       });
@@ -77,7 +88,8 @@ class _FocusTimerScreenState extends State<FocusTimerScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) tick();
+    _foreground = state == AppLifecycleState.resumed;
+    if (_foreground) tick();
   }
 
   @override
@@ -102,38 +114,92 @@ class _FocusTimerScreenState extends State<FocusTimerScreen>
       }
       if (action == 'start') clock.start(DateTime.now());
       await persist();
+      _completion = null;
       try {
+        await NotificationService.init();
         await NotificationService.cancelNotification(_notificationId);
-        if (clock.running &&
-            await NotificationPreferences.notificationsEnabled() &&
-            (_store!.prefs.getBool(_store!.key('v12_focusAlert')) ?? true)) {
-          await NotificationService.scheduleNotification(
-            id: _notificationId,
-            title: clock.mode == 'Focus'
-                ? 'Focus session complete'
-                : 'Break complete',
-            body: clock.title.isEmpty
-                ? 'Time to take your next step.'
-                : clock.title,
-            scheduledTime: clock.deadline!,
-            payload: 'focus',
+        if (!clock.running) {
+          _alertStatus = 'Timer alert cleared.';
+        } else if (!await NotificationPreferences.notificationsEnabled() ||
+            !(_store!.prefs.getBool(_store!.key('v12_focusAlert')) ?? true)) {
+          _alertStatus =
+              'Timer is running without an alert. Enable the master notification switch and Focus timer completion in Reminders & check-ins.';
+        } else if (!await NotificationService.requestPermissions()) {
+          _alertStatus =
+              'Timer is running without an alert. Notification permission was not granted. Check iPhone Settings.';
+        } else {
+          await _queueAlert(
+            _notificationId,
+            clock.deadline!,
+            clock.mode == 'Focus' ? 'Focus session complete' : 'Break complete',
+            clock.title.isEmpty ? 'Time to take your next step.' : clock.title,
           );
         }
       } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'Timer saved. Its completion notification could not be scheduled.',
-              ),
-            ),
-          );
-        }
+        _alertStatus = 'Timer saved, but its alert could not be confirmed: $e';
       }
     } catch (e) {
       if (mounted) {
         setState(() => _error = 'Could not save timer changes. Please retry.');
       }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _queueAlert(
+    int id,
+    DateTime deadline,
+    String title,
+    String body,
+  ) async {
+    final plugin = NotificationService.notificationsPlugin;
+    final before = await plugin.pendingNotificationRequests();
+    if (before.length >= 60) {
+      // Make room using only the optional encouragement planner's reserved IDs.
+      // Never discard scheduled task, mood or another timer alert here.
+      for (final pending in before) {
+        if (pending.id >= 9010000 && pending.id <= 9010040) {
+          await NotificationService.cancelNotification(pending.id);
+        }
+      }
+    }
+    await NotificationService.scheduleNotification(
+      id: id,
+      title: title,
+      body: body,
+      scheduledTime: deadline,
+      payload: 'focus',
+    );
+    final pending = await plugin.pendingNotificationRequests();
+    final queued = pending.any((n) => n.id == id);
+    if (!mounted) return;
+    _alertStatus = queued
+        ? 'iOS queued the alert for ${TimeOfDay.fromDateTime(deadline.toLocal()).format(context)}. ${pending.length} alerts pending. Queued does not guarantee delivery.'
+        : 'The timer is running, but iOS did not report its alert in the pending queue. ${pending.length} other alerts pending.';
+  }
+
+  Future<void> _testAlert() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      await NotificationService.init();
+      if (!await NotificationPreferences.notificationsEnabled() ||
+          !(_store!.prefs.getBool(_store!.key('v12_focusAlert')) ?? true)) {
+        _alertStatus =
+            'Enable the master switch and Focus timer completion before testing.';
+      } else if (!await NotificationService.requestPermissions()) {
+        _alertStatus = 'Notification permission was not granted.';
+      } else {
+        await _queueAlert(
+          9000019,
+          DateTime.now().add(const Duration(seconds: 10)),
+          'TrakOn timer test',
+          'If you can see this, a scheduled alert reached your iPhone.',
+        );
+      }
+    } catch (e) {
+      _alertStatus = 'Test could not be scheduled: $e';
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -278,6 +344,32 @@ class _FocusTimerScreenState extends State<FocusTimerScreen>
                   'The timer keeps time while the app is in the background. A completion alert requires notification permission.',
                   textAlign: TextAlign.center,
                 ),
+                if (_completion != null)
+                  Card(
+                    child: ListTile(
+                      leading: const Icon(
+                        Icons.check_circle,
+                        color: Colors.greenAccent,
+                      ),
+                      title: Text(_completion!),
+                      subtitle: const Text('Your session has ended.'),
+                      trailing: IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => setState(() => _completion = null),
+                      ),
+                    ),
+                  ),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: _busy ? null : _testAlert,
+                  icon: const Icon(Icons.notifications_active_outlined),
+                  label: const Text('Test alert in 10 seconds'),
+                ),
+                if (_alertStatus != null)
+                  Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Text(_alertStatus!),
+                  ),
                 if (_error != null) Text(_error!),
               ],
             ),
