@@ -1,3 +1,5 @@
+import 'notification_service.dart';
+import 'focus_timer_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -31,9 +33,40 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   @override
   void initState() {
     super.initState();
+    NotificationService.onOpenStopwatch = _openStopwatchNotification;
     final uid = FirebaseAuth.instance.currentUser?.uid ?? 'guest';
     _whatsNewKey = '${uid}_whatsNewSeen_$_release';
     _checkWhatsNew();
+  }
+
+  bool _stopwatchRouteOpen = false;
+  void _openStopwatchNotification() {
+    if (!mounted ||
+        _checkingWhatsNew ||
+        _showWhatsNew ||
+        _stopwatchRouteOpen ||
+        !NotificationService.pendingStopwatchOpen) {
+      return;
+    }
+    NotificationService.pendingStopwatchOpen = false;
+    _stopwatchRouteOpen = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => const FocusTimerScreen(initialMode: 'Stopwatch'),
+        ),
+      );
+      _stopwatchRouteOpen = false;
+    });
+  }
+
+  @override
+  void dispose() {
+    if (NotificationService.onOpenStopwatch == _openStopwatchNotification) {
+      NotificationService.onOpenStopwatch = null;
+    }
+    super.dispose();
   }
 
   Future<void> _checkWhatsNew() async {
@@ -85,6 +118,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     if (_showWhatsNew) {
       return WhatsNewScreen(onFinished: _finishWhatsNew);
     }
+    _openStopwatchNotification();
     return Scaffold(
       body: screens[selectedIndex],
       bottomNavigationBar: BottomNavigationBar(

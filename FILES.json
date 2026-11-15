@@ -2,72 +2,99 @@
   {
     "path": "lib/screens/focus_timer_screen.dart",
     "accepted_before": [
-      "921e861abc9b4035bea2fedb44c2b67c3c74ba0e0912596d279acc3c20033236",
-      "8fe2b969bed9be4bb0c8bbfd2a3e646b929f4e82d8a60e19399eabb23464dbae"
+      "15824ee430378f324c68285e0201e6a9e5109ee2e56688ebf19b3de62b252a3a"
     ],
-    "after": "15824ee430378f324c68285e0201e6a9e5109ee2e56688ebf19b3de62b252a3a"
+    "after": "8d51a082063a39cfdbebc1aab0072586313ca99778b6f702f301231dd373b8dc"
   },
   {
     "path": "lib/screens/home_screen.dart",
     "accepted_before": [
-      "b0f0d637a1b43224c873de9f65b1e0e083c64b518f7f54e57aa2f36241f57751"
+      "fe2c64db119186445e34e0b746bd5c668e397d51482553df42049fdc51601088"
     ],
-    "after": "fe2c64db119186445e34e0b746bd5c668e397d51482553df42049fdc51601088"
+    "after": "bc1d404b196718781c62026edca3615614c346c2c10780015100ab3b3e9e77c1"
+  },
+  {
+    "path": "lib/screens/main_navigation_screen.dart",
+    "accepted_before": [
+      "c60a4274112a285c9250226d964b29935661eaba74bc101e9cd30b58adaf4047"
+    ],
+    "after": "9db350b8708e4de3304d243db3fa0e2c7798c3688e7a162e29ed6580ba8bbb5a"
   },
   {
     "path": "lib/screens/notification_service.dart",
     "accepted_before": [
-      "794128926032dff1c1dd023795d5b98d03bccfea1320d63011c86736deb6fb0e"
+      "fa2aadd4782e3253bbbbdc0eccf5e5eb51e5fa749ad9abf7938982e8cc7b11ae"
     ],
-    "after": "fa2aadd4782e3253bbbbdc0eccf5e5eb51e5fa749ad9abf7938982e8cc7b11ae"
+    "after": "ba8548b4eeedc7981f2b27633ba97caf88afb272ba9a346eb9a2fad3e8bb360f"
   },
   {
-    "path": "lib/services/focus_timer_controller.dart",
+    "path": "lib/utils/notification_queue.dart",
     "accepted_before": [
-      null
+      "44d7f1ca61872bec4769b9e7eefa112f91329148de200466faeb378371c06390"
     ],
-    "after": "fa27a96c9865ece11d648f1ababe8c6def686c67fa915317be908b40fc13d0c5"
-  },
-  {
-    "path": "lib/services/focus_alarm_bridge.dart",
-    "accepted_before": [
-      null
-    ],
-    "after": "602ec2a096da102be81564bec39523309b91a4295159095877499dd5132fd6b3"
+    "after": "6403a6b9665b73fbefe90e189cc178aa5f4fa8ca6e39677ca7b11ce4ad3f1381"
   },
   {
     "path": "lib/widgets/home_focus_card.dart",
     "accepted_before": [
-      null
+      "23f0ded22c9044bb46b541c9ece3c02b9ceeaf9972fdc283e891379b1fa4c0ec"
     ],
-    "after": "23f0ded22c9044bb46b541c9ece3c02b9ceeaf9972fdc283e891379b1fa4c0ec"
-  },
-  {
-    "path": "ios/Runner/AppDelegate.swift",
-    "accepted_before": [
-      "690eb01476091c62fbbd5ba68c3c467413c23e762b07cddaac09d37ccbb7b04a"
-    ],
-    "after": "51d0488d297f5c99d29091923855e36219078873ccbd31e68067ff050b5404fb"
-  },
-  {
-    "path": "ios/Runner/Info.plist",
-    "accepted_before": [
-      "7c88a51b7f68ebef5977b3bf542d8659ce5ef499345879cf5a3ad48013e36b60"
-    ],
-    "after": "75c42a77334936c3ce24fd5841c043f278c0aad4da9619b2b3364dee1dd4cf9a"
-  },
-  {
-    "path": "test/focus_timer_controller_test.dart",
-    "accepted_before": [
-      null
-    ],
-    "after": "a424c3d950edfaefac567ed554f31855e5ce9632459b80a10d40f977285f7a6c"
+    "after": "0d294dde06d9f4a1b11e44645ec30c085fa4ec2058d23441b9ae3bcfeb601e77"
   },
   {
     "path": "pubspec.yaml",
     "accepted_before": [
-      "e3b78d961c9873d6efc5daca1a0249dced586c196d0655b6aff33b7b450914a1"
+      "326fbd6f83dcd82c0b000ba4b4743d3573ee9d34c765e9cbb4671825a5783aac"
     ],
-    "after": "326fbd6f83dcd82c0b000ba4b4743d3573ee9d34c765e9cbb4671825a5783aac"
+    "after": "bc16243a063e12946d28c5e77dac67de7ee11587e8443aa8aeefd6fd95e9f06b"
+  },
+  {
+    "path": "test/notification_queue_test.dart",
+    "accepted_before": [
+      "9bdaa865de060429bf9c69c714005c38cb65f6951d712d4ad83dd5d8d63a4ebb"
+    ],
+    "after": "d17bd3ba2ea3f7fab90b0699e3d0496b0dacacfd18a5b51c2459dcfd84d812e8"
+  },
+  {
+    "path": "lib/services/stopwatch_controller.dart",
+    "accepted_before": [
+      null
+    ],
+    "after": "ea0893ffda19ded6ce3d5a4f406b18a5ad0b680a189ac491a7ce65ef31469fc5"
+  },
+  {
+    "path": "lib/services/stopwatch_repository.dart",
+    "accepted_before": [
+      null
+    ],
+    "after": "9a10762364dd02540cd5c82bbed71f10ad3c3ad5624f53854643194aa2f6d578"
+  },
+  {
+    "path": "lib/utils/stopwatch_session.dart",
+    "accepted_before": [
+      null
+    ],
+    "after": "ad950a73e4fcfeec6cb2c5beaa633edb5dc7d2d833554ffa70b699612cfdab11"
+  },
+  {
+    "path": "lib/widgets/stopwatch_panel.dart",
+    "accepted_before": [
+      null
+    ],
+    "after": "007ccb32044a58888d231d817bf0e3c31f0fd38ee14bbbe3da9bd80ca3f7e399"
+  },
+  {
+    "path": "test/stopwatch_repository_test.dart",
+    "accepted_before": [
+      null
+    ],
+    "after": "3ff80ca27ed3917f5cb1f853815704ee2472aa2bfc0b9378bd3053138d26f4c8"
+  },
+  {
+    "path": "test/stopwatch_session_test.dart",
+    "accepted_before": [
+      null
+    ],
+    "after": "8cc97257b937be5641c1b1ab69d2069fe117b6500477e0e39a7512cce192085d"
   }
 ]

@@ -1,3 +1,5 @@
+import 'notification_service.dart';
+import '../widgets/stopwatch_panel.dart';
 import 'package:flutter/material.dart';
 import '../services/account_planning_store.dart';
 import '../services/focus_timer_controller.dart';
@@ -8,9 +10,13 @@ class FocusTimerScreen extends StatefulWidget {
     this.taskTitle,
     this.initialMode,
     this.autoStart = false,
+    this.stopwatchTaskId,
+    this.stopwatchTaskDate,
+    this.stopwatchTaskTitle,
   });
   final String? taskTitle, initialMode;
   final bool autoStart;
+  final String? stopwatchTaskId, stopwatchTaskDate, stopwatchTaskTitle;
   @override
   State<FocusTimerScreen> createState() => _FocusTimerScreenState();
 }
@@ -18,10 +24,35 @@ class FocusTimerScreen extends StatefulWidget {
 class _FocusTimerScreenState extends State<FocusTimerScreen> {
   FocusTimerController? timer;
   String? loadError;
+  late bool _showStopwatch;
+  bool _stopwatchLaunchConsumed = false;
+  VoidCallback? _previousStopwatchOpen;
   @override
   void initState() {
     super.initState();
+    _previousStopwatchOpen = NotificationService.onOpenStopwatch;
+    NotificationService.onOpenStopwatch = _openStopwatchNotice;
+    _showStopwatch = widget.initialMode == 'Stopwatch';
     load();
+  }
+
+  void _openStopwatchNotice() {
+    final route = mounted ? ModalRoute.of(context) : null;
+    if (mounted && route?.isActive == true) {
+      Navigator.of(context).popUntil((candidate) => candidate == route);
+      NotificationService.pendingStopwatchOpen = false;
+      setState(() => _showStopwatch = true);
+    } else {
+      _previousStopwatchOpen?.call();
+    }
+  }
+
+  @override
+  void dispose() {
+    if (NotificationService.onOpenStopwatch == _openStopwatchNotice) {
+      NotificationService.onOpenStopwatch = _previousStopwatchOpen;
+    }
+    super.dispose();
   }
 
   Future<void> load() async {
@@ -33,6 +64,7 @@ class _FocusTimerScreenState extends State<FocusTimerScreen> {
         await controller.nameFromTask(widget.taskTitle!);
       }
       if (widget.initialMode != null &&
+          widget.initialMode != 'Stopwatch' &&
           controller.clock?.running != true &&
           !controller.paused) {
         await controller.configure(
@@ -140,12 +172,49 @@ class _FocusTimerScreenState extends State<FocusTimerScreen> {
     if (minutes != null) await configure(timer!.clock!.mode, minutes: minutes);
   }
 
+  Future<void> _chooseTool(String mode) async {
+    if (mode == 'Stopwatch') {
+      setState(() => _showStopwatch = true);
+      return;
+    }
+    if (timer == null) return;
+    if (timer!.clock?.mode != mode) {
+      if (!await confirmReset()) return;
+      await timer!.configure(mode);
+    }
+    if (mounted) setState(() => _showStopwatch = false);
+  }
+
+  Widget _tools() => Wrap(
+    alignment: WrapAlignment.center,
+    spacing: 8,
+    runSpacing: 8,
+    children: [
+      for (final mode in ['Focus', 'Break', 'Stopwatch'])
+        ChoiceChip(
+          label: Text(mode),
+          selected: _showStopwatch
+              ? mode == 'Stopwatch'
+              : timer?.clock?.mode == mode,
+          onSelected: timer?.busy == true ? null : (_) => _chooseTool(mode),
+        ),
+    ],
+  );
   @override
   Widget build(BuildContext context) {
     final t = timer;
     return Scaffold(
-      appBar: AppBar(title: const Text('Focus & Break')),
-      body: t == null
+      appBar: AppBar(title: const Text('Timers & Stopwatch')),
+      body: _showStopwatch
+          ? StopwatchPanel(
+              header: _tools(),
+              taskId: widget.stopwatchTaskId,
+              taskDate: widget.stopwatchTaskDate,
+              taskTitle: widget.stopwatchTaskTitle,
+              autoStart: widget.autoStart && !_stopwatchLaunchConsumed,
+              onLaunchConsumed: () => _stopwatchLaunchConsumed = true,
+            )
+          : t == null
           ? Center(
               child: loadError == null
                   ? const CircularProgressIndicator()
@@ -170,24 +239,7 @@ class _FocusTimerScreenState extends State<FocusTimerScreen> {
                 return ListView(
                   padding: const EdgeInsets.all(24),
                   children: [
-                    SegmentedButton<String>(
-                      segments: const [
-                        ButtonSegment(
-                          value: 'Focus',
-                          icon: Icon(Icons.center_focus_strong),
-                          label: Text('Focus'),
-                        ),
-                        ButtonSegment(
-                          value: 'Break',
-                          icon: Icon(Icons.coffee_outlined),
-                          label: Text('Break'),
-                        ),
-                      ],
-                      selected: {c.mode},
-                      onSelectionChanged: t.busy
-                          ? null
-                          : (v) => configure(v.first),
-                    ),
+                    _tools(),
                     const SizedBox(height: 24),
                     Semantics(
                       button: true,

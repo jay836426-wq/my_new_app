@@ -1,3 +1,5 @@
+import '../widgets/stopwatch_panel.dart';
+import '../services/stopwatch_controller.dart';
 import '../widgets/home_focus_card.dart';
 import '../utils/motivational_quotes.dart';
 import '../services/engagement_service.dart';
@@ -609,6 +611,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           label: 'Undo',
           onPressed: () async {
             if (selectedTaskDate != date || !tasks.contains(task)) return;
+            if (previousStatus == 'Complete' &&
+                !await _checkStopwatchBeforeCompletion(task, date)) {
+              return;
+            }
+            if (!mounted || selectedTaskDate != date || !tasks.contains(task)) {
+              return;
+            }
             setState(() {
               task.remove('previousStatus');
               task['status'] = previousStatus;
@@ -625,6 +634,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Future<void> undoTaskStatus(Map<String, dynamic> task) async {
     final previous = task['previousStatus'];
     if (previous is! String) return;
+    final date = selectedTaskDate;
+    if (previous == 'Complete' &&
+        !await _checkStopwatchBeforeCompletion(task, date)) {
+      return;
+    }
+    if (!mounted || selectedTaskDate != date || !tasks.contains(task)) return;
     setState(() {
       task.remove('previousStatus');
       task['status'] = previous;
@@ -730,16 +745,88 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   final Set<String> _statusActions = {};
+  Future<bool> _checkStopwatchBeforeCompletion(
+    TaskData task,
+    String date,
+  ) async {
+    final stopwatch = StopwatchController.forStore(_store);
+    await stopwatch.load();
+    if (!mounted) return false;
+    if (!stopwatch.loaded) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Could not check the stopwatch. Open Stopwatch and retry.',
+          ),
+        ),
+      );
+      return false;
+    }
+    final session = stopwatch.active;
+    if (session == null || !session.matchesTask(taskIdentity(task), date)) {
+      return true;
+    }
+    if (!session.running &&
+        !session.finalizing &&
+        session.elapsed(DateTime.now()) == 0) {
+      return true;
+    }
+    final decision = await showDialog<String>(
+      context: context,
+      builder: (d) => AlertDialog(
+        title: Text('Save time for ${session.taskTitle ?? session.title}?'),
+        content: Text(
+          'The stopwatch has ${stopwatch.time} of unsaved time. Stop and save it before completing this task?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(d, 'cancel'),
+            child: const Text('Cancel'),
+          ),
+          if (!session.finalizing)
+            TextButton(
+              onPressed: () => Navigator.pop(d, 'keep'),
+              child: const Text('Keep timing'),
+            ),
+          FilledButton(
+            onPressed: () => Navigator.pop(d, 'save'),
+            child: const Text('Stop & Save'),
+          ),
+        ],
+      ),
+    );
+    if (decision == 'keep') return true;
+    if (decision != 'save') return false;
+    final saved = await stopwatch.stopAndSave();
+    if (!saved && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            stopwatch.error ?? 'Could not save the stopwatch. Please retry.',
+          ),
+        ),
+      );
+    }
+    return saved;
+  }
+
   Future<void> _setTaskStatus(TaskData task, String status) async {
     final id = taskIdentity(task);
+    final date = selectedTaskDate;
     if (_statusActions.contains(id) || !tasks.contains(task)) return;
-    setState(() {
-      _statusActions.add(id);
-      task['previousStatus'] = task['status'] ?? 'Not Started';
-      task['status'] = status;
-      task['completed'] = status == 'Complete';
-    });
+    setState(() => _statusActions.add(id));
     try {
+      if (status == 'Complete' &&
+          !isTaskComplete(task) &&
+          !await _checkStopwatchBeforeCompletion(task, date)) {
+        return;
+      }
+      if (!mounted || selectedTaskDate != date || !tasks.contains(task)) return;
+      setState(() {
+        task['previousStatus'] = task['status'] ?? 'Not Started';
+        task['status'] = status;
+        task['completed'] = status == 'Complete';
+      });
       await saveTasks();
       await handleTaskStatusNotifications(task);
     } catch (_) {
@@ -912,6 +999,27 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         child: const Text('Return to Not started'),
                       ),
                   ],
+                ),
+                TaskStopwatchCard(
+                  store: _store,
+                  taskId: taskIdentity(task),
+                  taskDate: date,
+                  onOpen: () {
+                    Navigator.pop(sheetContext);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute<void>(
+                        builder: (_) => FocusTimerScreen(
+                          initialMode: 'Stopwatch',
+                          autoStart: true,
+                          stopwatchTaskId: taskIdentity(task),
+                          stopwatchTaskDate: date,
+                          stopwatchTaskTitle:
+                              task['title']?.toString() ?? 'Task',
+                        ),
+                      ),
+                    );
+                  },
                 ),
                 Text('Category: ${task['category'] ?? 'Personal'}'),
                 if (task['priority'] != null)
@@ -3465,6 +3573,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         ? existingNotificationId
                         : createNotificationId();
 
+                    if (editStatus == 'Complete' && !isTaskComplete(task)) {
+                      final date = selectedTaskDate;
+                      if (!await _checkStopwatchBeforeCompletion(task, date)) {
+                        return;
+                      }
+                      if (!mounted ||
+                          !context.mounted ||
+                          selectedTaskDate != date) {
+                        return;
+                      }
+                    }
                     // Update the task immediately.
                     setState(() {
                       if (task['status'] != editStatus) {
@@ -3686,7 +3805,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             onPressed: _openTools,
           ),
           IconButton(
-            tooltip: 'Focus timer',
+            tooltip: 'Timers & Stopwatch',
             onPressed: () => Navigator.push(
               context,
               MaterialPageRoute<void>(builder: (_) => const FocusTimerScreen()),
@@ -3780,6 +3899,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               const SizedBox(height: 32),
 
               HomeFocusCard(key: ValueKey(_store.uid), store: _store),
+              HomeStopwatchCard(
+                key: ValueKey('stopwatch-${_store.uid}'),
+                store: _store,
+                onOpen: () => Navigator.push(
+                  context,
+                  MaterialPageRoute<void>(
+                    builder: (_) =>
+                        const FocusTimerScreen(initialMode: 'Stopwatch'),
+                  ),
+                ),
+              ),
 
               if (_store.prefs.getBool(_store.key('v12_moodPrompt')) ?? true)
                 HomeMoodCard(
@@ -4303,27 +4433,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                     task['status']?.toString() ?? 'Not Started';
                                 final statusDate = selectedTaskDate;
 
-                                setState(() {
-                                  task['previousStatus'] = currentStatus;
-                                  if (currentStatus == 'Complete') {
-                                    // Reopen a completed task.
-                                    task['status'] = 'Not Started';
-                                    task['completed'] = false;
-                                  } else {
-                                    // Quick-complete any unfinished task.
-                                    task['status'] = 'Complete';
-                                    task['completed'] = true;
-                                  }
-                                });
-
-                                // Persist this occurrence before rebuilding its reminders.
-                                await saveTasks();
-                                await handleTaskStatusNotifications(task);
-                                offerUndoStatus(
-                                  task,
-                                  currentStatus,
-                                  statusDate,
-                                );
+                                final nextStatus = currentStatus == 'Complete'
+                                    ? 'Not Started'
+                                    : 'Complete';
+                                await _setTaskStatus(task, nextStatus);
+                                if (task['status'] == nextStatus &&
+                                    selectedTaskDate == statusDate) {
+                                  offerUndoStatus(
+                                    task,
+                                    currentStatus,
+                                    statusDate,
+                                  );
+                                }
 
                                 if (!mounted) return;
 
@@ -4462,25 +4583,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                         nextStatus = 'Not Started';
                                       }
 
-                                      setState(() {
-                                        task['previousStatus'] = currentStatus;
-                                        // Update the workflow status.
-                                        task['status'] = nextStatus;
-
-                                        // Keep the existing completed field synchronized
-                                        // with the new status system.
-                                        task['completed'] =
-                                            nextStatus == 'Complete';
-                                      });
-
-                                      // Persist this occurrence before rebuilding its reminders.
-                                      await saveTasks();
-                                      await handleTaskStatusNotifications(task);
-                                      offerUndoStatus(
-                                        task,
-                                        currentStatus,
-                                        statusDate,
-                                      );
+                                      await _setTaskStatus(task, nextStatus);
+                                      if (task['status'] == nextStatus &&
+                                          selectedTaskDate == statusDate) {
+                                        offerUndoStatus(
+                                          task,
+                                          currentStatus,
+                                          statusDate,
+                                        );
+                                      }
 
                                       if (!mounted) return;
 

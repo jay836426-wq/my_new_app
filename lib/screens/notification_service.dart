@@ -19,6 +19,8 @@ class NotificationService {
 
   // Prevents the service from being initialized more than once.
   static bool _isInitialized = false;
+  static bool pendingStopwatchOpen = false;
+  static VoidCallback? onOpenStopwatch;
 
   // Reserved IDs for notifications that are not connected to one task.
   static const int dailySummaryNotificationId = 9000001;
@@ -57,9 +59,24 @@ class NotificationService {
       settings: settings,
       onDidReceiveNotificationResponse: (NotificationResponse response) {
         debugPrint('Notification selected. Payload: ${response.payload}');
+        if (response.payload?.startsWith('stopwatch:') ?? false) {
+          pendingStopwatchOpen = true;
+          onOpenStopwatch?.call();
+        }
       },
     );
 
+    try {
+      final launch = await notificationsPlugin
+          .getNotificationAppLaunchDetails();
+      if (launch?.didNotificationLaunchApp == true &&
+          (launch?.notificationResponse?.payload?.startsWith('stopwatch:') ??
+              false)) {
+        pendingStopwatchOpen = true;
+      }
+    } catch (e) {
+      debugPrint('Could not read notification launch details: $e');
+    }
     _isInitialized = true;
   }
 

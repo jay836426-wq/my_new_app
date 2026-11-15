@@ -16,6 +16,7 @@ class PlannedAlert {
   bool get isOptional =>
       id >= 9010000 && id <= 9010040 || id >= 9000012 && id <= 9000018;
   String? get protectedGroup {
+    if (id >= 9020000 && id <= 9020002) return 'stopwatch-checkin';
     if (id == 9000007 || id == 9000019) return 'timer:$id';
     if (id >= 9000012 && id <= 9000018) return 'mood';
     if (payload?.startsWith('encouragement:') ?? false) return payload;

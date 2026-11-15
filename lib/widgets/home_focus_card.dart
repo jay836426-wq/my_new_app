@@ -22,8 +22,10 @@ class _HomeFocusCardState extends State<HomeFocusCard> {
   Future<void> open([String? mode]) async {
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) =>
-            FocusTimerScreen(initialMode: mode, autoStart: mode != null),
+        builder: (_) => FocusTimerScreen(
+          initialMode: mode,
+          autoStart: mode != null && mode != 'Stopwatch',
+        ),
       ),
     );
   }
@@ -149,6 +151,11 @@ class _HomeFocusCardState extends State<HomeFocusCard> {
                   ],
                 ),
               ],
+              TextButton.icon(
+                onPressed: () => open('Stopwatch'),
+                icon: const Icon(Icons.av_timer),
+                label: const Text('Open Stopwatch'),
+              ),
               if (timer.error != null)
                 Text(
                   timer.error!,
