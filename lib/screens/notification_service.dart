@@ -1,3 +1,4 @@
+import '../services/focus_alarm_bridge.dart';
 import 'dart:convert';
 
 import '../utils/notification_queue.dart';
@@ -75,6 +76,8 @@ class NotificationService {
 
   // Creates the standard notification appearance.
   static NotificationDetails _notificationDetails({
+    String? sound,
+    bool foregroundSound = true,
     String channelId = 'task_channel',
     String channelName = 'Task Notifications',
     String channelDescription = 'Notifications for TrakOn tasks and reminders',
@@ -90,10 +93,11 @@ class NotificationService {
           playSound: true,
         );
 
-    const DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
+    final DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
       presentAlert: true,
       presentBadge: true,
-      presentSound: true,
+      presentSound: foregroundSound,
+      sound: sound,
     );
 
     return NotificationDetails(android: androidDetails, iOS: iosDetails);
@@ -160,6 +164,13 @@ class NotificationService {
 
     await _queueUpdate(() async {
       await _loadQueue();
+      if (id == 9000007 &&
+          await FocusAlarmBridge.schedule(scheduledTime, title, body)) {
+        _planned.remove(id);
+        await notificationsPlugin.cancel(id: id);
+        await _reconcileQueue();
+        return;
+      }
       _planned[id] = PlannedAlert(
         id: id,
         title: title,
@@ -578,7 +589,10 @@ class NotificationService {
         title: a.title,
         body: a.body,
         scheduledDate: tz.TZDateTime.from(at, tz.local),
-        notificationDetails: _notificationDetails(),
+        notificationDetails: _notificationDetails(
+          sound: a.id == 9000007 ? FocusAlarmBridge.soundFor(a.title) : null,
+          foregroundSound: a.id != 9000007,
+        ),
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
         payload: a.payload,
         matchDateTimeComponents: component,
@@ -588,6 +602,7 @@ class NotificationService {
 
   static Future<void> cancelNotification(int id) => _queueUpdate(() async {
     await _loadQueue();
+    if (id == 9000007) await FocusAlarmBridge.cancel();
     _planned.remove(id);
     await notificationsPlugin.cancel(id: id);
     await _reconcileQueue();
@@ -595,6 +610,7 @@ class NotificationService {
 
   static Future<void> cancelAllNotifications() => _queueUpdate(() async {
     await _loadQueue();
+    await FocusAlarmBridge.cancel();
     _planned.clear();
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_queueKey);

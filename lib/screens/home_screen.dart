@@ -1,3 +1,4 @@
+import '../widgets/home_focus_card.dart';
 import '../utils/motivational_quotes.dart';
 import '../services/engagement_service.dart';
 import '../widgets/home_mood_card.dart';
@@ -3777,6 +3778,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               ),
 
               const SizedBox(height: 32),
+
+              HomeFocusCard(key: ValueKey(_store.uid), store: _store),
 
               if (_store.prefs.getBool(_store.key('v12_moodPrompt')) ?? true)
                 HomeMoodCard(
