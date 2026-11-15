@@ -107,4 +107,13 @@ void main() {
       chooseQueuedAlerts(saved, now).map((a) => a.id),
     );
   });
+  test('stopwatch check-ins keep a slot alongside task and mood alerts', () {
+    final selected = chooseQueuedAlerts([
+      for (var i = 0; i < 100; i++) task(i),
+      extra(9020000, 'stopwatch:gym', 80),
+      extra(9000012, 'checkin:mood', 90),
+    ], now);
+    expect(selected.map((a) => a.id), containsAll([9020000, 9000012]));
+    expect(selected.length, lessThanOrEqualTo(60));
+  });
 }
