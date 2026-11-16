@@ -3899,17 +3899,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               const SizedBox(height: 32),
 
               HomeFocusCard(key: ValueKey(_store.uid), store: _store),
-              HomeStopwatchCard(
-                key: ValueKey('stopwatch-${_store.uid}'),
-                store: _store,
-                onOpen: () => Navigator.push(
-                  context,
-                  MaterialPageRoute<void>(
-                    builder: (_) =>
-                        const FocusTimerScreen(initialMode: 'Stopwatch'),
-                  ),
-                ),
-              ),
 
               if (_store.prefs.getBool(_store.key('v12_moodPrompt')) ?? true)
                 HomeMoodCard(
